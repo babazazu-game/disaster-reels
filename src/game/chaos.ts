@@ -61,8 +61,8 @@ function scorchTexture(): THREE.Texture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d')!;
-  const r = g.createRadialGradient(32, 32, 4, 32, 32, 31);
-  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.6, 'rgba(255,255,255,.75)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+  const r = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  r.addColorStop(0, 'rgba(255,255,255,.95)'); r.addColorStop(0.45, 'rgba(255,255,255,.6)'); r.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = r; g.fillRect(0, 0, 64, 64);
   return new THREE.CanvasTexture(c);
 }
@@ -127,10 +127,14 @@ export class Surface {
     this.timer = new Float32Array(total);
     const tile = new THREE.PlaneGeometry(STEP * 0.98, STEP * 0.98).rotateX(-Math.PI / 2);
     // под огнём — обугленное пятно с мягким краем; сам огонь — языки пламени (Flames)
-    this.fire = new THREE.InstancedMesh(tile, new THREE.MeshBasicMaterial({ map: scorchTexture(), color: 0x2a160c, transparent: true, opacity: 0.8, depthWrite: false }), total);
+    // пятно крупнее клетки — соседние сливаются; polygonOffset — иначе вдали пятно рвётся о траву (z-fighting)
+    const scorch = new THREE.PlaneGeometry(STEP * 1.35, STEP * 1.35).rotateX(-Math.PI / 2);
+    this.fire = new THREE.InstancedMesh(scorch, new THREE.MeshBasicMaterial({ map: scorchTexture(), color: 0x2a160c, transparent: true, opacity: 0.7,
+      depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }), total);
     const it = iceTexture();
-    this.ice = new THREE.InstancedMesh(tile, new THREE.MeshStandardMaterial({ map: it, color: 0xd8f3ff, roughness: 0.08, transparent: true, opacity: 0.92 }), total);
-    this.fire.position.y = 0.035; this.ice.position.y = 0.03;
+    this.ice = new THREE.InstancedMesh(tile, new THREE.MeshStandardMaterial({ map: it, color: 0xd8f3ff, roughness: 0.08, transparent: true, opacity: 0.92,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), total);
+    this.fire.position.y = 0.06; this.ice.position.y = 0.04;
     for (const m of [this.fire, this.ice]) { m.count = 0; m.frustumCulled = false; m.receiveShadow = true; scene.add(m); }
   }
 
@@ -174,8 +178,8 @@ export class Surface {
     for (const k of this.burning) {
       const cx = (k % this.n) * STEP - this.half + STEP / 2, cz = Math.floor(k / this.n) * STEP - this.half + STEP / 2;
       const fade = Math.min(1, this.timer[k] / 1.2);
-      this.flames.add(cx - 0.45 + ((k * 37) % 7) / 10, 0.04, cz - 0.3 + ((k * 13) % 5) / 10, 1.15 * fade, k);
-      this.flames.add(cx + 0.4 - ((k * 11) % 6) / 10, 0.04, cz + 0.35 - ((k * 29) % 7) / 10, 0.85 * fade, k + 0.5);
+      this.flames.add(cx - 0.45 + ((k * 37) % 7) / 10, 0.07, cz - 0.3 + ((k * 13) % 5) / 10, 1.15 * fade, k);
+      this.flames.add(cx + 0.4 - ((k * 11) % 6) / 10, 0.07, cz + 0.35 - ((k * 29) % 7) / 10, 0.85 * fade, k + 0.5);
     }
     if (!this.dirty) return;
     this.dirty = false;
