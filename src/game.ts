@@ -17,6 +17,7 @@ import { createWorld, block, CLASSIC, cloudsAlong, mergeStatic } from './engine/
 import { Avatar } from './engine/avatar.ts';
 import { Input } from './engine/input.ts';
 import { FollowCamera } from './engine/camera.ts';
+import { occludable, setOccluder } from './engine/occlude.ts';
 import { Controller } from './engine/controller.ts';
 import { Physics, type Solid } from './engine/physics.ts';
 import { FpsMeter } from './engine/fps.ts';
@@ -165,12 +166,12 @@ export function createScene(parent: HTMLElement): Game {
     };
     const parts: THREE.Mesh[] = [];
     /** Блок в «чертёжных» координатах (до поворота). pos — центр низа. */
-    const put = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number, hard = true, raw = false) => {
+    const put = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number, hard: boolean | 'leaf' = true, raw = false) => {
       const [px, pz] = raw ? [x, z] : T(x, z), swap = !raw && turns % 2 === 1;
       const m = block({ x: swap ? sz : sx, y: sy, z: swap ? sx : sz }, color);
       m.position.set(px, y + sy / 2, pz);
       layout.add(m);
-      if (hard) layoutSolids.push(physics.addMesh(m));
+      if (hard) layoutSolids.push(physics.addMesh(m, hard === 'leaf' ? 'leaf' : undefined));
       parts.push(m);
     };
     // ступенчатый холм (1 → 2 → 3 м): забраться повыше — спасение от лавы и бегающих
@@ -217,20 +218,23 @@ export function createScene(parent: HTMLElement): Game {
       const along = Math.random() < 0.5;
       for (const [dx, y, dz] of g) put(2, 2, 2, p[0] + (along ? dx : dz) - (g.length > 1 && along ? 1 : 0), y, p[1] + (along ? dz : dx) - (g.length > 1 && !along ? 1 : 0), C.crate, true, true);
     }
-    // деревья: ствол твёрдый, крона — декор (под ней можно стоять)
+    // деревья: ствол твёрдый, крона тоже держит (заказчик: «забрался на дерево — должен остаться»).
+    // Тип 'leaf': для метеоров, существ и ботов крона не земля — под ней по-прежнему можно стоять
     for (let k = 0; k < 5; k++) {
       const p = spot(1.6);
       if (!p) continue;
       put(1, 3, 1, p[0], 0, p[1], C.trunk, true, true);
-      put(3.4, 2.4, 3.4, p[0], 3, p[1], C.leaves, false, true);
-      put(2, 1.2, 2, p[0], 5.4, p[1], C.leaves, false, true);
+      put(3.4, 2.4, 3.4, p[0], 3, p[1], C.leaves, 'leaf', true);
+      put(2, 1.2, 2, p[0], 5.4, p[1], C.leaves, 'leaf', true);
     }
     mergeStatic(layout, parts);
+    // препятствия перед игроком «просвечивают» (см. occlude.ts)
+    for (const c of layout.children) { const m = c as THREE.Mesh; m.material = occludable(m.material as THREE.Material); }
     // манекены — тоже на новые места
     dummySpots = [];
     for (let k = 0; k < DUMMIES; k++) dummySpots.push(spot(0.8) ?? [k * 3 - 9, -3]);
     // верхушки построек — куда боты лезут прятаться и спасаться от лавы
-    spots = layoutSolids.map((sd) => { const b = sd.box; return { x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, h: b.max.y, sx: (b.max.x - b.min.x) / 2 - 0.3, sz: (b.max.z - b.min.z) / 2 - 0.3 }; });
+    spots = layoutSolids.filter((sd) => sd.kind !== 'leaf').map((sd) => { const b = sd.box; return { x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, h: b.max.y, sx: (b.max.x - b.min.x) / 2 - 0.3, sz: (b.max.z - b.min.z) / 2 - 0.3 }; });
   };
   let dummySpots: [number, number][] = [];
   let spots: Spot[] = [];
@@ -240,7 +244,7 @@ export function createScene(parent: HTMLElement): Game {
     let top = 0;
     for (const sd of physics.solids) {
       const b = sd.box;
-      if (x > b.min.x && x < b.max.x && z > b.min.z && z < b.max.z && b.max.y < 30) top = Math.max(top, b.max.y);
+      if (sd.kind !== 'leaf' && x > b.min.x && x < b.max.x && z > b.min.z && z < b.max.z && b.max.y < 30) top = Math.max(top, b.max.y);
     }
     return top;
   };
@@ -512,6 +516,7 @@ export function createScene(parent: HTMLElement): Game {
     dustLeft = DUST_FRAME;
     ui.update(realDt);
     cam.update(realDt, ctl.pos);
+    setOccluder(ctl.pos, cam.camera.position);
   };
 
   if (import.meta.env.DEV) {
