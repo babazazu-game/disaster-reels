@@ -254,6 +254,7 @@ export function createScene(parent: HTMLElement): Game {
       dummiesNear(x, y, z, r);
     },
     hitDummies: (x, y, z, r, infect) => (r > 0 ? dummiesNear(x, y, z, r, infect) : []),
+    nudge: (vx, vy, vz) => { if (state === 'play') { ctl.vel.x += vx; ctl.vel.y = Math.min(ctl.vel.y + vy, 9); ctl.vel.z += vz; } },
   });
 
   const restart = () => {

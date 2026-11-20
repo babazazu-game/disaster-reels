@@ -12,7 +12,7 @@ import { lang } from '../i18n.ts';
 export const COUNTS = [1, 3, 5, 10, 25, 100] as const;
 
 export type AdjId = 'fire' | 'ice' | 'giant' | 'bouncy' | 'fast' | 'plain';
-export type NounId = 'chicken' | 'cat' | 'shark' | 'banana' | 'meteor' | 'bomb' | 'snowman' | 'slime' | 'zombie';
+export type NounId = 'chicken' | 'cat' | 'shark' | 'banana' | 'meteor' | 'bomb' | 'snowman' | 'slime' | 'zombie' | 'dino' | 'ufo' | 'tornado';
 
 interface Adj { ru: { m: string; f: string; pl: string; gpl: string }; en: string }
 interface Noun { ru: { g: 'm' | 'f'; one: string; few: string; many: string }; en: [string, string] }
@@ -37,6 +37,10 @@ export const NOUNS: Record<NounId, Noun> = {
   slime: { ru: { g: 'm', one: 'слайм', few: 'слайма', many: 'слаймов' }, en: ['slime', 'slimes'] },
   // «зомби» не склоняется: 1 огненный зомби, 3 огненных зомби, 5 огненных зомби
   zombie: { ru: { g: 'm', one: 'зомби', few: 'зомби', many: 'зомби' }, en: ['zombie', 'zombies'] },
+  dino: { ru: { g: 'm', one: 'динозавр', few: 'динозавра', many: 'динозавров' }, en: ['dinosaur', 'dinosaurs'] },
+  // НЛО и торнадо тоже не склоняются
+  ufo: { ru: { g: 'm', one: 'НЛО', few: 'НЛО', many: 'НЛО' }, en: ['UFO', 'UFOs'] },
+  tornado: { ru: { g: 'm', one: 'торнадо', few: 'торнадо', many: 'торнадо' }, en: ['tornado', 'tornadoes'] },
 };
 
 export const ADJ_IDS = Object.keys(ADJS) as AdjId[];
