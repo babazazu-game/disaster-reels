@@ -1,30 +1,29 @@
 {
   "summary": {
-    "rounds": 2,
+    "rounds": 1,
     "survive": {
       "smart": "0%",
       "idle": "0%"
     },
     "avgDeathSec": {
-      "smart": 46.6,
+      "smart": 57.4,
       "idle": null
     },
     "causes": {
-      "Огненный метеорит": 2
+      "Огненный метеорит": 1
     },
     "avgHits": 3,
-    "botsAliveAvg": 4,
+    "botsAliveAvg": 0,
     "botsAliveIfWin": null,
     "reactions": {
-      "skate": 11943,
-      "melt": 12,
-      "douse": 5,
-      "catchFire": 1
+      "blast": 5,
+      "melt": 16,
+      "steam": 1
     },
-    "roundsWithReaction": 2,
+    "roundsWithReaction": 1,
     "worst": null,
-    "stuckTotal": 1,
-    "maxMobs": 15,
+    "stuckTotal": 0,
+    "maxMobs": 14,
     "simMsPerTick": 0.1,
     "errors": []
   },
@@ -33,117 +32,50 @@
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 46.6,
+      "tDeath": 57.4,
       "cause": "Огненный метеорит",
       "reels": [
-        "3 ЛЕДЯНЫЕ АКУЛЫ!",
-        "3 БЫСТРЫХ СНЕГОВИКА!",
-        "5 ПРЫГУЧИХ КОТОВ!"
+        "5 ОБЫЧНЫХ БОМБ!",
+        "10 ЛЕДЯНЫХ БАНАНОВ!",
+        "10 ГИГАНТСКИХ БОМБ!"
       ],
-      "maxMobs": 12,
+      "maxMobs": 14,
       "stuck": 0,
       "kinds": {
-        "shark": 3,
-        "snowman": 3,
-        "cat": 4,
-        "meteor": 1
+        "meteor": 2
       },
-      "tickMs": 0.127,
-      "ticks": 3344,
+      "tickMs": 0.083,
+      "ticks": 4016,
       "stopPresses": 9,
       "errors": [],
       "reacted": {
-        "skate": 6117,
-        "melt": 6
+        "blast": 5,
+        "melt": 16,
+        "steam": 1
       },
-      "bots": 4,
-      "botT": 46.626666666665386,
+      "bots": 0,
+      "botT": 57.43166666666495,
       "pos": [
-        18.7,
+        -21.6,
         3,
-        -22.5
+        17.1
       ],
       "hill": [
         [
-          9,
-          -16
+          -16,
+          9
         ],
         [
-          14,
-          -18
+          -18,
+          14
         ],
         [
-          18,
-          -21
-        ]
-      ],
-      "lava": -0.94,
-      "wallMs": 471
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 46.6,
-      "cause": "Огненный метеорит",
-      "reels": [
-        "5 ОГНЕННЫХ КОТОВ!",
-        "7 ЛЕДЯНЫХ ДИНОЗАВРОВ!",
-        "5 ЛЕДЯНЫХ СНЕГОВИКОВ!"
-      ],
-      "maxMobs": 15,
-      "stuck": 1,
-      "kinds": {
-        "cat": 4,
-        "dino": 4,
-        "snowman": 5,
-        "meteor": 1
-      },
-      "tickMs": 0.133,
-      "ticks": 3396,
-      "stopPresses": 11,
-      "errors": [],
-      "stuckAt": [
-        [
-          "dino",
-          "ice",
-          22,
-          0,
-          -16.8,
-          1,
-          "-",
-          0
-        ]
-      ],
-      "reacted": {
-        "douse": 5,
-        "skate": 5826,
-        "catchFire": 1,
-        "melt": 6
-      },
-      "bots": 4,
-      "botT": 46.636666666665384,
-      "pos": [
-        3.3,
-        0,
-        9.5
-      ],
-      "hill": [
-        [
-          9,
-          16
-        ],
-        [
-          14,
+          -21,
           18
-        ],
-        [
-          18,
-          21
         ]
       ],
-      "lava": -0.94,
-      "wallMs": 509
+      "lava": 2.11,
+      "wallMs": 379
     }
   ]
 }

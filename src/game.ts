@@ -440,6 +440,7 @@ export function createScene(parent: HTMLElement): Game {
     menu.hide();
     menu.setPauseButton(true);
     ui.setHud(true);
+    input.setVisible(true);
     restart();
     ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
     core.gameplayStart();
@@ -449,6 +450,7 @@ export function createScene(parent: HTMLElement): Game {
     reels.hide();
     menu.setPauseButton(false);
     ui.setHud(false);
+    input.setVisible(false);
     menu.showMain(diff, muted);
     core.gameplayStop();
   };
@@ -463,6 +465,7 @@ export function createScene(parent: HTMLElement): Game {
     setTimeout(() => {
       if (mode !== 'round') return;
       ui.setHud(false);
+      input.setVisible(false);
       menu.showResult({ win, title: win ? L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!') : L('ТЫ ПОГИБ', 'YOU DIED'), cause: win ? undefined : deathCause,
         time, round: ROUND, botsAlive: bots.alive + (win ? 1 : 0), botsTotal: DUMMIES + 1,   // «игроки», не «боты» (заказчик: пусть думают, что это люди)
         best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff });
@@ -475,10 +478,11 @@ export function createScene(parent: HTMLElement): Game {
     if (mode !== 'round' || state !== 'play') return;
     mode = 'pause';
     ui.setHud(false);
+    input.setVisible(false);
     menu.showPause(muted);
     core.gameplayStop();
   };
-  menu.onResume = () => { if (mode !== 'pause') return; mode = 'round'; ui.setHud(true); menu.hide(); core.gameplayStart(); };
+  menu.onResume = () => { if (mode !== 'pause') return; mode = 'round'; ui.setHud(true); input.setVisible(true); menu.hide(); core.gameplayStart(); };
   menu.onMute = (m) => { muted = m; applyMute(); progress.patch({ muted: m }); };
 
   /** Барабан встал: большая фраза и волна существ. */

@@ -1,5 +1,6 @@
 import { installTap } from '../engine/tap.ts';
-import { fontPx, tapSize } from 'yg-core';
+// В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
+// на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
 import { COUNTS, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './words.ts';
 
 /**
@@ -300,9 +301,9 @@ function injectCss(): void {
   background:linear-gradient(#4e286a65,transparent 34%,#ffffff24 49%,transparent 68%,#4e286a73);
   border-radius:inherit;box-shadow:inset 0 0 0 max(2px,calc(var(--w)*.004)) #351642}
 .reels-stop{position:relative;isolation:isolate;pointer-events:none;flex:none;width:calc(var(--w)*.22);height:calc(var(--w)*.22);
-  min-width:${tapSize(56)}px;min-height:${tapSize(56)}px;padding:0;border-radius:50%;cursor:pointer;touch-action:manipulation;
+  min-width:56px;min-height:56px;padding:0;border-radius:50%;cursor:pointer;touch-action:manipulation;
   background:linear-gradient(#ff7479,#f72d47 48%,#d50c36 75%,#a91237);color:#fff;border:clamp(3px,calc(var(--w)*.009),6px) solid #321034;
-  font:900 max(${fontPx(13, 1)}px,calc(var(--w)*.05))/1 var(--font);white-space:nowrap;
+  font:900 max(13px,calc(var(--w)*.05))/1 var(--font);white-space:nowrap;
   -webkit-text-stroke:clamp(2px,calc(var(--w)*.007),5px) #521129;paint-order:stroke fill;text-shadow:0 .09em #521129;
   box-shadow:inset 0 0 0 max(2px,calc(var(--w)*.0045)) #ffcf50,0 calc(var(--w)*.012) #951442,0 calc(var(--w)*.017) #321034}
 .reels-stop::before{content:'';position:absolute;z-index:-1;pointer-events:none;inset:8% 15% auto;height:35%;border-radius:50%;
@@ -323,7 +324,7 @@ function injectCss(): void {
 .reels.show .reels-stop:not(:disabled):not(:active){animation:stopPulse .8s ease-in-out infinite}
 .reels-count{position:absolute;top:-12%;right:-12%;width:42%;height:42%;border-radius:50%;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(#fff392,#ffb221);color:#63270e;border:max(2px,calc(var(--w)*.004)) solid #592543;
-  font:900 max(${fontPx(13, 1)}px,calc(var(--w)*.045))/1 var(--font);-webkit-text-stroke:0;text-shadow:none;box-shadow:inset 0 1px #fffde0,0 2px #8c4317}
+  font:900 max(13px,calc(var(--w)*.045))/1 var(--font);-webkit-text-stroke:0;text-shadow:none;box-shadow:inset 0 1px #fffde0,0 2px #8c4317}
 .reel.next{box-shadow:0 0 0 max(2px,calc(var(--w)*.006)) #fff699,0 0 calc(var(--w)*.018) #ffd23a}
 @keyframes stopPulse{50%{transform:scale(1.055)}}
 @media (prefers-reduced-motion:reduce){.reels,.reels.show{transition:none}.reels.show .reels-stop:not(:disabled):not(:active){animation:none}}

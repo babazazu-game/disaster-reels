@@ -1,4 +1,4 @@
-import { safeInsets, tapSize } from 'yg-core';
+import { safeInsets } from 'yg-core';
 
 /**
  * Ввод серии: клавиатура, мышь, тач — в одно состояние `move/jump/look`.
@@ -88,11 +88,17 @@ export class Input {
   /** Кнопка прыжка и джойстик — от краёв внутрь с учётом safe-area (п. 1.10.1). */
   private layout(): void {
     const ins = safeInsets();
-    const s = tapSize(Math.round(Math.min(innerWidth, innerHeight) * 0.2));
+    const s = Math.max(44, Math.round(Math.min(innerWidth, innerHeight) * 0.2));   // CSS-пиксели; tapSize из yg-core умножал на DPR — на телефоне кнопка была втрое больше
     Object.assign(this.jumpBtn.style, { width: s + 'px', height: s + 'px', right: ins.right + s * 0.35 + 'px', bottom: ins.bottom + s * 0.35 + 'px' });
     const b = Math.round(s * 1.4);
     Object.assign(this.base.style, { width: b + 'px', height: b + 'px' });
     Object.assign(this.knob.style, { width: b * 0.45 + 'px', height: b * 0.45 + 'px' });
+  }
+
+  /** Джойстик и прыжок прячем под меню/паузой/итогом (заказчик: «в меню видно кнопку прыжок»). Отпускаем всё зажатое. */
+  setVisible(v: boolean): void {
+    this.ui.style.visibility = v ? '' : 'hidden';
+    if (!v) { this.stick = null; this.touchJump = false; this.base.classList.remove('show'); this.jumpBtn.classList.remove('down'); }
   }
 
   private onTouch(e: TouchEvent, phase: 'start' | 'move' | 'end'): void {

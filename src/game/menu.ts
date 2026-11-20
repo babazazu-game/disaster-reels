@@ -1,5 +1,6 @@
 import { installTap } from '../engine/tap.ts';
-import { fontPx, tapSize } from 'yg-core';
+// В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
+// на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
 
 export type Difficulty = 'easy' | 'normal' | 'chaos';
 
@@ -381,7 +382,7 @@ function injectCss(): void {
   --u:min(1vh,8px); --u:min(1dvh,8px);
   --ink:#2a1250; --line:clamp(3px,calc(.68 * var(--u)),6px);
   --depth:clamp(4px,calc(.95 * var(--u)),8px);
-  --min-font:max(13px,${fontPx(13, 1)}px); --tap:${tapSize(48)}px;
+  --min-font:max(13px,13px); --tap:48px;
   font:900 clamp(var(--min-font),calc(2.6 * var(--u)),22px)/1.12 Nunito,"Arial Black",system-ui,sans-serif;
   box-sizing:border-box;
 }
@@ -477,7 +478,7 @@ function injectCss(): void {
   line-height:1.05; -webkit-text-stroke:2px var(--ink); text-shadow:0 1px var(--ink);
 }
 .mnu-check {
-  display:none; position:absolute; top:0; left:50%; transform:translate(-50%,-63%);
+  display:none; position:absolute; top:0; right:0; transform:translate(30%,-35%);   /* в углу, а не по центру — закрывала название сложности */
   width:clamp(22px,calc(4.4 * var(--u)),40px); aspect-ratio:1; place-items:center;
   border:2px solid #174d17; border-radius:50%; color:#fff;
   background:linear-gradient(#9bf94d,#2fc827 65%,#179516); box-shadow:inset 0 2px #ecffb9,0 2px #173d18;

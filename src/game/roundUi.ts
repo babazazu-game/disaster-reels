@@ -1,5 +1,6 @@
 import { installTap } from '../engine/tap.ts';
-import { fontPx } from 'yg-core';
+// В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
+// на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
 
 /**
  * Интерфейс раунда: таймер сверху, крупное объявление волны по центру,
@@ -124,7 +125,7 @@ function injectCss(): void {
 .rui-timer{left:50%;translate:-50% 0;align-items:center;justify-content:center;gap:.28em;
   min-width:4.25em;padding:.22em .34em;box-sizing:border-box;border-radius:999px;
   background:linear-gradient(#643a96,#351b63 62%,#2a144f);border:clamp(3px,calc(.64*var(--hud-u)),5px) solid #201038;
-  color:#fff;font:900 clamp(${fontPx(18, 1)}px,min(5.2vw,calc(4.7*var(--hud-u))),39px)/1 var(--hud-font);
+  color:#fff;font:900 clamp(18px,min(5.2vw,calc(4.7*var(--hud-u))),39px)/1 var(--hud-font);
   font-variant-numeric:tabular-nums;white-space:nowrap;-webkit-text-stroke:.1em #211037;paint-order:stroke fill;text-shadow:0 .09em #211037;
   box-shadow:inset 0 2px #d7acff8c,0 clamp(3px,calc(.65*var(--hud-u)),6px) #22113b}
 .rui-clock,.rui-hearts i{display:grid;place-items:center;aspect-ratio:1;flex:none;font-style:normal}
@@ -141,9 +142,11 @@ function injectCss(): void {
 .rui-hearts i.lost{filter:grayscale(1) brightness(.78);opacity:.62;transform:scale(.79)}
 .rui-hearts.hit{animation:ruiHit .4s}
 @keyframes ruiHit{0%,100%{transform:none}25%{transform:translateX(-6px) rotate(-4deg)}50%{transform:translateX(6px) rotate(4deg)}75%{transform:translateX(-3px)}}
+/* телефон вертикально: по центру барабан с большой СТОП — фраза волны выше него и поверх (заказчик: текст был за кнопкой) */
+@media (pointer:coarse) and (orientation:portrait){.rui-banner{top:16%!important}}
 .rui-banner{position:absolute;inset-inline:calc(env(safe-area-inset-left) + 14px) calc(env(safe-area-inset-right) + 14px);top:30%;
   margin-inline:auto;width:max-content;max-width:calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right) - 28px);
-  translate:0 -50%;z-index:6;opacity:0;pointer-events:none;color:#fff;text-align:center;text-wrap:balance;
+  translate:0 -50%;z-index:8;opacity:0;pointer-events:none;color:#fff;text-align:center;text-wrap:balance;
   font:900 clamp(24px,min(7.5vw,calc(8.2*var(--hud-u))),68px)/1.08 var(--hud-font);
   -webkit-text-stroke:clamp(4px,calc(1.2*var(--hud-u)),10px) var(--hud-ink);paint-order:stroke fill;
   text-shadow:0 clamp(3px,calc(.92*var(--hud-u)),8px) var(--hud-ink);transition:opacity .2s}
