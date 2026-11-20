@@ -19,6 +19,30 @@ import { Cell, GROUND_Y } from './chaos.ts';
  */
 
 const NICKS = ['Kirill_2014', 'pro_nastya', 'DimkaYT', 'SuperMax777', 'Lizka_kitty', 'Noob_Master', 'TimurPlay', 'sonya.bloxy', 'Artem_GG', 'xX_Egor_Xx', 'Vika_cute', 'MegaBuilder'];
+/*
+ * Ники соперников — НОВЫЕ каждый раунд (заказчик: одни и те же имена выдают, что это не живые игроки).
+ * Склеиваем из имени/слова и «украшений», как пишут дети в Роблоксе; плюс готовые ники выше.
+ */
+const NAMES = ['Kirill', 'Nastya', 'Dimka', 'Max', 'Liza', 'Timur', 'Sonya', 'Artem', 'Egor', 'Vika', 'Misha', 'Polina', 'Danya', 'Sasha',
+  'Katya', 'Vanya', 'Alisa', 'Matvey', 'Arina', 'Lev', 'Mila', 'Gleb', 'Yana', 'Roma', 'Dasha', 'Fedya', 'Kira', 'Sema', 'Ulya', 'Nikita',
+  'Tema', 'Lera', 'Ilya', 'Vera', 'Mark', 'Eva', 'Zhenya', 'Tasya', 'Bogdan', 'Masha'];
+const WORDS = ['Shadow', 'Ninja', 'Pixel', 'Blox', 'Turbo', 'Lucky', 'Crazy', 'Speedy', 'Gamer', 'Builder', 'Cookie', 'Panda', 'Foxy', 'Bunny',
+  'Dragon', 'Rocket', 'Storm', 'Frosty', 'Sunny', 'Zombie', 'Kitty', 'Banana', 'Taco', 'Noob', 'Boss', 'Legend', 'Cheese', 'Mango'];
+const pickOf = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
+const num = () => pickOf(['', String(Math.floor(Math.random() * 99) + 1), String(2008 + Math.floor(Math.random() * 11)), '777', '228', '1337', '_' + (Math.floor(Math.random() * 9) + 1)]);
+function makeNick(): string {
+  const n = pickOf(NAMES), w = pickOf(WORDS);
+  const v = Math.random();
+  const nick = v < 0.12 ? pickOf(NICKS)
+    : v < 0.3 ? `${n}_${w}${num()}`
+    : v < 0.45 ? `${w}${pickOf(WORDS)}${num()}`
+    : v < 0.55 ? `xX_${n}_Xx`
+    : v < 0.65 ? `${n.toLowerCase()}.${w.toLowerCase()}`
+    : v < 0.75 ? `pro_${n.toLowerCase()}${num()}`
+    : v < 0.85 ? `${n}${pickOf(['YT', 'Play', '_GG', 'TV', 'Top', '_cool'])}`
+    : `${n}${num() || '_' + (Math.floor(Math.random() * 90) + 10)}`;
+  return nick.slice(0, 16);
+}
 const THINK = 0.2;          // мозг, с
 const JUMP_UP = 2.3;        // на сколько бот запрыгивает (прыжок 13 м/с даёт ~2,5 м)
 const BURN = 0.4;           // столько в огне/под током — и сгорел
@@ -83,6 +107,15 @@ class ArenaBot {
     this.ctl.setSpawn(new THREE.Vector3(x, 0.01, z), Math.atan2(-x, -z));
     this.ctl.respawn();
     this.ctl.grip = 1; this.ctl.speedMul = 1;
+  }
+
+  /** Сменить ник над головой: перерисовать текстуру таблички. */
+  setNick(nick: string): void {
+    const m = this.tag.material as THREE.SpriteMaterial;
+    const old = m.map;
+    m.map = nameTexture(nick);
+    m.needsUpdate = true;
+    old?.dispose();
   }
 
   get pos(): THREE.Vector3 { return this.alive ? this.ctl.pos : this.avatar.root.position; }
@@ -234,11 +267,20 @@ export class ArenaBots {
   readonly list: ArenaBot[] = [];
 
   constructor(scene: THREE.Scene, physics: Physics, count: number, private h: ArenaBotHooks) {
-    const nicks = [...NICKS].sort(() => Math.random() - 0.5);
-    for (let i = 0; i < count; i++) this.list.push(new ArenaBot(scene, physics, i, nicks[i], h));
+    for (let i = 0; i < count; i++) this.list.push(new ArenaBot(scene, physics, i, makeNick(), h));
   }
 
-  reset(spawns: [number, number][]): void { this.list.forEach((b, i) => b.reset(...spawns[i % spawns.length])); }
+  reset(spawns: [number, number][]): void {
+    // каждый раунд — новые неповторяющиеся ники
+    const used = new Set<string>();
+    this.list.forEach((b, i) => {
+      let n = makeNick();
+      for (let k = 0; k < 10 && used.has(n); k++) n = makeNick();
+      used.add(n);
+      b.setNick(n);
+      b.reset(...spawns[i % spawns.length]);
+    });
+  }
 
   update(dt: number): void { for (const b of this.list) b.update(dt, this.h); }
 
@@ -262,6 +304,14 @@ export class ArenaBots {
 
 /** Ник над головой: спрайт всегда смотрит в камеру. */
 function nameTag(nick: string): THREE.Sprite {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: nameTexture(nick), depthTest: false, transparent: true }));
+  s.scale.set(2.4, 0.6, 1);
+  s.position.y = 3.8;   // выше шляпы волшебника и банана
+  s.renderOrder = 10;
+  return s;
+}
+
+function nameTexture(nick: string): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 64;
   const g = c.getContext('2d')!;
@@ -272,9 +322,5 @@ function nameTag(nick: string): THREE.Sprite {
   g.fillStyle = '#ffffff'; g.fillText(nick, 128, 34);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
-  s.scale.set(2.4, 0.6, 1);
-  s.position.y = 3.35;
-  s.renderOrder = 10;
-  return s;
+  return t;
 }

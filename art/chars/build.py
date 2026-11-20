@@ -332,6 +332,118 @@ def zoom(s):
         box('head', (0.28, 0.28, 0.34), (x, y, HT + 0.2), H, bev=0.03, rot=(rx, 0, rz))
 
 
+# ── вторая партия: свои персонажи (не из чужих мультфильмов) ─────────────────
+def hood(col, top=0.28, side=0.8):
+    box('head', (1.1, 1.04, top), (0, 0.02, HT + top / 2 - 0.02), col, bev=0.06, seg=2)
+    for x in (-0.53, 0.53):
+        box('head', (0.07, 1.04, side), (x, 0.02, HEAD_Z0 + side / 2 + 0.02), col, bev=0.02)
+    box('head', (1.1, 0.07, side), (0, 0.5, HEAD_Z0 + side / 2 + 0.02), col, bev=0.02)
+
+
+def shadow(s):
+    body(s)
+    R = '#e8322c'
+    box('head', (0.99, 0.94, 0.1), (0, 0, HT - 0.12), R, bev=0.02)
+    box('head', (0.1, 0.34, 0.07), (0.12, 0.6, HT - 0.18), R, bev=0.01, rot=(-25, 0, 20))
+    box('head', (0.1, 0.3, 0.07), (-0.08, 0.6, HT - 0.22), R, bev=0.01, rot=(-35, 0, -15))
+    box('torso', (1.02, 0.52, 0.1), (0, 0, 1.0), R, bev=0.015)
+    box('torso', (0.08, 0.06, 1.15), (0, 0.3, 1.35), '#c9ced8', bev=0.01, rot=(0, 40, 0))
+    box('torso', (0.13, 0.1, 0.3), (-0.38, 0.31, 1.82), '#3a3f48', bev=0.02, rot=(0, 40, 0))
+    bands(ARMS, 1.0, '#3a3c48')
+    bands(LEGS, 0.3, '#3a3c48', w=0.49, d=0.52)
+
+
+def bjorn(s):
+    body(s)
+    G, Hn, B, F = '#9aa1ad', '#f2e6c8', '#e0702a', '#c9b28f'
+    box('head', (1.02, 0.97, 0.3), (0, 0, HT + 0.12), G, bev=0.08, seg=2)
+    box('head', (1.06, 1.01, 0.08), (0, 0, HT - 0.02), '#7d8490', bev=0.02)
+    cyl('head', 0.12, 0.5, (0.66, 0, HT + 0.2), Hn, verts=12, rot=(0, 65, 0), r2=0.02)
+    cyl('head', 0.12, 0.5, (-0.66, 0, HT + 0.2), Hn, verts=12, rot=(0, -65, 0), r2=0.02)
+    box('head', (0.92, 0.14, 0.34), (0, -0.48, HEAD_Z0 + 0.02), B, bev=0.05)
+    box('head', (0.5, 0.12, 0.18), (0, -0.46, HEAD_Z0 - 0.2), B, bev=0.04)
+    for x in (-0.49, 0.49):
+        box('head', (0.08, 0.4, 0.45), (x, -0.1, HEAD_Z0 + 0.25), B, bev=0.02)
+    box('torso', (1.06, 0.56, 0.14), (0, 0, 1.72), F, bev=0.04)
+    box('torso', (1.02, 0.52, 0.12), (0, 0, 0.98), '#5a3a20', bev=0.015)
+    box('torso', (0.18, 0.05, 0.14), (0, -0.27, 0.98), '#ffd21f', bev=0.02)
+    bands(LEGS, 0.3, F, w=0.5, d=0.54, h=0.14)
+
+
+def mumbo(s):
+    body(s)
+    Dk = '#d8cdb0'
+    for z, r in ((1.62, 7), (1.4, -6), (1.15, 5), (0.95, -4)):
+        box('torso', (1.03, 0.53, 0.05), (0, 0, z), Dk, bev=0.01, rot=(0, r, 0))
+    for bone, x in ARMS:
+        for z, r in ((1.5, 9), (1.2, -8)):
+            box(bone, (0.44, 0.48, 0.05), (x, 0, z), Dk, bev=0.01, rot=(0, r, 0))
+    for bone, x in LEGS:
+        for z, r in ((0.65, -7), (0.35, 8)):
+            box(bone, (0.49, 0.52, 0.05), (x, 0, z), Dk, bev=0.01, rot=(0, r, 0))
+    for z, r in ((HT - 0.08, 6), (HEAD_Z0 + 0.12, -5)):
+        box('head', (0.98, 0.93, 0.06), (0, 0, z), Dk, bev=0.01, rot=(0, r, 0))
+    box('armR', (0.08, 0.04, 0.35), (0.95, -0.1, 0.95), Dk, bev=0.01, rot=(0, 30, 0))
+
+
+def zeeb(s):
+    body(s)
+    P, Pk = '#8a3be0', '#ff5fb0'
+    for x in (-0.25, 0.25):
+        cyl('head', 0.035, 0.45, (x * 1.2, 0, HT + 0.2), s['skin'], verts=10, rot=(0, 25 if x > 0 else -25, 0))
+        ball('head', 0.1, (x * 1.6, 0, HT + 0.43), Pk)
+    cyl('torso', 0.55, 0.1, (0, 0, 1.76), P, verts=24)
+    box('torso', (1.02, 0.52, 0.1), (0, 0, 1.0), P, bev=0.015)
+    box('torso', (0.24, 0.05, 0.24), (0, -0.27, 1.42), '#ffd21f', bev=0.02, rot=(0, 45, 0))
+    bands(ARMS, 1.0, P)
+    bands(LEGS, 0.3, P, w=0.49, d=0.52)
+
+
+def mittens(s):
+    body(s)
+    O, W, Pk = '#ff9a3c', '#fff4e6', '#ff8fb5'
+    hood(O)
+    for x in (-0.3, 0.3):
+        spike('head', 0.22, 0.32, (x, 0.02, HT + 0.38), O, rot=(0, 0, 45))
+        spike('head', 0.12, 0.2, (x, -0.1, HT + 0.33), Pk, rot=(0, 0, 45))
+    box('torso', (0.6, 0.06, 0.62), (0, -0.26, 1.28), W, bev=0.03)
+    box('torso', (0.2, 0.5, 0.2), (0, 0.42, 0.95), O, bev=0.05, rot=(-40, 0, 0))
+    box('torso', (0.18, 0.18, 0.45), (0, 0.66, 1.25), O, bev=0.05, rot=(10, 0, 0))
+    box('torso', (0.19, 0.19, 0.18), (0, 0.7, 1.52), W, bev=0.05)
+
+
+def pumpky(s):
+    body(s)
+    G, Od = '#3f9a2a', '#e8761a'
+    box('head', (0.16, 0.16, 0.24), (0, 0.04, HT + 0.12), '#6b4a2e', bev=0.03, rot=(8, 0, 0))
+    box('head', (0.3, 0.16, 0.05), (0.15, 0.02, HT + 0.08), G, bev=0.02, rot=(0, -20, 30))
+    hw, hd = s['head'][0], s['head'][1]
+    for y in (-0.22, 0.0, 0.22):
+        for x in (-hw / 2 - 0.01, hw / 2 + 0.01):
+            box('head', (0.04, 0.1, s['head'][2] - 0.14), (x, y, HEAD_Z0 + s['head'][2] / 2), Od, bev=0.015)
+    box('torso', (1.02, 0.52, 0.1), (0, 0, 1.0), '#ff8a1c', bev=0.015)
+    box('torso', (0.22, 0.05, 0.2), (0, -0.27, 1.62), '#ff8a1c', bev=0.02, rot=(0, 45, 0))
+
+
+def roxy(s):
+    body(s)
+    Hp, K, Gd = '#ff4fa8', '#222228', '#ffd21f'
+    box('head', (1.02, 0.97, 0.16), (0, 0, HT + 0.05), Hp, bev=0.05)
+    box('head', (1.04, 0.16, 1.05), (0, 0.44, HT - 0.5), Hp, bev=0.04)
+    for x in (-0.5, 0.5):
+        box('head', (0.1, 0.75, 0.85), (x, 0.08, HT - 0.4), Hp, bev=0.03)
+    box('head', (0.6, 0.1, 0.18), (-0.2, -0.47, HT - 0.06), Hp, bev=0.03, rot=(0, -12, 0))
+    for x, h in ((-0.18, 0.14), (0, 0.2), (0.18, 0.14)):
+        spike('head', 0.07, h, (x, -0.3, HT + 0.13 + h / 2), Gd, rot=(0, 0, 45))
+    box('head', (0.5, 0.06, 0.06), (0, -0.3, HT + 0.14), Gd, bev=0.01)
+    box('torso', (0.3, 0.05, 0.88), (0, -0.26, 1.3), Hp, bev=0.01)
+    for x in (-0.3, 0.3):
+        box('torso', (0.05, 0.05, 0.85), (x * 0.62, -0.27, 1.3), '#c9ced8', bev=0.01)
+    box('torso', (0.5, 0.12, 0.6), (0.1, 0.33, 1.15), '#e8322c', bev=0.06, rot=(0, -30, 0))
+    box('torso', (0.1, 0.08, 0.75), (-0.25, 0.33, 1.65), '#6b4a2e', bev=0.02, rot=(0, -30, 0))
+    bands(LEGS, 0.25, Hp, w=0.49, d=0.53, h=0.05)
+
+
 CHARS = {
     'rookie': (rookie, dict(shirt='#ff5a36', pants='#2f5fb8', shoes='#f4f4f4', sleeve=0.35)),
     'sparky': (sparky, dict(shirt='#e8322c', pants='#e8322c', shoes='#3a2418', sleeve=0.85)),
@@ -343,6 +455,13 @@ CHARS = {
     'chomps': (chomps, dict(shirt='#3fbf3a', pants='#3fbf3a', shoes='#2f9e2c', sleeve=1, hands='#3fbf3a')),
     'wizzle': (wizzle, dict(shirt='#8a3be0', pants='#4a2a8a', shoes='#3a1f66', sleeve=0.85)),
     'nana': (nana, dict(shirt='#ffd92a', pants='#ffd92a', shoes='#6b3b1e', sleeve=1, hands='#ffd92a')),
+    'shadow': (shadow, dict(shirt='#22232c', pants='#22232c', shoes='#16161c', sleeve=1, hands='#22232c')),
+    'bjorn': (bjorn, dict(shirt='#a8452c', pants='#6b4a2e', shoes='#4a3420', sleeve=0.8)),
+    'mumbo': (mumbo, dict(shirt='#efe6cf', pants='#efe6cf', shoes='#d8cdb0', sleeve=1, hands='#efe6cf')),
+    'zeeb': (zeeb, dict(shirt='#b9c2d4', pants='#b9c2d4', shoes='#8a3be0', sleeve=0.8, head=(1.05, 0.95, 0.95))),
+    'mittens': (mittens, dict(shirt='#ff9a3c', pants='#ff9a3c', shoes='#fff4e6', sleeve=1, hands='#fff4e6')),
+    'pumpky': (pumpky, dict(shirt='#3b2a5c', pants='#2b2433', shoes='#16161c', sleeve=1, hands='#3f9a2a', head=(1.05, 1.0, 0.95))),
+    'roxy': (roxy, dict(shirt='#222228', pants='#4a2a6a', shoes='#222228', sleeve=0.85)),
     'zoom': (zoom, dict(shirt='#2a56e0', pants='#2a56e0', shoes='#e8322c', sleeve=0.85, hands='#ffd21f', shoeH=0.3)),
 }
 

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Вторая партия лиц (7 своих персонажей) — по очереди.
+B="Flat 2D texture for the FRONT FACE of a blocky cube-headed cartoon kids game character, in the exact cartoon style of the faces in the reference sheet (big glossy black-and-white eyes with white highlights, thick dark outlines, simple expressive mouth). Perfectly front-on, flat, NO shading on the background, NO head outline, NO hair, NO hat, NO neck, NO ears: ONLY the facial features painted on a completely flat solid background that fills the ENTIRE square image edge to edge. Square image, features centred and occupying the middle ~75% of the square, a little lower than centre. No text."
+SK="Background: flat solid skin colour #F0B486 everywhere."
+gen() { [ -f "art/chars/faces/$1.png" ] && return; node tools/codex_image.cjs gen "art/chars/faces/$1.png" "$B $2" --ref art/concepts/characters_v1.jpg 2>&1 | grep -i saved; }
+gen shadow "Ninja mask: background is flat solid very dark charcoal #1f2029 everywhere, EXCEPT one horizontal band of skin colour #F0B486 straight across the full width at eye level (about 30% of the height, slightly above centre) with straight edges. Inside the band: two determined cartoon eyes with angled eyebrows. No mouth visible (covered by the mask)."
+gen bjorn "$SK Face: jolly viking: happy big eyes, bushy ginger-orange eyebrows, round rosy nose, a big thick curly ginger-orange moustache under the nose, below it a wide happy open smile."
+gen mumbo "Background: flat solid off-white bandage colour #efe6cf everywhere, with a few slightly darker thin diagonal bandage strip lines. Face: cute mummy: one big round eye peeking out and the other eye half covered by a bandage strip, small wobbly zig-zag smile."
+gen zeeb "Background: flat solid lime alien-green #7fdc5a everywhere. Face: cute friendly alien: two huge shiny black almond-shaped eyes slanting upward with big white highlights, tiny nostril dots, small happy smile."
+gen mittens "$SK Face: kid in a cat costume: big sparkly happy eyes, small pink triangle cat nose, cat mouth shaped like ':3' (w), three thin dark whiskers on each cheek, pink blush on cheeks."
+gen pumpky "Background: flat solid pumpkin orange #ff8a1c everywhere. Face: carved jack-o'-lantern face drawn cartoon-style (friendly, not scary): two triangle eyes and a small triangle nose and a wide grin with square teeth gaps, all cut-outs filled with glowing warm yellow-orange light with darker orange carved edges."
+gen roxy "$SK Face: cool rocker girl: big confident eyes with thick eyelashes, one eyebrow raised, a small pink star painted on her cheek, smirking smile with pink lips."
+echo DONE

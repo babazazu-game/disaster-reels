@@ -711,7 +711,7 @@ export function createScene(parent: HTMLElement): Game {
       onProgress(0.3);
       await sfx.load();
       onProgress(0.5);
-      // персонажи (этап 8): все 11 моделей сразу — соперники каждый раунд в новых обликах, ~1 МБ
+      // персонажи (этап 8): все модели сразу (18) — соперники каждый раунд в новых обликах, ~1,5 МБ
       await Promise.all(ROSTER.map(async (c) => { try { models.set(c.id, await loadChar(c.id)); } catch { /* нет модели — останется старый аватар */ } }));
       wearSkin(progress.snapshot().skin);
       dressBots();
