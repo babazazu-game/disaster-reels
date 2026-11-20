@@ -105,7 +105,7 @@
 
 - `npm run dev` → http://127.0.0.1:5210 · `npm run build` · `npm run zip` (→ `build/game.zip`)
 - `bash tools/deploy.sh` — сборка и выкладка на GitHub Pages: https://babazazu-game.github.io/disaster-reels/
-- Картинки и критик — Codex CLI (`tools/codex_image.cjs`, модель gpt-6.1-sol, low). Критик — только
+- Картинки и критик — Codex CLI (`tools/codex_image.cjs`, критик — gpt-6.2-sol, low; картинки ставит gpt-5.6-sol). Критик — только
   для текста/планов, визуал судит заказчик.
 - Витрины `tools/store_shots.js` + `store_export.py`, ролики `tools/film.js` + `film_make.py`.
 

@@ -9,7 +9,7 @@
 //          --transparent: просим прозрачный фон (проверять альфу результата!).
 //          --ref: картинки-образцы (стиль, предыдущая версия).
 // critic — жёсткое сравнение картинок (наш кадр против эталона). Тут важно
-//          суждение, поэтому gpt-6.1-sol (low). Ответ печатается в stdout.
+//          суждение, поэтому gpt-6.2-sol (low; выбор заказчика 20.11). Ответ печатается в stdout.
 //
 // ЗАЧЕМ ТАК. Codex кладёт сгенерированное в ~/.codex/generated_images/<сессия>/,
 // а скопировать в проект сам на Windows не может: его песочница команд падает
@@ -24,7 +24,7 @@ const path = require('node:path');
 const os = require('node:os');
 
 const GEN_MODEL = process.env.CODEX_IMG_MODEL || 'gpt-5.6-sol';
-const CRITIC_MODEL = process.env.CODEX_CRITIC_MODEL || 'gpt-6.1-sol';
+const CRITIC_MODEL = process.env.CODEX_CRITIC_MODEL || 'gpt-6.2-sol';
 
 function codex(model, prompt, images = []) {
   const args = ['exec', '--skip-git-repo-check', '-s', 'read-only', '-m', model, '-c', 'model_reasoning_effort=low'];
