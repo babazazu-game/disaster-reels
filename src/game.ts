@@ -464,7 +464,8 @@ export function createScene(parent: HTMLElement): Game {
       if (mode !== 'round') return;
       ui.setHud(false);
       menu.showResult({ win, title: win ? L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!') : L('ТЫ ПОГИБ', 'YOU DIED'), cause: win ? undefined : deathCause,
-        time, round: ROUND, botsAlive: bots.alive, botsTotal: DUMMIES, best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff });
+        time, round: ROUND, botsAlive: bots.alive + (win ? 1 : 0), botsTotal: DUMMIES + 1,   // «игроки», не «боты» (заказчик: пусть думают, что это люди)
+        best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff });
     }, 700);
   };
   menu.onPlay = (d) => { diff = d; progress.patch({ difficulty: d }); startRound(); };

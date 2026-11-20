@@ -160,7 +160,7 @@ export class Menu {
     this.progress.setAttribute('aria-valuetext', this.timeLabel.textContent);
     this.fill.style.setProperty('--mnu-progress', String(r.round > 0 ? elapsed / r.round : 0));
 
-    this.botsLabel.textContent = L(`Ботов уцелело: ${r.botsAlive} из ${r.botsTotal}`, `Bots alive: ${r.botsAlive} of ${r.botsTotal}`);
+    this.botsLabel.textContent = L(`Выжили: ${r.botsAlive} из ${r.botsTotal} игроков`, `Survivors: ${r.botsAlive} of ${r.botsTotal} players`);
     this.bots.replaceChildren();
     this.bots.hidden = r.botsTotal === 0;
     for (let i = 0; i < r.botsTotal; i++) {
