@@ -224,6 +224,28 @@ function hair(kind: Hair, color: number, hat: number): THREE.Group {
   return g;
 }
 
+/**
+ * Общий материал аватаров с одним видом лица: атлас 512×256 — слева лицо на
+ * белом, справа белое поле для всех прочих деталей. Один материал на вид лица,
+ * а не на цвет: у десятка ботов одна-две шейдерные программы.
+ */
+const skinMats = new Map<Face, THREE.MeshStandardMaterial>();
+function skinMaterial(kind: Face): THREE.MeshStandardMaterial {
+  let m = skinMats.get(kind);
+  if (m) return m;
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 256;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 512, 256);
+  g.drawImage(faceTexture(kind).image as HTMLCanvasElement, 0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  m = new THREE.MeshStandardMaterial({ map: t, vertexColors: true, roughness: 0.45 });
+  skinMats.set(kind, m);
+  return m;
+}
+
 const BLOB_GEO = new THREE.CircleGeometry(0.8, 20);
 const BLOB_MAT = (() => {
   const c = document.createElement('canvas');
@@ -238,11 +260,12 @@ const BLOB_MAT = (() => {
 export class Avatar {
   readonly root = new THREE.Group();
   /** Всё, что качается при беге, — отдельно от root: root остаётся «физическим» телом. */
-  private body = new THREE.Group();
-  private torso = new THREE.Group();
-  private armL = new THREE.Group(); private armR = new THREE.Group();
-  private legL = new THREE.Group(); private legR = new THREE.Group();
-  private head = new THREE.Group();
+  // Шарниры — КОСТИ скелета: весь аватар рисуется одним SkinnedMesh (см. skin()).
+  private body = new THREE.Bone();
+  private torso = new THREE.Bone();
+  private armL = new THREE.Bone(); private armR = new THREE.Bone();
+  private legL = new THREE.Bone(); private legR = new THREE.Bone();
+  private head = new THREE.Bone();
   private state: AvatarState = 'idle';
   private t = Math.random() * 10;
   private cur = { arm: 0, leg: 0, armUp: 0, bob: 0, lean: 0 };
@@ -292,20 +315,70 @@ export class Avatar {
       new THREE.MeshStandardMaterial({ map: faceTexture(look.face ?? 'smile'), transparent: true, roughness: 0.5, depthWrite: false }),
     );
     face.position.y = hy;
+    face.userData.face = true;
     this.head.add(face);
     const h = mergeGroup(hair(look.hair ?? 'none', look.hairColor ?? 0x3a2414, look.hat ?? 0xd8313a));
     h.scale.setScalar(HEAD_R / (0.62 * U));   // причёски заданы под голову 0.62 — масштабируем, а не перебиваем числа
     h.position.y = hy;
     this.head.add(h);
+    this.torso.add(this.head);
+    this.skin(look, !cheapShadow);
     if (cheapShadow) {
-      this.root.traverse((o) => { o.castShadow = false; });
       const blob = new THREE.Mesh(BLOB_GEO, BLOB_MAT);
       blob.rotation.x = -Math.PI / 2;
       blob.position.y = 0.03;
       blob.renderOrder = 1;
       this.root.add(blob);
     }
-    this.torso.add(this.head);
+  }
+
+  /**
+   * Весь аватар → ОДИН меш со скелетом.
+   *
+   * Было ~14 мешей на персонажа (детали × цвета) — у Blox Obby это ~14 вызовов
+   * отрисовки на каждого бота и столько же в проходе теней. Теперь: цвет детали
+   * переезжает в цвет вершин, лицо — в общий атлас (лицо на белом + белый угол
+   * для остального), каждая вершина привязана к своей кости. Итог — 1 вызов на
+   * персонажа, анимация та же (крутим кости, как раньше крутили группы).
+   */
+  private skin(look: AvatarLook, castShadow: boolean): void {
+    const bones = [this.body, this.torso, this.legL, this.legR, this.armL, this.armR, this.head];
+    this.root.updateMatrixWorld(true);
+    const parts: THREE.BufferGeometry[] = [];
+    const col = new THREE.Color();
+    const meshes: THREE.Mesh[] = [];
+    this.body.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+    for (const m of meshes) {
+      let b: THREE.Object3D | null = m.parent;
+      while (b && !bones.includes(b as THREE.Bone)) b = b.parent;
+      const bi = bones.indexOf(b as THREE.Bone);
+      const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrixWorld);
+      const n = g.attributes.position.count;
+      const isFace = m.userData.face === true;
+      // лицо красится цветом кожи, чёрные черты из атласа его затемняют (map × vertexColor)
+      col.copy(isFace ? new THREE.Color(look.skin) : (m.material as THREE.MeshStandardMaterial).color);
+      const c = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+      const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+      const fuv = isFace ? g.attributes.uv : null;
+      for (let i = 0; i < n; i++) {
+        c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b;
+        if (fuv) { uv[i * 2] = fuv.getX(i) * 0.5; uv[i * 2 + 1] = fuv.getY(i); } else { uv[i * 2] = 0.75; uv[i * 2 + 1] = 0.5; }
+        si[i * 4] = bi; sw[i * 4] = 1;
+      }
+      for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+      g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+      g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+      parts.push(g);
+      m.removeFromParent();
+    }
+    const sm = new THREE.SkinnedMesh(mergeGeometries(parts), skinMaterial(look.face ?? 'smile'));
+    parts.forEach((g) => g.dispose());
+    sm.castShadow = castShadow;
+    this.root.add(sm);
+    this.root.updateMatrixWorld(true);
+    sm.bind(new THREE.Skeleton(bones));
   }
 
   setState(s: AvatarState): void { this.state = s; }

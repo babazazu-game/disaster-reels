@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { quality, type QualityPreset } from './quality.ts';
 
 /**
  * Общий для всей роблокс-серии «мир»: рендерер, небо, свет, плита-основание.
@@ -30,11 +31,23 @@ export interface World {
   followShadow(target: THREE.Vector3): void;
   /** Небо и туман мира (порталы ведут в разные миры). */
   setSky(top: number, horizon: number): void;
+  /**
+   * Тень над НЕПОДВИЖНОЙ площадкой (арена): камера тени стоит над центром и
+   * накрывает её целиком, за игроком не ездит. half — полуразмер площадки, м.
+   */
+  shadowArea(center: THREE.Vector3, half: number): void;
 }
 
 export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): World {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.shadowMap.enabled = true;
+  /*
+   * Сглаживание (MSAA) — только на экранах с низкой плотностью пикселей: там
+   * лесенка на рёбрах блоков заметна. На плотных экранах её съедает сам DPR,
+   * а MSAA поверх него на встроенной графике стоит заметных миллисекунд.
+   * Переключить его на ходу нельзя — решается один раз при создании контекста.
+   */
+  const renderer = new THREE.WebGLRenderer({ antialias: devicePixelRatio < 1.5, alpha: false, powerPreference: 'high-performance' });
+  quality.guess(renderer);
+  renderer.shadowMap.enabled = quality.preset.shadows;
   // PCFSoft брал 16 выборок на пиксель против 4 у PCF — на встроенной графике это заметно.
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -68,8 +81,8 @@ export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): Wor
   scene.add(new THREE.HemisphereLight(0xbfe0ff, 0xfff0d8, 0.9));
   const sun = new THREE.DirectionalLight(0xfff1dc, 3.0);
   sun.position.set(25, 45, 18);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.castShadow = quality.preset.shadows;
+  sun.shadow.mapSize.setScalar(quality.preset.shadowMap || 1024);
   const s = sun.shadow.camera;
   // Тень нужна только возле игрока: узкий квадрат даёт ту же чёткость на карте 1024, что 2048 на широком.
   s.left = -18; s.right = 18; s.top = 18; s.bottom = -18; s.near = 1; s.far = 140;
@@ -81,6 +94,27 @@ export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): Wor
   addSkyClouds(scene);
 
   const offset = sun.position.clone();
+
+  /*
+   * Смена уровня качества на ходу. Включение/выключение теней меняет шейдеры
+   * всех материалов — поэтому needsUpdate; новая карта теней другого размера
+   * создаётся заново. Случается редко (один-два раза за игру), рывок допустим.
+   */
+  quality.onChange((p: QualityPreset) => {
+    const was = renderer.shadowMap.enabled;
+    renderer.shadowMap.enabled = p.shadows;
+    sun.castShadow = p.shadows;
+    if (p.shadows && sun.shadow.mapSize.x !== p.shadowMap) {
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+      sun.shadow.mapSize.setScalar(p.shadowMap);
+    }
+    if (was !== p.shadows) scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material;
+      for (const x of m ? (Array.isArray(m) ? m : [m]) : []) x.needsUpdate = true;
+    });
+  });
+
   return {
     renderer, scene, sun,
     // купол ездит за игроком: камера всегда в его центре, край купола недосягаем
@@ -89,6 +123,11 @@ export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): Wor
       const u = (sky.material as THREE.ShaderMaterial).uniforms;
       u.top.value.setHex(top); u.hor.value.setHex(horizon);
       (scene.fog as THREE.Fog).color.setHex(horizon);
+    },
+    shadowArea(center, half) {
+      sun.position.copy(center).add(offset); sun.target.position.copy(center); sky.position.copy(center);
+      s.left = -half; s.right = half; s.top = half; s.bottom = -half;
+      s.updateProjectionMatrix();
     },
   };
 }

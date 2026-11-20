@@ -22,6 +22,7 @@ import { core } from './core.ts';
 import { t } from './i18n.ts';
 import { showStickyBanner } from './ads.ts';
 import type { Game } from './game.ts';
+import { quality } from './engine/quality.ts';
 
 /**
  * Ждать чего-либо дольше этого нельзя: игрок смотрит на полосу загрузки.
@@ -97,7 +98,8 @@ function watchSize(game: Game, parent: HTMLElement): void {
   const sync = (): void => {
     const w = parent.clientWidth;
     const h = parent.clientHeight;
-    const dpr = pixelRatio();
+    // потолок плотности — от уровня качества (engine/quality.ts): пиксели — главная цена кадра
+    const dpr = Math.min(pixelRatio(), quality.preset.dpr);
     if (w === last.w && h === last.h && dpr === last.dpr) return;
     last = { w, h, dpr };
     if (w <= 0 || h <= 0) return;
@@ -108,6 +110,7 @@ function watchSize(game: Game, parent: HTMLElement): void {
   };
 
   sync();
+  quality.onChange(sync);
 
   if (typeof ResizeObserver !== 'undefined') new ResizeObserver(sync).observe(parent);
   else window.addEventListener('resize', sync);
