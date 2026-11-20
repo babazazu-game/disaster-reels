@@ -1,5 +1,5 @@
 /**
- * «Крути хаос!» — сборка игры. Этап 2: ядро без барабана — раунд из трёх волн.
+ * «Крути хаос!» — сборка игры. Этап 3: раунд от барабана хаоса.
  *
  * Арена-остров с укрытиями и перепадами высоты, игрок бегает, вокруг стоят
  * манекены (будущие боты) — по ним меряется цена персонажа: один вызов
@@ -24,7 +24,10 @@ import { sfx } from './engine/sfx.ts';
 import { quality } from './engine/quality.ts';
 import { SKINS } from './game/skins.ts';
 import { Particles } from './engine/particles.ts';
-import { Surface, Meteors, Hail, Lava, Cell, GROUND_Y } from './game/chaos.ts';
+import { Surface, Hail, Lava, Cell, GROUND_Y } from './game/chaos.ts';
+import { Reels, type ReelResult } from './game/reels.ts';
+import { Creatures } from './game/creatures.ts';
+import { agree, phrase, type AdjId, type NounId } from './game/words.ts';
 import { RoundUi } from './game/roundUi.ts';
 import { L } from './i18n.ts';
 
@@ -39,15 +42,18 @@ export interface Game {
 const HALF = 20;
 /** Ниже этого — упал с острова (на этапе 2 это станет смертью). */
 const FALL_Y = -12;
-/** Длина раунда, с. Сценарий волн — ниже, в WAVES. */
-const ROUND = 70;
+/** Длина раунда, с. */
+const ROUND = 60;
 /**
- * Сценарий этапа 2 (барабана ещё нет — волны заданы заранее). Каждая следующая
- * волна ложится ПОВЕРХ прошлой: метеоры не прекращаются, лёд остаётся под лавой.
+ * Этап 3: волны задаёт барабан. Три барабана за раунд, каждый — новая волна
+ * существ ПОВЕРХ прошлой (огонь и лёд на земле остаются). Финал — лава.
  */
-const WAVES: { at: number; id: 'meteor' | 'ice' | 'lava' }[] = [
-  { at: 3, id: 'meteor' }, { at: 22, id: 'ice' }, { at: 38, id: 'lava' },
-];
+const REELS_AT = [2, 17, 32];
+const LAVA_AT = 46;
+const FIRST_REEL: ReelResult = { n: 10, adj: 'fire', noun: 'chicken' };
+const ADJ_COLOR: Record<AdjId, string> = {
+  fire: '#ff8a2a', ice: '#9be3ff', giant: '#ffd23a', bouncy: '#ff8ae0', fast: '#fff36b', plain: '#ffffff',
+};
 /** Стоя в огне дольше этого — сгорел. Короткое касание прощается. */
 const BURN_DEATH = 0.35;
 
@@ -158,15 +164,15 @@ export function createScene(parent: HTMLElement): Game {
   /* ───────────────────────────── ХАОС ────────────────────────────── */
   const fx = new Particles(scene);
   const surface = new Surface(scene, HALF);
-  const meteors = new Meteors(scene);
   const hail = new Hail(scene, HALF);
   const lava = new Lava(scene, HALF);
   const ui = new RoundUi(parent);
   ui.setLabels(L('ЕЩЁ РАЗ', 'AGAIN'));
+  const reels = new Reels(parent, L('СТОП', 'STOP'));
   const tmp = new THREE.Vector3();
   const alive = dummies.map(() => true);
 
-  let t = 0, state: 'play' | 'dead' | 'win' = 'play', wave = 0, nextRock = 0, burnT = 0, sparkT = 0;
+  let t = 0, state: 'play' | 'dead' | 'win' = 'play', reelNo = 0, lavaOn = false, burnT = 0, sparkT = 0, slipT = 0;
   let deathCause = '';
 
   const killDummy = (i: number) => {
@@ -183,6 +189,7 @@ export function createScene(parent: HTMLElement): Game {
     state = 'dead';
     deathCause = cause;
     player.root.visible = false;
+    reels.hide();
     fx.emit('poof', tmp.copy(ctl.pos).setY(ctl.pos.y + 1.2), 1.6);
     fx.emit('confetti', tmp, 1);
     cam.shake(0.4);
@@ -190,9 +197,51 @@ export function createScene(parent: HTMLElement): Game {
     ui.showResult(L('ТЫ ПОГИБ', 'YOU DIED'), L(`${deathCause} · продержался ${Math.floor(t)} с из ${ROUND}`, `${deathCause} · survived ${Math.floor(t)} of ${ROUND} s`), false);
   };
 
+  /** «Огненная курица» — причина гибели в согласованной форме. */
+  const causeOf = (m: { kind: NounId; adj: AdjId }) => {
+    const s = agree(1, m.adj, m.kind).join(' ');
+    return s[0].toUpperCase() + s.slice(1);
+  };
+  const dummiesNear = (x: number, y: number, z: number, r: number) => {
+    dummies.forEach((dm, i) => {
+      const p = dm.root.position;
+      if (alive[i] && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r && Math.abs(p.y - y) < 2) killDummy(i);
+    });
+  };
+
+  const creatures = new Creatures(scene, HALF, surface, fx, {
+    heightAt,
+    lavaLevel: () => lava.level,
+    target: () => (state === 'play' ? ctl.pos : null),
+    targetVel: () => ctl.vel,
+    touchPlayer(m, kill, dx, dz) {
+      if (kill) { die(causeOf(m)); return; }
+      // обычная курица не убивает, а отпихивает
+      const l = Math.hypot(dx, dz) || 1;
+      ctl.vel.x += (dx / l) * 9; ctl.vel.z += (dz / l) * 9;
+      if (ctl.grounded) ctl.vel.y = 6;
+      sfx.play('bounce', 0.2, 0.5);
+    },
+    slip() {
+      if (slipT <= 0) { sfx.play('bounce', 0.3, 0.6); ctl.vel.y = Math.max(ctl.vel.y, 5); }
+      slipT = 1.3;
+    },
+    boom(x, y, z, r, m) {
+      const ice = m.adj === 'ice' || m.kind === 'snowman';
+      fx.emit(ice ? 'poof' : 'lava', tmp.set(x, y + 0.5, z), Math.min(2.5, r * 0.6));
+      const d = Math.hypot(ctl.pos.x - x, ctl.pos.z - z);
+      cam.shake(Math.max(0, 0.45 - d * 0.03) * Math.min(2, r / 2));
+      if (d < 16) sfx.play(ice ? 'land' : 'lava', 0.15);
+      if (state === 'play' && d < r && Math.abs(ctl.pos.y - y) < 2.6) die(causeOf(m));
+      dummiesNear(x, y, z, r);
+    },
+    hitDummies: (x, y, z, r) => { if (r > 0) dummiesNear(x, y, z, r); },
+  });
+
   const restart = () => {
-    t = 0; wave = 0; nextRock = 0; burnT = 0; state = 'play';
-    surface.reset(); meteors.reset(); lava.reset(); hail.on = false;
+    t = 0; reelNo = 0; lavaOn = false; burnT = 0; slipT = 0; state = 'play';
+    surface.reset(); creatures.reset(); lava.reset(); hail.on = false;
+    reels.hide();
     dummies.forEach((d, i) => { alive[i] = true; d.root.rotation.x = 0; d.root.position.y = 0; d.root.visible = true; });
     player.root.visible = true;
     ctl.respawn();
@@ -203,50 +252,36 @@ export function createScene(parent: HTMLElement): Game {
   ui.onRetry = restart;
   addEventListener('keydown', (e) => { if (e.code === 'Enter' && ui.resultOpen) restart(); });
 
-  /** Удар метеора: огонь вокруг, гибель рядом. */
-  const onHit = (x: number, y: number, z: number) => {
-    fx.emit('lava', tmp.set(x, y + 0.5, z), 1.4);
-    const d = Math.hypot(ctl.pos.x - x, ctl.pos.z - z);
-    cam.shake(Math.max(0, 0.45 - d * 0.03));
-    if (d < 14) sfx.play('lava', 0.15);
-    if (y < 0.5) for (const [dx, dz] of [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]]) surface.ignite(x + dx, z + dz);
-    if (state === 'play' && player.root.visible && d < 2.1 && Math.abs(ctl.pos.y - y) < 2.6) die(L('Метеорит', 'Meteor'));
-    dummies.forEach((dm, i) => { if (alive[i] && Math.hypot(dm.root.position.x - x, dm.root.position.z - z) < 2.1 && y < 0.5) killDummy(i); });
-  };
-
-  const spawnRock = () => {
-    // почти половина метеоров — туда, куда бежит игрок: стоять на месте нельзя
-    let x: number, z: number;
-    if (state === 'play' && Math.random() < 0.45) { x = ctl.pos.x + ctl.vel.x * 0.6; z = ctl.pos.z + ctl.vel.z * 0.6; }
-    else { x = (Math.random() * 2 - 1) * (HALF - 1); z = (Math.random() * 2 - 1) * (HALF - 1); }
-    x = THREE.MathUtils.clamp(x, -HALF + 1, HALF - 1); z = THREE.MathUtils.clamp(z, -HALF + 1, HALF - 1);
-    meteors.spawn(x, z, heightAt(x, z));
+  /** Барабан встал: большая фраза и волна существ. */
+  const onReel = (r: ReelResult) => {
+    if (state !== 'play') return;
+    ui.announce(phrase(r.n, r.adj, r.noun), ADJ_COLOR[r.adj]);
+    sfx.play('checkpoint', 0);
+    creatures.start(r);
   };
 
   const runScript = (dt: number) => {
     t += dt;
     if (state === 'play') ui.setTime(ROUND - t);
-    while (wave < WAVES.length && t >= WAVES[wave].at) {
-      const w = WAVES[wave++];
-      if (w.id === 'meteor') ui.announce(L('МЕТЕОРИТНЫЙ ДОЖДЬ!', 'METEOR SHOWER!'), '#ff8a2a');
-      if (w.id === 'ice') { ui.announce(L('ЛЕДЯНОЙ ДОЖДЬ!', 'ICE RAIN!'), '#9be3ff'); hail.on = true; }
-      if (w.id === 'lava') { ui.announce(L('ЛАВА ПОДНИМАЕТСЯ!', 'LAVA IS RISING!'), '#ff5a2a'); lava.rise(10); }
+    if (state === 'play' && reelNo < REELS_AT.length && t >= REELS_AT[reelNo]) {
+      // первый барабан игры подстроен: зрелищно и понятно с первого раза
+      reels.spin(onReel, reelNo === 0 ? FIRST_REEL : null);
+      reelNo++;
     }
-    // метеоры: густо в свою волну, потом реже — но не прекращаются
-    if (t > WAVES[0].at) {
-      nextRock -= dt;
-      if (nextRock <= 0) { spawnRock(); nextRock = t < WAVES[1].at ? 0.7 : 1.5; }
+    if (!lavaOn && t >= LAVA_AT) {
+      lavaOn = true;
+      ui.announce(L('ЛАВА ПОДНИМАЕТСЯ!', 'LAVA IS RISING!'), '#ff5a2a');
+      lava.rise(9);
     }
-    // ледяной дождь 8 с: морозит по ~50 клеток в секунду; огонь под ним гаснет с паром
-    if (hail.on) {
-      if (t > WAVES[1].at + 8) hail.on = false;
-      for (let i = 0; i < 1 + Math.floor(dt * 50); i++) {
-        const k = Math.floor(Math.random() * surface.n * surface.n);
-        if (surface.freeze(k)) fx.emit('poof', surface.center(k, tmp).setY(0.6), 0.6);
-      }
+    // ледяные существа приносят с собой град; град морозит землю понемногу
+    hail.on = creatures.has('ice');
+    if (hail.on && Math.random() < dt * 12) {
+      const k = Math.floor(Math.random() * surface.n * surface.n);
+      if (surface.freeze(k)) fx.emit('poof', surface.center(k, tmp).setY(0.6), 0.6);
     }
     if (state === 'play' && t >= ROUND) {
       state = 'win';
+      reels.hide();
       sfx.play('finish', 0);
       fx.emit('confetti', tmp.copy(ctl.pos).setY(ctl.pos.y + 2), 2);
       const saved = alive.filter(Boolean).length;
@@ -258,7 +293,8 @@ export function createScene(parent: HTMLElement): Game {
   const applySurface = (dt: number) => {
     const low = ctl.grounded && ctl.pos.y < GROUND_Y;
     const cell = low ? surface.at(ctl.pos.x, ctl.pos.z) : Cell.None;
-    ctl.grip = cell === Cell.Ice ? 0.08 : 1;
+    slipT -= dt;
+    ctl.grip = cell === Cell.Ice || slipT > 0 ? 0.08 : 1;
     burnT = cell === Cell.Fire ? burnT + dt : 0;
     if (burnT > BURN_DEATH) die(L('Сгорел', 'Burned'));
     if (lava.level > ctl.pos.y + 0.1) die(L('Лава', 'Lava'));
@@ -274,8 +310,9 @@ export function createScene(parent: HTMLElement): Game {
     else cam.yaw += dt * 0.15;   // погиб — камера медленно облетает хаос, кнопка уже доступна
     runScript(dt);
     if (state === 'play') applySurface(dt);
+    reels.update(dt);
     surface.update(dt);
-    meteors.update(dt, onHit);
+    creatures.update(dt);
     hail.update(dt);
     lava.update(dt);
     // искры над горящей травой: пара в кадр, не больше — пул частиц общий
@@ -299,7 +336,7 @@ export function createScene(parent: HTMLElement): Game {
   if (import.meta.env.DEV) {
     // Q — следующий уровень качества по кругу: сравнить low/med/high на одном кадре
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
-    Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart() });
+    Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels });
   }
 
   let paused = false;

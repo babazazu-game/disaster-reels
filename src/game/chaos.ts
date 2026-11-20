@@ -8,7 +8,7 @@ import { lavaTexture, iceTexture } from '../engine/textures.ts';
  * растёт, а число живых объектов и вызовов отрисовки — нет.
  *
  * Бюджет: огонь и лёд — по одному InstancedMesh (2 вызова на всю арену),
- * метеоры и их метки — ещё 2, град — 1, лава — 1. Итого ≤ 6 при любом хаосе.
+ * град — 1, лава — 1. Существа барабана — в creatures.ts (1 вызов на вид).
  */
 
 export const enum Cell { None = 0, Fire = 1, Ice = 2 }
@@ -57,10 +57,11 @@ export class Surface {
   at(x: number, z: number): Cell { const k = this.idx(x, z); return k < 0 ? Cell.None : this.state[k] as Cell; }
 
   /** Поджечь клетку. Лёд огонь НЕ берёт — сначала он должен растаять (этап 4). */
-  ignite(x: number, z: number): void {
+  ignite(x: number, z: number, time = BURN): void {
     const k = this.idx(x, z);
     if (k < 0 || this.state[k] === Cell.Ice) return;
-    this.state[k] = Cell.Fire; this.timer[k] = BURN; this.dirty = true;
+    if (this.state[k] !== Cell.Fire) this.dirty = true;
+    this.state[k] = Cell.Fire; this.timer[k] = Math.max(this.timer[k], time);
   }
 
   /** Заморозить клетку. Вернёт true, если при этом потушен огонь (пар — первая «реакция»). */
@@ -70,7 +71,10 @@ export class Surface {
     return wasFire;
   }
 
-  reset(): void { this.state.fill(Cell.None); this.dirty = true; }
+  /** Заморозить клетку под точкой (x, z). */
+  freezeAt(x: number, z: number): boolean { const k = this.idx(x, z); return k >= 0 && this.freeze(k); }
+
+  reset(): void { this.state.fill(Cell.None); this.timer.fill(0); this.dirty = true; }
 
   update(dt: number): void {
     for (let k = 0; k < this.state.length; k++) {
@@ -92,64 +96,6 @@ export class Surface {
     }
     this.fire.count = f; this.ice.count = c;
     this.fire.instanceMatrix.needsUpdate = true; this.ice.instanceMatrix.needsUpdate = true;
-  }
-}
-
-/* ─────────────────────────────── МЕТЕОРЫ ─────────────────────────────── */
-
-interface Rock { x: number; z: number; ground: number; t: number; live: boolean }
-/** Метка на земле видна столько, сколько летит метеор: игрок успевает отбежать. */
-const WARN = 1.3;
-const FALL_FROM = 34;
-const MAX_ROCKS = 12;
-
-export class Meteors {
-  private rocks: Rock[] = [];
-  private rockMesh: THREE.InstancedMesh;
-  private ringMesh: THREE.InstancedMesh;
-
-  constructor(scene: THREE.Scene) {
-    this.rockMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.95, 0),
-      new THREE.MeshStandardMaterial({ color: 0x5a3020, emissive: 0xff4a00, emissiveIntensity: 0.9, roughness: 0.8, flatShading: true }), MAX_ROCKS);
-    this.ringMesh = new THREE.InstancedMesh(new THREE.RingGeometry(1.7, 2.2, 28).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0xff2a2a, transparent: true, opacity: 0.8, depthWrite: false }), MAX_ROCKS);
-    for (const m of [this.rockMesh, this.ringMesh]) { m.count = 0; m.frustumCulled = false; scene.add(m); }
-    this.rockMesh.castShadow = true;
-  }
-
-  get active(): number { return this.rocks.filter((r) => r.live).length; }
-
-  spawn(x: number, z: number, ground: number): void {
-    if (this.active >= MAX_ROCKS) return;
-    const r = this.rocks.find((q) => !q.live) ?? (this.rocks.push({ x: 0, z: 0, ground: 0, t: 0, live: false }), this.rocks[this.rocks.length - 1]);
-    Object.assign(r, { x, z, ground, t: 0, live: true });
-  }
-
-  reset(): void { for (const r of this.rocks) r.live = false; this.rockMesh.count = this.ringMesh.count = 0; }
-
-  /** Двигает метеоры; на каждый удар зовёт onHit(x, groundY, z). */
-  update(dt: number, onHit: (x: number, y: number, z: number) => void): void {
-    let n = 0;
-    for (const r of this.rocks) {
-      if (!r.live) continue;
-      r.t += dt;
-      const k = Math.min(1, r.t / WARN);
-      if (k >= 1) { r.live = false; onHit(r.x, r.ground, r.z); continue; }
-      // падает с ускорением: сначала медленно (видно, что летит), у земли — быстро
-      dummy.position.set(r.x + (1 - k) * 6, r.ground + 0.9 + (FALL_FROM - r.ground) * (1 - k * k), r.z);
-      dummy.rotation.set(r.t * 5, r.t * 3, 0);
-      dummy.scale.setScalar(1);
-      dummy.updateMatrix();
-      this.rockMesh.setMatrixAt(n, dummy.matrix);
-      dummy.position.set(r.x, r.ground + 0.06, r.z);
-      dummy.rotation.set(0, 0, 0);
-      dummy.scale.setScalar(0.4 + 0.6 * k);   // метка сжимается к центру удара
-      dummy.updateMatrix();
-      this.ringMesh.setMatrixAt(n, dummy.matrix);
-      n++;
-    }
-    this.rockMesh.count = this.ringMesh.count = n;
-    this.rockMesh.instanceMatrix.needsUpdate = this.ringMesh.instanceMatrix.needsUpdate = true;
   }
 }
 
