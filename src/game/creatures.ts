@@ -17,15 +17,22 @@ import type { Particles } from '../engine/particles.ts';
  */
 
 const MAX = 20;
+/**
+ * Сколько бегающих выходит на самом деле: «100 котов» — обещание на барабане, а не 100
+ * котов (заказчик: при 10 выжить нереально, ребёнок потеряется). Падающие — до 30 за волну.
+ */
+const runners = (n: number) => (n <= 3 ? n : n <= 5 ? 4 : n <= 10 ? 5 : n <= 25 ? 6 : 8);
 const WARN = 1.3;           // сколько летит падающее (видна метка)
 const EVENT_TIME = 8;       // за столько секунд выходит вся волна
-const RUN_LIFE = 14;        // бегающие живут столько и исчезают — копятся последствия, а не объекты
+const RUN_LIFE = 12;        // бегающие живут столько и исчезают — копятся последствия, а не объекты
+const ZOMBIE_LIFE = 18;     // зомби медленные, зато держатся дольше и заражают ботов
 const G = 30;
 const TRAIL = 0.5;          // как часто бегающий оставляет след (огонь/лёд), с
 const TRAIL_BURN = 3;       // след горит недолго — иначе стая поджигает всю арену
 
 type Phase = 'fall' | 'drop' | 'run' | 'fuse' | 'lie';
 const FALLING: NounId[] = ['meteor', 'bomb', 'banana', 'snowman'];
+const RUNNERS: NounId[] = ['chicken', 'cat', 'shark', 'slime', 'zombie'];
 
 interface Mob {
   kind: NounId; adj: AdjId; live: boolean; phase: Phase;
@@ -48,7 +55,8 @@ export interface CreatureHooks {
   /** Взрыв/удар радиуса r: шум, тряска, гибель всех рядом. */
   boom(x: number, y: number, z: number, r: number, m: { kind: NounId; adj: AdjId }): void;
   /** Существо задело манекен (x, z, радиус) — пусть игра решит, кто погиб. */
-  hitDummies(x: number, y: number, z: number, r: number): void;
+  /** Существо задело манекены; infect — бот не погибает, а становится зомби. Вернёт, где это случилось. */
+  hitDummies(x: number, y: number, z: number, r: number, infect: boolean): [number, number][];
 }
 
 /* ───────── модели: части-коробки и шары с цветом, ~1 м в высоту, «нос» вдоль +Z ───────── */
@@ -79,6 +87,13 @@ const MODELS: Record<NounId, Part[]> = {
   slime: [
     [box(1.0, 0.75, 1.0), 0x55d64a, 0, 0.4, 0], [box(0.8, 0.2, 0.8), 0x7fe86d, 0, 0.86, 0],
     [box(0.16, 0.22, 0.02), 0x111111, -0.2, 0.55, 0.51], [box(0.16, 0.22, 0.02), 0x111111, 0.2, 0.55, 0.51],
+  ],
+  zombie: [
+    [box(0.55, 0.7, 0.3), 0x2f9aa0, 0, 1.25, 0], [box(0.5, 0.5, 0.5), 0x7bd36a, 0, 1.85, 0],
+    [box(0.2, 0.2, 0.75), 0x7bd36a, -0.38, 1.45, 0.3], [box(0.2, 0.2, 0.75), 0x7bd36a, 0.38, 1.45, 0.3],
+    [box(0.24, 0.9, 0.26), 0x6b4a2e, -0.14, 0.45, 0], [box(0.24, 0.9, 0.26), 0x6b4a2e, 0.14, 0.45, 0],
+    [box(0.12, 0.08, 0.02), 0x111111, -0.12, 1.92, 0.26], [box(0.12, 0.08, 0.02), 0x111111, 0.12, 1.92, 0.26],
+    [box(0.24, 0.06, 0.02), 0x5a1a1a, 0, 1.72, 0.26],
   ],
   meteor: [[new THREE.IcosahedronGeometry(0.95, 0), 0x6a3a22, 0, 0, 0], [new THREE.IcosahedronGeometry(0.55, 0), 0xff6a1a, 0.5, 0.35, 0.3]],
   bomb: [[ball(0.7), 0x26262e, 0, 0.7, 0], [box(0.3, 0.2, 0.3), 0x55555f, 0, 1.42, 0], [box(0.08, 0.35, 0.08), 0xc9a26a, 0, 1.65, 0], [box(0.16, 0.16, 0.16), 0xffcc33, 0, 1.86, 0]],
@@ -113,7 +128,7 @@ const TINT: Record<AdjId, THREE.Color> = {
 };
 
 /** Скорость бегающих, м/с (у игрока 8). */
-const SPEED: Partial<Record<NounId, number>> = { chicken: 5, cat: 6, shark: 4.5, slime: 3.5, snowman: 2.5 };
+const SPEED: Partial<Record<NounId, number>> = { chicken: 4, cat: 4.6, shark: 3.8, slime: 3, snowman: 2.2, zombie: 2.4 };
 
 const dummy = new THREE.Object3D();
 const flash = new THREE.Color(3, 3, 3);
@@ -146,10 +161,11 @@ export class Creatures {
 
   /** Новая волна по итогу барабана. */
   start(r: ReelResult): void {
-    let n: number = r.n, s = 1;
-    if (r.adj === 'giant') { n = Math.max(1, Math.ceil(n / 4)); s = 2.8; }
+    const run = RUNNERS.includes(r.noun);
+    let n = run ? runners(r.n) : Math.min(30, r.n), s = 1;
+    if (r.adj === 'giant') { n = Math.min(run ? 3 : 6, Math.max(1, Math.ceil(n / 3))); s = 2.8; }
     if (r.n === 1) s *= 1.7;               // одиночка — крупнее, чтобы «1» не была скучной
-    this.waves.push({ r, left: n, gap: Math.min(0.7, EVENT_TIME / n), next: 0, s, t: 0 });
+    this.waves.push({ r, left: n, gap: Math.min(0.7, (run ? 4 : EVENT_TIME) / n), next: 0, s, t: 0 });
   }
 
   reset(): void {
@@ -165,12 +181,12 @@ export class Creatures {
     if (this.alive(r.noun) >= MAX) return;
     const m = this.mobs.find((q) => !q.live) ?? (this.mobs.push({} as Mob), this.mobs[this.mobs.length - 1]);
     const H = this.half - 1.5;
-    Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 0, bounces: 0, tick: 0, seed: Math.random() * 100, life: RUN_LIFE, yaw: Math.random() * 6.28 });
+    Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 0, bounces: 0, tick: 0, seed: Math.random() * 100, life: r.noun === 'zombie' ? ZOMBIE_LIFE : RUN_LIFE, yaw: Math.random() * 6.28 });
     if (FALLING.includes(r.noun)) {
       // падающее: метка на земле, часть целится туда, куда бежит игрок
       const p = this.h.target();
       let x: number, z: number;
-      if (p && Math.random() < 0.3) { const v = this.h.targetVel(); x = p.x + v.x * 0.7; z = p.z + v.z * 0.7; }
+      if (p && Math.random() < 0.25) { const v = this.h.targetVel(); x = p.x + v.x * 0.7; z = p.z + v.z * 0.7; }
       else { x = (Math.random() * 2 - 1) * H; z = (Math.random() * 2 - 1) * H; }
       this.aim(m, THREE.MathUtils.clamp(x, -H, H), THREE.MathUtils.clamp(z, -H, H), r.adj === 'fast' ? WARN * 0.6 : WARN);
     } else {
@@ -181,12 +197,41 @@ export class Creatures {
     }
   }
 
+  /** Зомби из укушенного бота: прямо на месте, без падения с неба. */
+  private spawnAt(r: ReelResult, x: number, z: number, s: number): void {
+    if (this.alive(r.noun) >= MAX) return;
+    const m = this.mobs.find((q) => !q.live) ?? (this.mobs.push({} as Mob), this.mobs[this.mobs.length - 1]);
+    Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 4, bounces: 0, tick: 0, seed: Math.random() * 100,
+      life: ZOMBIE_LIFE, yaw: Math.random() * 6.28, phase: 'run' as Phase, x, z, y: 0, ground: this.h.heightAt(x, z) });
+    this.fx.emit('poof', this.v.set(x, 1, z), 0.8, [0x7bd36a, 0x3f8f3a]);
+  }
+
+  /** Бегающие расталкивают друг друга — стая не слипается в один ком. */
+  private separate(): void {
+    const L = this.mobs;
+    for (let i = 0; i < L.length; i++) {
+      const a = L[i];
+      if (!a.live || a.phase !== 'run') continue;
+      for (let j = i + 1; j < L.length; j++) {
+        const b = L[j];
+        if (!b.live || b.phase !== 'run') continue;
+        const dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz, want = this.body(a) + this.body(b);
+        if (d2 >= want * want || d2 < 1e-6) continue;
+        const d = Math.sqrt(d2), push = (want - d) * 0.5, ux = dx / d, uz = dz / d;
+        if (this.free(a.x - ux * push, a.z - uz * push, a.y, this.body(a))) { a.x -= ux * push; a.z -= uz * push; }
+        if (this.free(b.x + ux * push, b.z + uz * push, b.y, this.body(b))) { b.x += ux * push; b.z += uz * push; }
+      }
+    }
+  }
+
   private aim(m: Mob, x: number, z: number, warn: number): void {
     Object.assign(m, { phase: 'fall' as Phase, tx: x, tz: z, x, z, t: 0, warn, ground: this.h.heightAt(x, z), from: 34 });
   }
 
   /** Радиус касания существа. */
-  private reach(m: Mob): number { return (m.kind === 'shark' ? 0.75 : 0.55) * m.s + 0.35; }
+  private reach(m: Mob): number { return (m.kind === 'shark' ? 0.65 : 0.45) * m.s + 0.25; }
+  /** Полуширина тела — чтобы не залезать в ящики. */
+  private body(m: Mob): number { return (m.kind === 'shark' ? 0.55 : 0.45) * m.s; }
 
   private effect(m: Mob, x: number, z: number, cross: boolean): void {
     if (m.adj !== 'fire' && m.adj !== 'ice' && m.kind !== 'meteor' && m.kind !== 'snowman') return;
@@ -228,9 +273,11 @@ export class Creatures {
   }
 
   /** Может ли существо шагнуть в (x, z) с высоты y: ящики и холм — укрытие от бегающих. */
-  private free(x: number, z: number, y: number): boolean {
-    const H = this.half - 0.6;
-    return Math.abs(x) < H && Math.abs(z) < H && this.h.heightAt(x, z) <= y + 0.45;
+  private free(x: number, z: number, y: number, r: number): boolean {
+    const H = this.half - 0.6 - r, top = y + 0.45, h = this.h.heightAt;
+    // центр и четыре угла тела: иначе курица наполовину въезжает в ящик
+    return Math.abs(x) < H && Math.abs(z) < H && h(x, z) <= top
+      && h(x - r, z - r) <= top && h(x + r, z - r) <= top && h(x - r, z + r) <= top && h(x + r, z + r) <= top;
   }
 
   private run(m: Mob, dt: number): void {
@@ -243,13 +290,13 @@ export class Creatures {
     const wob = Math.sin(m.t * 1.3 + m.seed) * 0.6;
     const ux = dx / len, uz = dz / len;
     const wx = ux * Math.cos(wob) - uz * Math.sin(wob), wz = ux * Math.sin(wob) + uz * Math.cos(wob);
-    let sp = (SPEED[m.kind] ?? 4) * (m.adj === 'fast' ? 2 : 1) * (m.adj === 'giant' ? 0.75 : 1);
+    let sp = (SPEED[m.kind] ?? 4) * (m.adj === 'fast' ? 1.6 : 1) * (m.adj === 'giant' ? 0.75 : 1);
     if (m.kind === 'slime' || m.kind === 'shark') sp *= m.y > m.ground + 0.05 ? 1.3 : 0.25;   // перемещаются прыжками
     const nx = m.x + wx * sp * dt, nz = m.z + wz * sp * dt;
-    const grounded = m.y <= m.ground + 0.01;
-    if (this.free(nx, nz, m.y)) { m.x = nx; m.z = nz; }
-    else if (this.free(nx, m.z, m.y)) m.x = nx;
-    else if (this.free(m.x, nz, m.y)) m.z = nz;
+    const grounded = m.y <= m.ground + 0.01, b = this.body(m);
+    if (this.free(nx, nz, m.y, b)) { m.x = nx; m.z = nz; }
+    else if (this.free(nx, m.z, m.y, b)) m.x = nx;
+    else if (this.free(m.x, nz, m.y, b)) m.z = nz;
     else if (grounded && (m.kind === 'cat' || m.adj === 'bouncy')) m.vy = 12.5;   // коты залезают на ящики
     m.yaw = Math.atan2(wx, wz);
     // прыжки: прыгучие — всегда, слайм и акула — короткими скачками
@@ -267,6 +314,7 @@ export class Creatures {
     }
     this.waves = this.waves.filter((w) => w.left > 0 && w.t < EVENT_TIME + 2);
 
+    this.separate();
     const lava = this.h.lavaLevel();
     const counts = {} as Record<NounId, number>;
     for (const k in this.meshes) counts[k as NounId] = 0;
@@ -355,7 +403,9 @@ export class Creatures {
   /** Касание игрока и манекенов. Обычная курица и обычный банан не убивают. */
   private touch(m: Mob): void {
     const r = this.reach(m);
-    this.h.hitDummies(m.x, m.y, m.z, m.kind === 'banana' && m.adj === 'plain' ? 0 : r);
+    const hit = this.h.hitDummies(m.x, m.y, m.z, m.kind === 'banana' && m.adj === 'plain' ? 0 : r, m.kind === 'zombie');
+    // укушенный бот встаёт зомби — хаос растёт сам
+    for (const [x, z] of hit) this.spawnAt({ n: 1, adj: m.adj, noun: 'zombie' }, x, z, m.s);
     const p = this.h.target();
     if (!p) return;
     const dx = p.x - m.x, dz = p.z - m.z;

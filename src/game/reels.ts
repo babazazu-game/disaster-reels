@@ -5,20 +5,21 @@ import { COUNTS, ADJ_IDS, NOUN_IDS, reelAdj, reelNoun, agree, type AdjId, type N
  * Барабан хаоса: три ленты СКОЛЬКО / КАКОЙ / ЧТО внизу экрана и ОДНА большая
  * кнопка СТОП — она останавливает ленты по очереди (на телефоне три маленькие
  * кнопки под пальцем во время бега — мучение; решение после обсуждения).
- * Управление персонажем не отбирается. Не нажал за 6 с — ленты встают сами.
+ * Пока ленты крутятся, мир стоит на паузе (просьба заказчика). Одно нажатие СТОП —
+ * ленты встают по очереди сами. Не нажал за 6 с — то же самое.
  * Клавиатура: E или Enter.
  */
 
-/** Номер иконки в атласе assets/reel.webp (сетка 4×4, рисовал Codex — art/reel/). */
+/** Номер иконки в атласе assets/reel.webp (4 колонки × 5 рядов, рисовал Codex — art/reel/, режет tools/cut_reel_icons.py). */
 const ICON: Record<AdjId | NounId, number> = {
-  chicken: 0, cat: 1, shark: 2, banana: 3, meteor: 4, bomb: 5, snowman: 6, slime: 7,
+  chicken: 0, cat: 1, shark: 2, banana: 3, meteor: 4, bomb: 5, snowman: 6, slime: 7, zombie: 14,
   fire: 8, ice: 9, giant: 10, bouncy: 11, fast: 12, plain: 13,
 };
-const iconPos = (id: AdjId | NounId) => `${(ICON[id] % 4) * 33.333}% ${Math.floor(ICON[id] / 4) * 33.333}%`;
+const iconPos = (id: AdjId | NounId) => `${(ICON[id] % 4) * 33.333}% ${Math.floor(ICON[id] / 4) * 25}%`;
 
 const SPIN_STEP = 0.075;      // смена слова на ленте, с
 const AUTO_STOP = 6;          // через столько без нажатий ленты встают сами
-const AUTO_GAP = 0.45;
+const STOP_GAP = 0.4;         // одно нажатие СТОП останавливает ленты по очереди с таким шагом
 
 export interface ReelResult { n: number; adj: AdjId; noun: NounId }
 
@@ -32,8 +33,10 @@ export class Reels {
   private stepT = 0;
   private autoT = 0;
   private onDone: ((r: ReelResult) => void) | null = null;
-  /** Подстроить итог (первый барабан игры — зрелищный, а не случайный). */
-  private forced: ReelResult | null = null;
+  /** Подстроить итог (первый барабан — понятный, второй — не слишком много). Можно частично. */
+  private forced: Partial<ReelResult> | null = null;
+  /** Нажали СТОП: ленты встают сами одна за другой. */
+  private chain = false;
   open = false;
   private hideTimer = 0;
 
@@ -56,24 +59,25 @@ export class Reels {
     this.btn = document.createElement('button');
     this.btn.className = 'reels-stop';
     this.btn.textContent = stopLabel;
-    this.btn.addEventListener('click', () => this.stop());
+    this.btn.addEventListener('click', () => this.press());
     this.box.append(frame, this.btn);
     parent.appendChild(this.box);
-    addEventListener('keydown', (e) => { if ((e.code === 'KeyE' || e.code === 'Enter') && this.open) this.stop(); });
+    addEventListener('keydown', (e) => { if ((e.code === 'KeyE' || e.code === 'Enter') && this.open) this.press(); });
   }
 
   private lists(): string[][] {
     return [COUNTS.map(String), ADJ_IDS.map(reelAdj), NOUN_IDS.map(reelNoun)];
   }
 
-  spin(onDone: (r: ReelResult) => void, forced: ReelResult | null = null): void {
+  spin(onDone: (r: ReelResult) => void, forced: Partial<ReelResult> | null = null): void {
     clearTimeout(this.hideTimer);
     this.onDone = onDone;
     this.forced = forced;
-    this.stopped = 0; this.t = 0; this.autoT = AUTO_STOP;
+    this.stopped = 0; this.t = 0; this.autoT = AUTO_STOP; this.chain = false;
     this.idx = [rnd(COUNTS.length), rnd(ADJ_IDS.length), rnd(NOUN_IDS.length)];
     this.cells.forEach((c) => c.classList.remove('done'));
     this.box.classList.add('show');
+    this.box.classList.remove('pressed');
     this.btn.disabled = false;
     this.open = true;
     this.render();
@@ -81,11 +85,26 @@ export class Reels {
 
   hide(): void { clearTimeout(this.hideTimer); this.open = false; this.box.classList.remove('show'); }
 
+  /** Крутится ли сейчас (мир на паузе). Фраза после остановки — уже игра. */
+  get spinning(): boolean { return this.open && this.stopped < 3; }
+
+  /** Нажатие СТОП: одно на все три ленты — дети не догадываются жать трижды. */
+  press(): void {
+    if (!this.spinning || this.chain) return;
+    this.chain = true;
+    this.btn.disabled = true;
+    this.box.classList.add('pressed');
+    this.stop();
+    this.autoT = STOP_GAP;
+  }
+
   /** Остановить следующую ленту. */
-  stop(): void {
+  private stop(): void {
     if (!this.open || this.stopped >= 3) return;
-    const i = this.stopped;
-    if (this.forced) this.idx[i] = i === 0 ? COUNTS.indexOf(this.forced.n as typeof COUNTS[number]) : i === 1 ? ADJ_IDS.indexOf(this.forced.adj) : NOUN_IDS.indexOf(this.forced.noun);
+    const i = this.stopped, f = this.forced;
+    if (f && i === 0 && f.n !== undefined) this.idx[0] = COUNTS.indexOf(f.n as typeof COUNTS[number]);
+    if (f && i === 1 && f.adj) this.idx[1] = ADJ_IDS.indexOf(f.adj);
+    if (f && i === 2 && f.noun) this.idx[2] = NOUN_IDS.indexOf(f.noun);
     this.cells[i].classList.add('done');
     this.stopped++;
     this.render();
@@ -115,7 +134,7 @@ export class Reels {
       this.render();
     }
     this.autoT -= dt;
-    if (this.autoT <= 0) { this.stop(); this.autoT = AUTO_GAP; }
+    if (this.autoT <= 0) { if (this.chain) { this.stop(); this.autoT = STOP_GAP; } else this.press(); }
   }
 
   private render(): void {
@@ -157,7 +176,7 @@ function injectCss(): void {
   background:linear-gradient(#e9e2d6,#fffdf8 35%,#fffdf8 65%,#e3dacb);color:#c41f2a;font:900 var(--ru)/1 Rubik,system-ui,sans-serif;
   white-space:nowrap;overflow:hidden;filter:blur(.6px)}
 .reel span{display:inline-block}
-.reel i{display:block;width:calc(var(--w)*.17);height:calc(var(--w)*.17);background:url(./assets/reel.webp) 0 0/400% 400% no-repeat;flex:none}
+.reel i{display:block;width:calc(var(--w)*.17);height:calc(var(--w)*.17);background:url(./assets/reel.webp) 0 0/400% 500% no-repeat;flex:none}
 .reel i+span{display:none}   /* только картинка: подписи не нужны (решение заказчика), фраза — крупно после СТОПа */
 .reels-frame .reel:first-child span{font-size:calc(var(--ru)*1.5)}
 .reel.done{filter:none;animation:reelHit .25s ease-out}
@@ -167,6 +186,9 @@ function injectCss(): void {
   font:900 calc(var(--w)*.045)/1 Rubik,system-ui,sans-serif;box-shadow:0 calc(var(--w)*.012) 0 #7a1016}
 .reels-stop:active{transform:translateY(3px);box-shadow:0 2px 0 #7a1016}
 .reels-stop:disabled{filter:grayscale(.4) brightness(.9)}
+.reels.show:not(.pressed) .reels-stop{animation:stopPulse .8s ease-in-out infinite}
+@keyframes stopPulse{0%,100%{transform:scale(1);box-shadow:0 calc(var(--w)*.012) 0 #7a1016,0 0 0 0 rgba(255,210,58,.9)}
+  50%{transform:scale(1.12);box-shadow:0 calc(var(--w)*.012) 0 #7a1016,0 0 0 calc(var(--w)*.03) rgba(255,210,58,0)}}
 `;
   document.head.appendChild(s);
 }
