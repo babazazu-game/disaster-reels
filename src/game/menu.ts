@@ -351,7 +351,7 @@ function injectCss(): void {
 .mnu-overlay,.mnu-corner {
   --u:min(1vw,1vh,8px); --u:min(1vw,1dvh,8px);
   --mnu-ink:#182d58; --mnu-blue:#2456a2;
-  font:900 clamp(13px,calc(3.1 * var(--u)),25px)/1.15 Rubik,"Arial Black",system-ui,sans-serif;
+  font:900 clamp(13px,calc(3.1 * var(--u)),25px)/1.15 Nunito,"Arial Black",system-ui,sans-serif;
   box-sizing:border-box;
 }
 .mnu-overlay {

@@ -183,7 +183,7 @@ function injectCss(): void {
   cssDone = true;
   const s = document.createElement('style');
   s.textContent = `
-.shop{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(10,20,40,.55);font-family:Rubik,Arial,sans-serif}
+.shop{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(10,20,40,.55);font-family:Nunito,Arial,sans-serif}
 .shop.on{display:flex}
 .shop-box{position:relative;width:min(80vw,calc(var(--u)*600));height:min(72vh,calc(var(--u)*370));display:flex;flex-direction:column;padding:calc(var(--u)*16);border-radius:calc(var(--u)*24);background:#fff;box-shadow:0 calc(var(--u)*8) 0 #c9d3e3}
 .shop-head{display:flex;align-items:center;justify-content:space-between;padding:0 calc(var(--u)*56) calc(var(--u)*10) calc(var(--u)*6)}
@@ -191,22 +191,22 @@ function injectCss(): void {
 .shop-coins,.shop-btn.buy{display:inline-flex;align-items:center;gap:6px;font-weight:900}
 .shop-coins{font-size:max(16px,calc(var(--u)*24));color:#1b2433}
 .shop i{font-style:normal;color:#ffb800}
-.shop-x{position:absolute;right:calc(var(--u)*12);top:calc(var(--u)*12);width:max(44px,calc(var(--u)*46));height:max(44px,calc(var(--u)*46));border:0;border-radius:50%;background:#e8403a;color:#fff;font:900 max(18px,calc(var(--u)*22)) Rubik,Arial;cursor:pointer;box-shadow:0 4px 0 #a82a22}
+.shop-x{position:absolute;right:calc(var(--u)*12);top:calc(var(--u)*12);width:max(44px,calc(var(--u)*46));height:max(44px,calc(var(--u)*46));border:0;border-radius:50%;background:#e8403a;color:#fff;font:900 max(18px,calc(var(--u)*22)) Nunito,Arial;cursor:pointer;box-shadow:0 4px 0 #a82a22}
 .shop-x::before,.shop-nav button::before{content:"";position:absolute;inset:-14px}
 .shop-nav{display:flex;white-space:nowrap;align-items:center;gap:calc(var(--u)*8);font-weight:900;font-size:max(14px,calc(var(--u)*18));color:#1b2433}
-.shop-nav button{position:relative;width:max(40px,calc(var(--u)*42));height:max(36px,calc(var(--u)*36));border:0;border-radius:calc(var(--u)*10);background:#3d8cf0;color:#fff;font:900 max(14px,calc(var(--u)*16)) Rubik,Arial;box-shadow:0 4px 0 #1f5fb8;cursor:pointer}
+.shop-nav button{position:relative;width:max(40px,calc(var(--u)*42));height:max(36px,calc(var(--u)*36));border:0;border-radius:calc(var(--u)*10);background:#3d8cf0;color:#fff;font:900 max(14px,calc(var(--u)*16)) Nunito,Arial;box-shadow:0 4px 0 #1f5fb8;cursor:pointer}
 .shop-nav button:disabled{opacity:.35}
 .shop-grid{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),minmax(0,1fr));gap:calc(var(--u)*10);padding:calc(var(--u)*4)}
 .shop-card{min-height:0;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*3);padding:calc(var(--u)*6);border-radius:calc(var(--u)*16);background:linear-gradient(#e9f3ff,#cfe3ff);border:3px solid transparent}
 .shop-card.worn{border-color:#3ad15a;background:linear-gradient(#eafff0,#c9f5d6)}
 .shop-card>img{flex:1;min-height:0;width:100%;object-fit:contain}
 .shop-name{font-weight:900;font-size:max(11px,min(calc(var(--u)*13),2.4vw));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;color:#1b2433}
-.shop-btn{width:100%;flex:none;min-height:max(32px,min(calc(var(--u)*32),9vw));border:0;border-radius:calc(var(--u)*10);color:#fff;font:900 max(11px,min(calc(var(--u)*14),2.6vw)) Rubik,Arial;white-space:nowrap;overflow:hidden;padding:0 4px;cursor:pointer;justify-content:center}
+.shop-btn{width:100%;flex:none;min-height:max(32px,min(calc(var(--u)*32),9vw));border:0;border-radius:calc(var(--u)*10);color:#fff;font:900 max(11px,min(calc(var(--u)*14),2.6vw)) Nunito,Arial;white-space:nowrap;overflow:hidden;padding:0 4px;cursor:pointer;justify-content:center}
 .shop-btn.buy{background:#ff9a1f;box-shadow:0 4px 0 #c55a00}.shop-btn.buy i{color:#fff3a8}
 .shop-btn.buy.poor{background:#b9c2cf;box-shadow:0 4px 0 #8b94a1}
 .shop-btn.wear{background:#2a74e8;box-shadow:0 4px 0 #17469a}
 .shop-pips{display:flex;gap:4px}.shop-pips .pip{width:max(8px,calc(var(--u)*12));height:max(8px,calc(var(--u)*12));border-radius:50%;background:#c9d3e3}.shop-pips .pip.on{background:#3ad15a}
-.shop-desc{font:700 max(11px,min(calc(var(--u)*12),3vw)) Rubik,Arial;color:#55627a;text-align:center;line-height:1.15;min-height:2.3em}
+.shop-desc{font:700 max(11px,min(calc(var(--u)*12),3vw)) Nunito,Arial;color:#55627a;text-align:center;line-height:1.15;min-height:2.3em}
 .shop-btn.worn{background:#3ad15a;box-shadow:0 4px 0 #23913b;cursor:default}
 `;
   document.head.appendChild(s);

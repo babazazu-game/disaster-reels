@@ -55,9 +55,9 @@ function drawText(g: CanvasRenderingContext2D, W: number, H: number, lines: stri
   // Кегль подбирается так, чтобы САМАЯ длинная строка влезла по ширине с полями:
   // длинные названия («ЛАВА 🔒 ЗАКРЫТО», «РЕКОРДЫ…») раньше вылезали за плашку.
   let fs = opts.font ?? Math.min(H / lines.length * 0.62, 72);
-  g.font = `900 ${fs}px Rubik, Arial, sans-serif`;
+  g.font = `900 ${fs}px Nunito, Arial, sans-serif`;
   const widest = Math.max(...lines.map((l) => g.measureText(l).width));
-  if (widest > W - 48) { fs *= (W - 48) / widest; g.font = `900 ${fs}px Rubik, Arial, sans-serif`; }
+  if (widest > W - 48) { fs *= (W - 48) / widest; g.font = `900 ${fs}px Nunito, Arial, sans-serif`; }
   // round-стыки: с острыми (miter) обводка букв давала «колючки» на углах (жалоба пользователя)
   g.lineJoin = 'round'; g.miterLimit = 2;
   g.lineWidth = fs * 0.14; g.strokeStyle = 'rgba(0,0,0,.45)';

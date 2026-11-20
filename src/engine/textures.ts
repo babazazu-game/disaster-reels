@@ -232,7 +232,7 @@ export const doorTexture = (color: number): THREE.CanvasTexture => canvas((g) =>
   g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(28, 24, S - 56, 92); g.fillRect(28, 136, S - 56, 96);
   g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 6; g.strokeRect(28, 24, S - 56, 92); g.strokeRect(28, 136, S - 56, 96);
   g.fillStyle = '#ffe14d'; g.beginPath(); g.arc(S - 52, 132, 12, 0, Math.PI * 2); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.9)'; g.font = '900 64px Rubik, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(255,255,255,.9)'; g.font = '900 64px Nunito, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineJoin = 'round'; g.lineWidth = 8; g.strokeStyle = 'rgba(0,0,0,.35)'; g.strokeText('?', S / 2, 72); g.fillText('?', S / 2, 72);
   g.strokeStyle = '#ffffff'; g.lineWidth = 10; g.strokeRect(5, 5, S - 10, S - 10);
 });

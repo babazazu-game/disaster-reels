@@ -246,7 +246,7 @@ function injectCss(): void {
   cssDone = true;
   const s = document.createElement('style');
   s.textContent = `
-.hud,.hud-overlay{font-family:Rubik,Arial,sans-serif;color:#fff;-webkit-user-select:none;user-select:none}
+.hud,.hud-overlay{font-family:Nunito,Arial,sans-serif;color:#fff;-webkit-user-select:none;user-select:none}
 .hud{position:absolute;inset:0;pointer-events:none;z-index:7}
 .hud-pill{position:absolute;display:flex;align-items:center;gap:calc(var(--u)*8);padding:calc(var(--u)*6) calc(var(--u)*14) calc(var(--u)*6) calc(var(--u)*8);border-radius:calc(var(--u)*14);background:rgba(20,28,40,.72);font-weight:900;font-size:max(13px,min(calc(var(--u)*22),4.4vw));text-shadow:0 2px 0 #0d1520;white-space:nowrap;max-width:calc(100vw - var(--u)*160);overflow:hidden;text-overflow:ellipsis}
 .hud-ico{width:calc(var(--u)*34);height:calc(var(--u)*34);border-radius:calc(var(--u)*10);display:grid;place-items:center;font-size:max(13px,calc(var(--u)*20))}
@@ -266,7 +266,7 @@ function injectCss(): void {
 @keyframes hudPop{0%{opacity:0;transform:translate(-50%,0) scale(.4) rotate(-3deg)}15%{opacity:1;transform:translate(-50%,0) scale(1.15) rotate(-3deg)}25%{transform:translate(-50%,0) scale(1) rotate(-3deg)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-30%) scale(1) rotate(-3deg)}}
 .hud-hint{position:absolute;left:50%;bottom:calc(var(--b) + var(--u)*22);transform:translateX(-50%);max-width:70%;text-align:center;padding:calc(var(--u)*10) calc(var(--u)*20);border-radius:calc(var(--u)*14);background:rgba(20,28,40,.72);font-weight:700;font-size:max(13px,calc(var(--u)*18));opacity:0;visibility:hidden;transition:opacity .4s,visibility 0s .4s}
 .hud-hint.show{opacity:1;visibility:visible;transition:opacity .4s}
-.hud-settings{position:absolute;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(10,20,40,.45);font-family:Rubik,Arial,sans-serif}
+.hud-settings{position:absolute;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(10,20,40,.45);font-family:Nunito,Arial,sans-serif}
 .hud-settings.on{display:flex}
 .hud-set-card{width:min(86vw,calc(var(--u)*380));padding:calc(var(--u)*18);border-radius:calc(var(--u)*22);background:#fff;color:#1b2433;box-shadow:0 calc(var(--u)*8) 0 #c9d3e3;display:flex;flex-direction:column;gap:calc(var(--u)*14);align-items:stretch}
 .hud-set-card h3{margin:0;text-align:center;font-weight:900;font-size:max(18px,calc(var(--u)*26));color:#2a74e8}
@@ -283,12 +283,12 @@ function injectCss(): void {
 .hud-logo img{display:block;width:min(calc(var(--u)*620),86vw);max-height:38vh;object-fit:contain;filter:drop-shadow(0 calc(var(--u)*8) calc(var(--u)*10) rgba(0,0,0,.35))}.hud-logo:not(.img) img,.hud-logo.img .l1,.hud-logo.img .l2{display:none}
 .hud-logo .l1{font-weight:900;font-size:max(18px,min(calc(var(--u)*40),7vw));text-shadow:0 calc(var(--u)*4) 0 #1b3a7a}
 .hud-logo .l2{font-weight:900;font-size:max(26px,min(calc(var(--u)*68),11vw));line-height:1;color:#ffd23a;text-shadow:0 calc(var(--u)*6) 0 #b0520a,0 10px 20px rgba(0,0,0,.35)}
-.hud-play{min-width:calc(var(--u)*280);min-height:max(48px,calc(var(--u)*80));padding:0 calc(var(--u)*28);border-radius:calc(var(--u)*22);background:linear-gradient(#5ff07a,#22b043);box-shadow:0 calc(var(--u)*8) 0 #137a2c;border:calc(var(--u)*4) solid #fff;color:#fff;font:900 max(20px,calc(var(--u)*40)) Rubik,Arial,sans-serif;text-shadow:0 3px 0 #137a2c;cursor:pointer}
+.hud-play{min-width:calc(var(--u)*280);min-height:max(48px,calc(var(--u)*80));padding:0 calc(var(--u)*28);border-radius:calc(var(--u)*22);background:linear-gradient(#5ff07a,#22b043);box-shadow:0 calc(var(--u)*8) 0 #137a2c;border:calc(var(--u)*4) solid #fff;color:#fff;font:900 max(20px,calc(var(--u)*40)) Nunito,Arial,sans-serif;text-shadow:0 3px 0 #137a2c;cursor:pointer}
 .hud-ad{display:block;margin:calc(var(--u)*6) auto calc(var(--u)*14);background:linear-gradient(#ffd23a,#ff9a1f);box-shadow:0 calc(var(--u)*8) 0 #b0520a;text-shadow:0 3px 0 #b0520a;font-size:max(16px,calc(var(--u)*30))}
-.hud-skip{position:absolute;left:50%;top:calc(var(--u)*120 + env(safe-area-inset-top));transform:translateX(-50%);pointer-events:auto;padding:calc(var(--u)*10) calc(var(--u)*22);min-height:44px;border:calc(var(--u)*3) solid #fff;border-radius:calc(var(--u)*16);background:linear-gradient(#ffd23a,#ff9a1f);box-shadow:0 calc(var(--u)*5) 0 #b0520a;color:#fff;font:900 max(15px,calc(var(--u)*22)) Rubik,Arial,sans-serif;text-shadow:0 2px 0 #b0520a;cursor:pointer;white-space:nowrap}
+.hud-skip{position:absolute;left:50%;top:calc(var(--u)*120 + env(safe-area-inset-top));transform:translateX(-50%);pointer-events:auto;padding:calc(var(--u)*10) calc(var(--u)*22);min-height:44px;border:calc(var(--u)*3) solid #fff;border-radius:calc(var(--u)*16);background:linear-gradient(#ffd23a,#ff9a1f);box-shadow:0 calc(var(--u)*5) 0 #b0520a;color:#fff;font:900 max(15px,calc(var(--u)*22)) Nunito,Arial,sans-serif;text-shadow:0 2px 0 #b0520a;cursor:pointer;white-space:nowrap}
 .hud-play:active{transform:translateY(calc(var(--u)*4));box-shadow:0 calc(var(--u)*4) 0 #137a2c}
 .hud-row{display:flex;align-items:stretch;gap:calc(var(--u)*14);flex-wrap:wrap;justify-content:center}
-.hud-sb{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--u)*8);line-height:1;min-width:calc(var(--u)*150);height:max(44px,calc(var(--u)*60));padding:calc(var(--u)*12) calc(var(--u)*20);border-radius:calc(var(--u)*18);border:3px solid #fff;color:#fff;font:900 max(14px,calc(var(--u)*20)) Rubik,Arial,sans-serif;box-shadow:0 calc(var(--u)*6) 0 rgba(0,0,0,.3);cursor:pointer}
+.hud-sb{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--u)*8);line-height:1;min-width:calc(var(--u)*150);height:max(44px,calc(var(--u)*60));padding:calc(var(--u)*12) calc(var(--u)*20);border-radius:calc(var(--u)*18);border:3px solid #fff;color:#fff;font:900 max(14px,calc(var(--u)*20)) Nunito,Arial,sans-serif;box-shadow:0 calc(var(--u)*6) 0 rgba(0,0,0,.3);cursor:pointer}
 .hud-sub{font-weight:700;font-size:max(13px,calc(var(--u)*18))}
 .hud-card{width:min(92vw,calc(var(--u)*440));padding:calc(var(--u)*24);border-radius:calc(var(--u)*26);background:#fff;color:#1b2433;text-align:center;box-shadow:0 calc(var(--u)*10) 0 #c9d3e3,0 20px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*10)}
 .hud-card h2{font-weight:900;font-size:max(20px,min(calc(var(--u)*40),8vw));color:#ff9a1f;text-shadow:0 3px 0 #c55a00}
