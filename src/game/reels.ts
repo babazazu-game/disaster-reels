@@ -20,6 +20,7 @@ const ICON: Record<AdjId | NounId, number> = {
   bee: 18, boulder: 19, frog: 20,   // 21 — туча с молнией (гроза), пока не на ленте
   fire: 8, ice: 9, giant: 10, bouncy: 11, fast: 12, plain: 13,
 };
+export const reelIconPos = (id: AdjId | NounId): string => iconPos(id);
 const iconPos = (id: AdjId | NounId) => `${(ICON[id] % 4) * 33.333}% ${Math.floor(ICON[id] / 4) * 20}%`;   // 6 рядов: шаг 100/(6−1)
 
 const AUTO_STOP = 5;          // через столько без нажатий лента встаёт сама

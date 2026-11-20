@@ -21,6 +21,8 @@ export interface ResultInfo {
   difficulty: Difficulty;
   coins: number;
   total: number;
+  /** Можно ожить за ролик (раз за попытку, только при гибели, только если у площадки есть ролики). */
+  canRevive?: boolean;
 }
 
 type Screen = 'main' | 'result' | 'pause';
@@ -28,8 +30,8 @@ type Localize = (ru: string, en: string) => string;
 
 const MODES = {
   easy: { name: ['Лёгкий', 'Easy'], hint: ['5 сердечек, всё медленнее', '5 hearts, slower chaos'] },
-  normal: { name: ['Обычный', 'Normal'], hint: ['3 сердечка', '3 hearts'] },
-  chaos: { name: ['Хаос', 'Chaos'], hint: ['2 сердечка, всё быстрее!', '2 hearts, faster chaos!'] },
+  normal: { name: ['Обычный', 'Normal'], hint: ['4 сердечка', '4 hearts'] },
+  chaos: { name: ['Хаос', 'Chaos'], hint: ['3 сердечка, всё быстрее!', '3 hearts, faster chaos!'] },
 } as const;
 const DIFFICULTIES = ['easy', 'normal', 'chaos'] as const;
 
@@ -42,6 +44,9 @@ const ICONS = {
   muted: '<path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3Z"/><path d="m16 9 5 6m0-6-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   pause: '<rect x="5.5" y="4" width="4.5" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="4.5" height="16" rx="1.5" fill="currentColor"/>',
   check: '<path d="m5 12 4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+  hills: '<path fill="#9fe36a" d="M1 20 8 9l4 5 3-4 8 10Z"/><path fill="#fff" d="m8 9 2 3H6Z"/>',
+  pyramid: '<path fill="#ffd77a" d="M12 4 22 20H2Z"/><path d="M5.5 15h13M8 11h8" stroke="#c99e58" stroke-width="1.6"/>',
+  book: '<path fill="currentColor" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5a1.5 1.5 0 0 0 0 3H20v1H6.5A2.5 2.5 0 0 1 4 19.5Z"/><path d="M12 6.5v3m0 2.6v.4" stroke="#1580e8" stroke-width="2.4" stroke-linecap="round"/>',
 };
 
 export class Menu {
@@ -52,7 +57,13 @@ export class Menu {
   onPause?: () => void;
   onMute?: (muted: boolean) => void;
   onCharacters?: () => void;
+  onEncyclopedia?: () => void;
+  onMap?: (m: 'hills' | 'pyramid') => void;
+  private map: 'hills' | 'pyramid' = 'hills';
+  private mapButton!: HTMLButtonElement;
+  private mapTip!: HTMLSpanElement;
   onDouble?: () => Promise<boolean>;
+  onRevive?: () => Promise<boolean>;
 
   private readonly overlay: HTMLDivElement;
   private readonly screens: Record<Screen, HTMLElement>;
@@ -66,6 +77,7 @@ export class Menu {
   private readonly balances: readonly HTMLSpanElement[];
   private readonly rewardAmount: HTMLSpanElement;
   private readonly doubleButton: HTMLButtonElement;
+  private readonly reviveButton: HTMLButtonElement;
   private readonly resultTitle: HTMLHeadingElement;
   private readonly cause: HTMLParagraphElement;
   private readonly record: HTMLSpanElement;
@@ -116,6 +128,18 @@ export class Menu {
     const tools = element('div', main, 'mnu-tools');
     this.charactersButton = button(tools, 'mnu-blue mnu-characters', '', () => this.onCharacters?.());
     this.charactersButton.setAttribute('aria-label', L('Персонажи', 'Characters'));
+    // выбор карты (просьба заказчика: «рядом с персонажами»): нажатие — следующая карта, арена за меню сразу меняется
+    this.mapButton = button(tools, 'mnu-blue mnu-characters mnu-map', '', () => {
+      this.setMap(this.map === 'hills' ? 'pyramid' : 'hills', true);
+      this.onMap?.(this.map);
+    });
+    this.mapTip = element('span', tools, 'mnu-map-tip');
+    this.mapTip.setAttribute('aria-live', 'polite');
+    this.setMap('hills');
+    // «Энциклопедия хаоса»: всё, что выпадало на барабане
+    const book = button(tools, 'mnu-blue mnu-characters mnu-book', '', () => this.onEncyclopedia?.());
+    book.append(icon('book'));
+    book.setAttribute('aria-label', L('Энциклопедия хаоса', 'Chaos encyclopedia'));
     this.soundButton(tools);
 
     const result = this.panel('mnu-card mnu-result');
@@ -144,6 +168,10 @@ export class Menu {
     this.doubleButton = button(rewards, 'mnu-blue mnu-double', L('×2', '×2'), () => { void this.doubleReward(); });
     this.doubleButton.append(uiIcon('ad'));
     this.balances = [balance, coinBadge(rewards, 'mnu-result-wallet', L('Всего монет', 'Total coins'))];
+    // «Ожить за ролик» — над обычными кнопками, по желанию игрока (Playgama 2.2: только опция, раз за попытку)
+    this.reviveButton = button(result, 'mnu-blue mnu-revive', L('ОЖИТЬ', 'REVIVE'), () => { void this.revive(); });
+    this.reviveButton.append(uiIcon('ad'));
+    this.reviveButton.setAttribute('aria-label', L('Ожить за рекламный ролик', 'Watch an ad to revive'));
     const actions = element('div', result, 'mnu-actions');
     this.retryButton = button(actions, 'mnu-primary', L('ЕЩЁ РАЗ', 'PLAY AGAIN'), () => this.onRetry?.());
     button(actions, 'mnu-secondary', L('МЕНЮ', 'MENU'), () => this.onMenu?.());
@@ -221,6 +249,8 @@ export class Menu {
     this.resultMode.textContent = L(nameRu, nameEn);
     this.resultVersion++;
     this.doubleButton.hidden = r.coins === 0 || !rewardedAvailable();   // нет роликов у площадки — нет и кнопки (Playgama 2.2)
+    this.reviveButton.hidden = !r.canRevive || !rewardedAvailable();
+    this.reviveButton.disabled = false;
     this.setDoubleWaiting(false);
 
     // Обновление уже открытого итога тоже запускает заполнение и ленту с начала.
@@ -292,6 +322,21 @@ export class Menu {
     for (const mode of DIFFICULTIES) this.modes[mode].setAttribute('aria-pressed', String(mode === difficulty));
   }
 
+  /** Карта на кнопке; tip — показать подпись с названием на пару секунд. */
+  setMap(m: 'hills' | 'pyramid', tip = false): void {
+    this.map = m;
+    const name = m === 'hills' ? this.L('Холмы', 'Hills') : this.L('Пирамида', 'Pyramid');
+    this.mapButton.replaceChildren(icon(m));
+    this.mapButton.setAttribute('aria-label', this.L(`Карта: ${name}. Сменить`, `Map: ${name}. Change`));
+    this.mapTip.textContent = this.L(`Карта: ${name}`, `Map: ${name}`);
+    if (tip) {
+      this.mapTip.classList.remove('show'); void this.mapTip.offsetWidth; this.mapTip.classList.add('show');
+      window.clearTimeout(this.mapTipTimer);
+      this.mapTipTimer = window.setTimeout(() => this.mapTip.classList.remove('show'), 1800);
+    }
+  }
+  private mapTipTimer = 0;
+
   private soundButton(parent: HTMLElement): void {
     const sound = button(parent, 'mnu-sound', '', () => {
       this.setMuted(!this.muted);
@@ -356,6 +401,14 @@ export class Menu {
     this.showReward(this.reward * 2);
     this.bounce(this.rewardAmount);
     this.doubleButton.hidden = true;
+  }
+
+  private async revive(): Promise<void> {
+    if (this.screen !== 'result' || this.reviveButton.hidden || this.reviveButton.disabled || !this.onRevive) return;
+    this.reviveButton.disabled = true;
+    let ok = false;
+    try { ok = await this.onRevive(); } catch { /* ролик сорвался — кнопка снова доступна */ }
+    if (!ok) this.reviveButton.disabled = false;
   }
 
   private bounce(target: HTMLElement): void {
@@ -559,7 +612,7 @@ function injectCss(): void {
 .mnu-choice > .mnu-art { width:clamp(32px,min(14cqi,calc(8 * var(--u))),65px); }
 .mnu-mode-name { font-size:clamp(11px,min(4.6cqi,calc(4.2 * var(--u))),36px); line-height:1; text-transform:uppercase; white-space:nowrap; }
 .mnu-mode-hint {
-  font-size:clamp(11px,min(3.4cqi,calc(2.2 * var(--u))),19px);
+  font-size:clamp(12px,min(3.4cqi,calc(2.2 * var(--u))),19px);
   line-height:1.05; -webkit-text-stroke:2px var(--ink); text-shadow:0 1px var(--ink);
 }
 .mnu-check {
@@ -593,6 +646,13 @@ function injectCss(): void {
   width:clamp(var(--tap),calc(9 * var(--u)),74px); height:clamp(var(--tap),calc(9 * var(--u)),74px); padding:0;
 }
 .mnu-characters .mnu-art { width:78%; }
+.mnu-map svg { width:70%; height:auto; filter:drop-shadow(0 2px 0 #14204a); }
+.mnu-tools { position:relative; }
+.mnu-map-tip { position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; padding:.25em .8em; border-radius:999px; white-space:nowrap;
+  background:#2a1250; color:#fff; -webkit-text-stroke:0; text-shadow:none; font-size:clamp(14px,calc(2.6 * var(--u)),20px);
+  opacity:0; transition:opacity .2s; pointer-events:none; }
+.mnu-map-tip.show { opacity:1; }
+.mnu-book svg { width:58%; height:auto; color:#fff; filter:drop-shadow(0 2px 0 #14204a); }
 .mnu-main-wallet {
   position:absolute; top:calc(env(safe-area-inset-top) + 10px); left:calc(env(safe-area-inset-left) + 12px);
 }
@@ -658,6 +718,9 @@ function injectCss(): void {
   padding:3px .65em; white-space:nowrap;
 }
 .mnu-double[aria-busy="true"] { opacity:.65; cursor:wait; }
+.mnu-revive { --tap:52px; width:min(100%,420px); gap:.4em; font-size:clamp(20px,calc(5 * var(--u)),36px); animation:mnu-revive 1.1s ease-in-out infinite; }
+.mnu-revive:disabled { opacity:.6; animation:none; }
+@keyframes mnu-revive { 50% { transform:scale(1.05); } }
 .mnu-double[aria-busy="true"] .chr-icon { animation:chr-wait .7s ease-in-out infinite alternate; }
 .mnu-badge,.mnu-record {
   border:2px solid var(--ink); border-radius:999px; padding:.2em .65em;

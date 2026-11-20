@@ -35,12 +35,16 @@ export interface ProgressData extends Record<string, unknown> {
   adViews: Record<string, number>;
   /** Мини-обучение первого раунда уже показано. */
   tutorial: boolean;
+  /** Энциклопедия: какие существа и свойства уже выпадали на барабане (id из words.ts). */
+  seen: string[];
+  /** Выбранная карта: 'hills' | 'pyramid'. */
+  map: string;
 }
 
 // v2: прогресс по мирам и лавки хаба (v1 был до хаба — несовместим по полю best)
 export const progress = new Save<ProgressData>('disaster-reels-v1', {
   coins: 0, owned: ['rookie'], skin: 'rookie', muted: false, best: {}, runs: 0,
-  unlocked: 1, upgrades: {}, pets: ['none'], pet: 'none', trails: ['none'], trail: 'none', chest: '', sfxVol: 1, musicVol: 1, difficulty: 'normal', adViews: {}, tutorial: false,
+  unlocked: 1, upgrades: {}, pets: ['none'], pet: 'none', trails: ['none'], trail: 'none', chest: '', sfxVol: 1, musicVol: 1, difficulty: 'normal', adViews: {}, tutorial: false, seen: [], map: 'hills',
 });
 
 /**

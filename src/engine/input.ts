@@ -111,6 +111,16 @@ export class Input {
   /** Обучение: кнопка прыжка пульсирует. */
   highlightJump(on: boolean): void { this.jumpBtn.classList.toggle('tut-glow', on); }
 
+  /** Обучение: призрачный джойстик слева внизу — показать, где водить пальцем. */
+  ghostStick(on: boolean): void {
+    if (on && !this.stick) {
+      const ins = safeInsets(), b = parseFloat(this.base.style.width) || 100;
+      this.base.style.left = ins.left + b * 0.9 + 'px';
+      this.base.style.top = innerHeight - ins.bottom - b * 1.1 - (innerHeight > innerWidth ? innerHeight * 0.09 : 0) + 'px';
+    }
+    this.base.classList.toggle('ghost', on && !this.stick);
+  }
+
   private onTouch(e: TouchEvent, phase: 'start' | 'move' | 'end'): void {
     // Касание кнопок интерфейса (меню, магазин, настройки) — не наше: preventDefault
     // здесь гасил их click, и на телефоне «Играть» не нажималось.
@@ -127,7 +137,7 @@ export class Input {
         if (t.clientX < innerWidth * 0.45 && !this.stick) {
           this.stick = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: t.clientX, y: t.clientY };
           this.base.style.left = t.clientX + 'px'; this.base.style.top = t.clientY + 'px';
-          this.base.classList.add('show');
+          this.base.classList.add('show'); this.base.classList.remove('ghost');
         } else if (this.lookId === null) {
           this.lookId = t.identifier; this.lookLast = { x: t.clientX, y: t.clientY };
         }
@@ -186,12 +196,16 @@ function injectCss(): void {
   s.textContent = `
 .touch-ui{position:absolute;inset:0;pointer-events:none;display:none;z-index:5}
 .touch-ui.on{display:block}
-.stick-base{position:absolute;transform:translate(-50%,-50%);border-radius:50%;background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.55);display:none}
+.stick-base{position:absolute;transform:translate(-50%,-50%);border-radius:50%;background:rgba(20,30,60,.25);border:3px solid rgba(255,255,255,.75);display:none}
 .stick-base.show{display:block}
+.stick-base.ghost{display:block;opacity:.85;animation:stickGhost 1.6s ease-in-out infinite}
+.stick-base.ghost .stick-knob{animation:knobGhost 1.6s ease-in-out infinite}
+@keyframes stickGhost{50%{opacity:.5}}
+@keyframes knobGhost{0%,100%{transform:translate(0,0)}25%{transform:translate(0,-30%)}75%{transform:translate(30%,0)}}
 .stick-knob{position:absolute;left:50%;top:50%;margin:auto;inset:0;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 3px 8px rgba(0,0,0,.25)}
-.jump-btn{position:absolute;border-radius:50%;background:rgba(255,255,255,.28);border:3px solid rgba(255,255,255,.75);box-shadow:0 4px 10px rgba(0,0,0,.2)}
+.jump-btn{position:absolute;border-radius:50%;background:rgba(20,30,60,.38);border:3px solid rgba(255,255,255,.9);box-shadow:0 4px 10px rgba(0,0,0,.25)}
 .jump-btn::after{content:'';position:absolute;left:50%;top:50%;width:34%;height:34%;transform:translate(-50%,-30%) rotate(45deg);border-left:6px solid #fff;border-top:6px solid #fff}
-.jump-btn.down{background:rgba(255,255,255,.55);transform:scale(.94)}
+.jump-btn.down{background:rgba(255,255,255,.5);transform:scale(.94)}
 `;
   document.head.appendChild(s);
 }

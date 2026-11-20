@@ -32,6 +32,7 @@ import { Particles } from './engine/particles.ts';
 import { Surface, Hail, Lava, Flames, boltTexture, Cell, GROUND_Y } from './game/chaos.ts';
 import { Reels, type ReelResult } from './game/reels.ts';
 import { Tutorial } from './game/tutorial.ts';
+import { Encyclopedia } from './game/encyclopedia.ts';
 import { Creatures } from './game/creatures.ts';
 import { agree, phrase, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './game/words.ts';
 import { RoundUi } from './game/roundUi.ts';
@@ -68,8 +69,8 @@ export type Difficulty = 'easy' | 'normal' | 'chaos';
  */
 const DIFF: Record<Difficulty, { hearts: number; runners: number; speed: number; lava: number; meteors: [number, number]; aim: number; storm: number }> = {
   easy: { hearts: 5, runners: 0.6, speed: 0.8, lava: 1.4, meteors: [7, 8], aim: 0.2, storm: 10 },
-  normal: { hearts: HEARTS, runners: 1, speed: 1, lava: 1, meteors: [12, 14], aim: 0.35, storm: 7 },
-  chaos: { hearts: 2, runners: 1.3, speed: 1.15, lava: 0.8, meteors: [16, 18], aim: 0.45, storm: 5 },
+  normal: { hearts: 4, runners: 1, speed: 1, lava: 1, meteors: [8, 9], aim: 0.22, storm: 9 },   // автотест 20.11: бот 0 из 11 — ослабили
+  chaos: { hearts: 3, runners: 1.3, speed: 1.15, lava: 0.85, meteors: [12, 13], aim: 0.32, storm: 7 },
 };
 /** Неуязвимость после удара, с — успеть убежать. */
 const INVULN = 1.6;
@@ -125,7 +126,9 @@ const SLOW_T = 0.5, SLOW_K = 0.3;
 const C = {
   grass: 0x5cc44a, dirt: 0x9a6a3c, stone: 0xa3a9b3, stoneDark: 0x7d8490,
   crate: 0xc4843f, trunk: 0x8a5a33, leaves: 0x3fae4f, flag: 0xe8403a, fence: 0xfff4dc, post: 0xd99a4e,
+  sand: 0xe6c47c, sandDark: 0xc99e58,   // вторая карта «Пирамида» — песчаник (текстура камня с тёплым оттенком)
 };
+export type MapId = 'hills' | 'pyramid';
 
 export function createScene(parent: HTMLElement): Game {
   const world = createWorld(parent, { ...CLASSIC, cloudSea: true });
@@ -169,6 +172,7 @@ export function createScene(parent: HTMLElement): Game {
 
   // расстановка — новая каждый раунд (просьба заказчика): холмы, плита и башня поворачиваются/зеркалятся,
   // ящики и деревья встают на случайные свободные места
+  let map: MapId = progress.snapshot().map === 'pyramid' ? 'pyramid' : 'hills';
   const layout = new THREE.Group();
   scene.add(layout);
   let layoutSolids: Solid[] = [];
@@ -195,22 +199,40 @@ export function createScene(parent: HTMLElement): Game {
       if (hard) layoutSolids.push(physics.addMesh(m, hard === 'leaf' ? 'leaf' : undefined));
       parts.push(m);
     };
-    // ступенчатый холм (1 → 2 → 3 м): забраться повыше — спасение от лавы и бегающих
-    put(16, 1, 14, -16, 0, -13, C.stone);
-    put(10, 2, 9, -18, 0, -15, C.stone);
-    put(5, 3, 5, -21, 0, -18, C.stone);
-    hill = ([[-16, -9], [-18, -14], [-21, -18]] as const).map(([x, z]) => T(x, z));
-    // второй, низкий холм: плато 2 м со ступенькой
-    put(6, 2, 6, -6, 0, 20, C.stone);
-    put(2, 1, 2, -10, 0, 20, C.stoneDark);
-    // широкая плита 1 м — от лавы спасает, от котов нет
-    put(8, 1, 6, 14, 0, -2, C.stoneDark);
-    // башня 6 м и лесенка из блоков по 1 м
-    put(5, 6, 5, 20, 0, -20, C.stone);
-    for (let i = 0; i < 5; i++) put(2, i + 1, 2, 8.5 + i * 2, 0, -19, C.stoneDark);
-    put(0.3, 3, 0.3, 21.8, 6, -21.8, C.trunk, false);
-    put(1.8, 1.1, 0.2, 22.8, 7.7, -21.8, C.flag, false);
-
+    if (map === 'pyramid') {
+      // ВТОРАЯ КАРТА «Пирамида» (Stage 9): ступенчатая пирамида 1→2→3→4 м — самое высокое место арены,
+      // но на вершине тесно; две площадки 2 м с ступенькой, низкие стенки-укрытия посередине, башня с лесенкой
+      put(16, 1, 16, 0, 0, -12, C.sand);
+      put(12, 2, 12, 0, 0, -12, C.sand);
+      put(8, 3, 8, 0, 0, -12, C.sand);
+      put(4, 4, 4, 0, 0, -12, C.sandDark);
+      hill = ([[0, -5], [0, -7], [0, -9], [0, -12]] as const).map(([x, z]) => T(x, z));
+      for (const sx of [-1, 1]) {
+        put(5, 2, 5, 20 * sx, 0, 18, C.sand);
+        put(2, 1, 2, 20 * sx, 0, 14.5, C.sandDark);
+        put(9, 1, 1, 13 * sx, 0, 3, C.sandDark);   // стенка 1 м: от котов не спасёт, от метеора — укрытие сбоку
+      }
+      put(5, 6, 5, 20, 0, -20, C.sand);
+      for (let i = 0; i < 5; i++) put(2, i + 1, 2, 20, 0, -8.5 - i * 2, C.sandDark);
+      put(0.3, 3, 0.3, 21.8, 6, -21.8, C.trunk, false);
+      put(1.8, 1.1, 0.2, 22.8, 7.7, -21.8, C.flag, false);
+    } else {
+      // ступенчатый холм (1 → 2 → 3 м): забраться повыше — спасение от лавы и бегающих
+      put(16, 1, 14, -16, 0, -13, C.stone);
+      put(10, 2, 9, -18, 0, -15, C.stone);
+      put(5, 3, 5, -21, 0, -18, C.stone);
+      hill = ([[-16, -9], [-18, -14], [-21, -18]] as const).map(([x, z]) => T(x, z));
+      // второй, низкий холм: плато 2 м со ступенькой
+      put(6, 2, 6, -6, 0, 20, C.stone);
+      put(2, 1, 2, -10, 0, 20, C.stoneDark);
+      // широкая плита 1 м — от лавы спасает, от котов нет
+      put(8, 1, 6, 14, 0, -2, C.stoneDark);
+      // башня 6 м и лесенка из блоков по 1 м
+      put(5, 6, 5, 20, 0, -20, C.stone);
+      for (let i = 0; i < 5; i++) put(2, i + 1, 2, 8.5 + i * 2, 0, -19, C.stoneDark);
+      put(0.3, 3, 0.3, 21.8, 6, -21.8, C.trunk, false);
+      put(1.8, 1.1, 0.2, 22.8, 7.7, -21.8, C.flag, false);
+    }
     /** Свободно ли место радиуса r: не на постройке, с проходом 1,2 м, не у старта игрока. */
     const free = (x: number, z: number, r: number) => {
       if (Math.abs(x) > HALF - 3 - r || Math.abs(z) > HALF - 3 - r || Math.hypot(x - SPAWN.x, z - SPAWN.z) < 4 + r) return false;
@@ -328,6 +350,7 @@ export function createScene(parent: HTMLElement): Game {
     jumped: () => tutJumped,
     highlightStop: (on) => reels.highlight(on),
     highlightJump: (on) => input.highlightJump(on),
+    ghostStick: (on) => input.ghostStick(on),
     avoid: () => reels.rect(),
     L, round: ROUND,
   });
@@ -335,6 +358,7 @@ export function createScene(parent: HTMLElement): Game {
   const reels = new Reels(parent, L('СТОП', 'STOP'));
   const menu = new Menu(parent, L);
   const chars = new Characters(parent, L);
+  const enc = new Encyclopedia(parent, L);
   const tmp = new THREE.Vector3();
   // боты (этап 5): бегают, прячутся и гибнут смешно; барабан не крутят
   const bots: ArenaBots = new ArenaBots(scene, physics, DUMMIES, {
@@ -513,6 +537,7 @@ export function createScene(parent: HTMLElement): Game {
     restart();
     ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
     tutSpawn.copy(ctl.pos); tutJumped = false;
+    revived = false; paidCoins = 0;
     const pt = progress.snapshot();
     if (!pt.tutorial && pt.runs === 0) tutorial.start(); else tutorial.stop();
     tutorial.setVisible(true);
@@ -534,24 +559,62 @@ export function createScene(parent: HTMLElement): Game {
   const finish = (win: boolean) => {
     const p = progress.snapshot();
     const time = win ? ROUND : Math.floor(t), was = p.best[diff] ?? 0, newBest = time > was;
-    // монеты начисляем сразу (а не по кнопке): закрыл вкладку на экране итога — заработанное не пропало
-    const coins = roundCoins(time, win, diff);
+    // монеты начисляем сразу (а не по кнопке): закрыл вкладку на экране итога — заработанное не пропало.
+    // После «ожить» доплачиваем только разницу, и забег считаем один раз.
+    const coins = Math.max(0, roundCoins(time, win, diff) - paidCoins);
+    paidCoins += coins;
     lastCoins = coins;
-    roundsPlayed++;
+    if (!revived) roundsPlayed++;
     tutorial.stop();
-    progress.patch({ tutorial: true, runs: p.runs + 1, best: newBest ? { ...p.best, [diff]: time } : p.best, coins: p.coins + coins });
+    progress.patch({ tutorial: true, runs: p.runs + (revived ? 0 : 1), best: newBest ? { ...p.best, [diff]: time } : p.best, coins: p.coins + coins });
     menu.setPauseButton(false);
     core.gameplayStop();
     if (!win) sfx.play('fail', 0, 1);
     // итог не сразу: полсекунды видно, что произошло (взрыв, конфетти)
     setTimeout(() => {
-      if (mode !== 'round') return;
+      if (mode !== 'round' || state === 'play') return;
       ui.setHud(false);
       input.setVisible(false);
       menu.showResult({ win, title: win ? L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!') : L('ТЫ ПОГИБ', 'YOU DIED'), cause: win ? undefined : deathCause,
         time, round: ROUND, botsAlive: bots.alive + (win ? 1 : 0), botsTotal: DUMMIES + 1,   // «игроки», не «боты» (заказчик: пусть думают, что это люди)
-        best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff, coins, total: progress.snapshot().coins });
+        best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff, coins, total: progress.snapshot().coins,
+        canRevive: !win && !revived && t < ROUND - 3 });
     }, 700);
+  };
+  /* ── «Ожить» за ролик: раз за попытку (Playgama 2.2), на самом высоком месте арены, 2 сердечка и 3 с мигания ── */
+  let revived = false, paidCoins = 0;
+  const revive = () => {
+    if (state !== 'dead') return;
+    revived = true;
+    state = 'play';
+    // где выше всего над лавой: вершины холма и башня
+    const cand: [number, number][] = [...hill];
+    let best = cand[0], bestH = -Infinity;
+    for (const c of cand) { const h = heightAt(c[0], c[1]); if (h > bestH) { bestH = h; best = c; } }
+    const keep = ctl.spawn.clone();
+    ctl.setSpawn(tmp.set(best[0], bestH + 0.2, best[1]));
+    ctl.respawn();
+    ctl.setSpawn(keep);
+    hearts = Math.min(2, D().hearts); ui.setHearts(hearts, D().hearts);
+    hurtT = 3;   // мигание = неуязвимость
+    player.root.visible = true;
+    mode = 'round';
+    menu.hide();
+    menu.setPauseButton(true);
+    ui.setHud(true);
+    input.setVisible(true);
+    sfx.setDuck(false);
+    fx.emit('confetti', tmp.copy(ctl.pos).setY(ctl.pos.y + 1.5), 1);
+    sfx.play('tada', 0, 0.6);
+    ui.announce(L('ТЫ СНОВА В ИГРЕ!', 'BACK IN THE GAME!'), '#7dff6a');
+    core.gameplayStart();
+  };
+  menu.onRevive = async () => {
+    if (state !== 'dead' || revived) return false;
+    const ok = await watchRewarded();
+    if (!ok || state !== 'dead') return false;
+    revive();
+    return true;
   };
   /* ── монеты и персонажи (этап 8) ── */
   let lastCoins = 0;
@@ -585,6 +648,16 @@ export function createScene(parent: HTMLElement): Game {
     chars.show(charState());
   };
   menu.onCharacters = () => { chars.show(charState()); };
+  menu.setMap(map);
+  menu.onMap = (m) => {
+    if (m === map) return;
+    map = m;
+    progress.patch({ map: m });
+    restart();   // арена за меню сразу перестраивается — ребёнок видит новую карту
+    showMain();
+  };
+  menu.onEncyclopedia = () => { enc.show(progress.snapshot().seen ?? []); };
+  enc.onClose = () => { enc.hide(); menu.showMain(diff, muted, progress.snapshot().coins, skin); };
   chars.onClose = () => { chars.hide(); menu.showMain(diff, muted, progress.snapshot().coins, skin); };
   chars.onSelect = (id) => { if (charState().owned.includes(id)) pick(id); };
   chars.onBuy = (id) => {
@@ -649,6 +722,10 @@ export function createScene(parent: HTMLElement): Game {
     started = true;   // время раунда пошло с первой волной
     ui.announce(phrase(r.n, r.adj, r.noun), ADJ_COLOR[r.adj]);
     reelLog.push(phrase(r.n, r.adj, r.noun));
+    // энциклопедия: новое существо/свойство открывается
+    const seen = progress.snapshot().seen ?? [];
+    const add = [r.adj, r.noun].filter((id) => !seen.includes(id));
+    if (add.length) progress.patch({ seen: [...seen, ...add] });
     voice(r);
     creatures.start(r);
   };
@@ -762,7 +839,7 @@ export function createScene(parent: HTMLElement): Game {
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 4); });
     Object.assign(window, { __renderer: renderer, __THREE: THREE, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => finish(w), chars: () => menu.onCharacters?.() }, __dust: dust, __surface: surface, __hill: () => hill,
+      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __revive: () => revive(), __die: () => die('test'), __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => { state = w ? 'win' : 'dead'; reels.hide(); finish(w); }, chars: () => menu.onCharacters?.(), enc: () => menu.onEncyclopedia?.() }, __dust: dust, __surface: surface, __hill: () => hill,
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
   }
 
@@ -794,7 +871,7 @@ export function createScene(parent: HTMLElement): Game {
       // текстуры карты: трава, земля, камень, ящики, кора, листва, заборчик (нет картинки — блок гладкий, как раньше)
       if (new URLSearchParams(location.search).get('tex') !== '0') await applyMapTextures({
         [C.grass]: 'grass', [C.dirt]: 'dirt', [C.stone]: 'stone', [C.stoneDark]: 'stone', [C.crate]: 'planks',
-        [C.trunk]: 'bark', [C.leaves]: 'leaves', [C.fence]: 'wood', [C.post]: 'wood',
+        [C.trunk]: 'bark', [C.leaves]: 'leaves', [C.fence]: 'wood', [C.post]: 'wood', [C.sand]: 'stone', [C.sandDark]: 'stone',
       }, quality.tier === 0 ? 1 : 4);
       onProgress(0.5);
       // персонажи (этап 8): все модели сразу (18) — соперники каждый раунд в новых обликах, ~1,5 МБ

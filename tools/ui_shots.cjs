@@ -62,6 +62,9 @@ const DEVICES = [
     await page.evaluate(() => window.__ui.chars());
     await page.waitForTimeout(1000);
     await snap('8chars');
+    await page.evaluate(() => { document.querySelector('.chr-overlay:not(.enc-overlay) .chr-back')?.click(); window.__ui.enc(); });
+    await page.waitForTimeout(800);
+    await snap('9enc');
     await ctx.close();
     // лист-сводка
     const sheet = path.join(OUT, `${name}_sheet.jpg`);

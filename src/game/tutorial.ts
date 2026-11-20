@@ -21,6 +21,7 @@ export interface TutorialHooks {
   jumped(): boolean;
   highlightStop(on: boolean): void;
   highlightJump(on: boolean): void;
+  ghostStick(on: boolean): void;
   /** Что подсказка не должна закрывать (открытый барабан), или null. */
   avoid(): DOMRect | null;
   L(ru: string, en: string): string;
@@ -112,6 +113,7 @@ export class Tutorial {
     this.t = 0;
     h.highlightStop(step === 'stop');
     h.highlightJump(step === 'jump');
+    h.ghostStick(step === 'move' && touch);
     const lines: Record<Exclude<TutorialStep, 'done'>, [keyof typeof ICONS, string]> = {
       stop: ['tap', h.L('Жми СТОП — барабан выберет хаос!', 'Hit STOP — the reels pick the chaos!')],
       move: touch

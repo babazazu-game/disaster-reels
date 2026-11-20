@@ -9,3 +9,14 @@ build/
 # кандидаты звуков/музыки (скачаны для отбора, в игру не вошли)
 art/sfx/cand/
 art/music/cand/
+
+# сырые кадры витрины (пересобираются tools/store_media.cjs)
+store/playgama/frames/
+store/playgama/_seq/
+store/playgama/bg_*.png
+store/playgama/shots/
+store/playgama/frames.json
+
+# снимки проверок и трасса автотестера — пересоздаются инструментами
+art/check/
+playtest/trace.json

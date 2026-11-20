@@ -19,6 +19,7 @@ export class FpsMeter {
   constructor(parent: HTMLElement, private extra?: () => string) {
     // ?fps=1 разрешаем и на GitHub Pages: debugFlag каркаса пускает только localhost,
     // а замер нужен заказчику на его ноутбуке по общей ссылке.
+    if (location.search.includes('nofps=1')) return;   // съёмка витрины: без отладочной плашки
     if (!import.meta.env.DEV && !debugFlag('fps') && !(location.hostname.endsWith('github.io') && location.search.includes('fps=1'))) return;
     const b = document.createElement('div');
     b.style.cssText = 'position:absolute;left:calc(env(safe-area-inset-left) + 14px);top:calc(env(safe-area-inset-top) + 15.5vh);z-index:8;'
