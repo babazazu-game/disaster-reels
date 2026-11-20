@@ -2,6 +2,7 @@ import { installTap } from '../engine/tap.ts';
 import { sfx } from '../engine/sfx.ts';
 import { addUiImage, coinBadge, uiIcon } from './characters.ts';
 import { charById } from './roster.ts';
+import { rewardedAvailable } from '../ads.ts';
 // В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
 // на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
 
@@ -219,7 +220,7 @@ export class Menu {
     const [nameRu, nameEn] = MODES[r.difficulty].name;
     this.resultMode.textContent = L(nameRu, nameEn);
     this.resultVersion++;
-    this.doubleButton.hidden = r.coins === 0;
+    this.doubleButton.hidden = r.coins === 0 || !rewardedAvailable();   // нет роликов у площадки — нет и кнопки (Playgama 2.2)
     this.setDoubleWaiting(false);
 
     // Обновление уже открытого итога тоже запускает заполнение и ленту с начала.
@@ -376,7 +377,8 @@ export class Menu {
     }
 
     let action: HTMLButtonElement | undefined;
-    if (key === 'Escape') {
+    // Пауза — клавиша P (Esc занимать нельзя: Playgama 1.5.2, им выходят из полноэкранного режима)
+    if (event.code === 'KeyP') {
       if (this.screen === 'pause') action = this.resumeButton;
       if (!this.open && this.pauseVisible) action = this.pauseButton;
     } else if (key === 'Enter' || key === ' ') {
@@ -625,7 +627,8 @@ function injectCss(): void {
 .mnu-win .mnu-result-title { background:linear-gradient(#9eee63,#40be42 60%,#259844); box-shadow:inset 0 2px #ffffffad,0 4px #246139; }
 .mnu-panel .mnu-pause-title { background:linear-gradient(#cd9bff,#a35bff 38%,#6a2fe0); box-shadow:inset 0 2px #ffffffad,0 4px #421485; }
 .mnu-cause { -webkit-text-stroke-color:#712650; text-shadow:0 1px #712650; }
-.mnu-stats { display:grid; width:100%; min-width:0; justify-items:center; gap:clamp(4px,var(--u),8px); }
+.mnu-stats { display:grid; width:100%; min-width:0; justify-items:center; gap:clamp(4px,var(--u),8px);
+  color:var(--ink); -webkit-text-stroke:0; text-shadow:none; }   /* тёмным по светлому: белый с обводкой на кремовой карточке читался плохо */
 /* строки итога не рвём посреди фразы: в узком портрете чуть мельче (было «из 60 / с») */
 .mnu-stats > * { overflow-wrap:normal; }
 @media (orientation:portrait) and (max-width:480px) { .mnu-stats { font-size:15px; } .mnu-result { padding-inline:10px; } }

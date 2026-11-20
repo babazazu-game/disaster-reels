@@ -31,6 +31,7 @@ import { ROSTER, charById, roundCoins } from './game/roster.ts';
 import { Particles } from './engine/particles.ts';
 import { Surface, Hail, Lava, Flames, boltTexture, Cell, GROUND_Y } from './game/chaos.ts';
 import { Reels, type ReelResult } from './game/reels.ts';
+import { Tutorial } from './game/tutorial.ts';
 import { Creatures } from './game/creatures.ts';
 import { agree, phrase, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './game/words.ts';
 import { RoundUi } from './game/roundUi.ts';
@@ -38,7 +39,7 @@ import { ArenaBots, type Spot } from './game/arenaBots.ts';
 import { L } from './i18n.ts';
 import { Menu } from './game/menu.ts';
 import { Characters } from './game/characters.ts';
-import { watchRewarded } from './ads.ts';
+import { interstitialBetweenLevels, watchRewarded } from './ads.ts';
 import { progress } from './progress.ts';
 
 export interface Game {
@@ -317,6 +318,19 @@ export function createScene(parent: HTMLElement): Game {
   const hail = new Hail(scene, HALF);
   const lava = new Lava(scene, HALF);
   const ui = new RoundUi(parent);
+  // мини-обучение первого раунда (Playgama 3.1.3)
+  const tutSpawn = new THREE.Vector3();
+  let tutJumped = false;
+  const tutorial = new Tutorial(parent, {
+    touch: () => input.state.touch,
+    reelsSpinning: () => reels.spinning,
+    moved: () => Math.hypot(ctl.pos.x - tutSpawn.x, ctl.pos.z - tutSpawn.z),
+    jumped: () => tutJumped,
+    highlightStop: (on) => reels.highlight(on),
+    highlightJump: (on) => input.highlightJump(on),
+    avoid: () => reels.rect(),
+    L, round: ROUND,
+  });
   ui.setLabels(L('ЕЩЁ РАЗ', 'AGAIN'));
   const reels = new Reels(parent, L('СТОП', 'STOP'));
   const menu = new Menu(parent, L);
@@ -498,6 +512,10 @@ export function createScene(parent: HTMLElement): Game {
     input.setVisible(true);
     restart();
     ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
+    tutSpawn.copy(ctl.pos); tutJumped = false;
+    const pt = progress.snapshot();
+    if (!pt.tutorial && pt.runs === 0) tutorial.start(); else tutorial.stop();
+    tutorial.setVisible(true);
     sfx.setDuck(false);
     core.gameplayStart();
   };
@@ -508,6 +526,7 @@ export function createScene(parent: HTMLElement): Game {
     ui.setHud(false);
     input.setVisible(false);
     menu.showMain(diff, muted, progress.snapshot().coins, skin);
+    tutorial.stop();
     core.gameplayStop();
     sfx.setDuck(false);
   };
@@ -518,7 +537,9 @@ export function createScene(parent: HTMLElement): Game {
     // монеты начисляем сразу (а не по кнопке): закрыл вкладку на экране итога — заработанное не пропало
     const coins = roundCoins(time, win, diff);
     lastCoins = coins;
-    progress.patch({ runs: p.runs + 1, best: newBest ? { ...p.best, [diff]: time } : p.best, coins: p.coins + coins });
+    roundsPlayed++;
+    tutorial.stop();
+    progress.patch({ tutorial: true, runs: p.runs + 1, best: newBest ? { ...p.best, [diff]: time } : p.best, coins: p.coins + coins });
     menu.setPauseButton(false);
     core.gameplayStop();
     if (!win) sfx.play('fail', 0, 1);
@@ -582,8 +603,19 @@ export function createScene(parent: HTMLElement): Game {
     progress.patch({ adViews: { ...(p.adViews ?? {}), [id]: views } });
     if (views >= c.ads) unlock(id); else chars.show(charState());
   };
-  menu.onPlay = (d) => { diff = d; progress.patch({ difficulty: d }); startRound(); };
-  menu.onRetry = startRound;
+  /* Полноэкранная реклама — только в логической паузе (Playgama 2.1.3): по нажатию «Играть»/«Ещё раз» ПОСЛЕ
+   * сыгранного раунда, никогда поверх игры и не на самом первом запуске. Частоту решает Bridge. */
+  let roundsPlayed = 0, adBusy = false;
+  const startAfterAd = async () => {
+    if (adBusy) return;
+    if (roundsPlayed > 0) {
+      adBusy = true;
+      try { await interstitialBetweenLevels(); } catch { /* не показали — просто играем */ } finally { adBusy = false; }
+    }
+    startRound();
+  };
+  menu.onPlay = (d) => { diff = d; progress.patch({ difficulty: d }); void startAfterAd(); };
+  menu.onRetry = () => { void startAfterAd(); };
   menu.onMenu = showMain;
   menu.onPause = () => {
     if (mode !== 'round' || state !== 'play') return;
@@ -591,10 +623,11 @@ export function createScene(parent: HTMLElement): Game {
     ui.setHud(false);
     input.setVisible(false);
     menu.showPause(muted);
+    tutorial.setVisible(false);
     core.gameplayStop();
     sfx.setDuck(true);
   };
-  menu.onResume = () => { if (mode !== 'pause') return; mode = 'round'; ui.setHud(true); input.setVisible(true); menu.hide(); core.gameplayStart(); sfx.setDuck(false); };
+  menu.onResume = () => { if (mode !== 'pause') return; mode = 'round'; tutorial.setVisible(true); ui.setHud(true); input.setVisible(true); menu.hide(); core.gameplayStart(); sfx.setDuck(false); };
   menu.onMute = (m) => { muted = m; applyMute(); progress.patch({ muted: m }); };
 
   /** Голос волны: сначала звук прилагательного (огонь, лёд…), следом — самого существа. */
@@ -689,6 +722,7 @@ export function createScene(parent: HTMLElement): Game {
     const look = input.consumeLook();
     cam.rotate(look.x, look.y, look.zoom);
     reels.update(dt);
+    if (tutorial.active) { if (input.state.jump) tutJumped = true; tutorial.update(dt); }
     // барабан крутится — весь мир стоит (просьба заказчика): можно спокойно выбрать момент
     if (reels.spinning) { ui.update(dt); cam.update(dt, ctl.pos); return; }
     const realDt = dt;
@@ -714,7 +748,7 @@ export function createScene(parent: HTMLElement): Game {
       fx.emit('lava', surface.center(k, tmp).setY(0.3), 0.35);
       sparkT = 0.12;
     }
-    bots.update(dt, state === 'play' ? ctl : null);   // с игроком тоже толкаются
+    bots.update(dt, state === 'play' ? ctl : null, cam.camera.position);   // с игроком тоже толкаются
     fx.update(dt);
     dust.update(dt);
     dustLeft = DUST_FRAME;
@@ -725,19 +759,29 @@ export function createScene(parent: HTMLElement): Game {
 
   if (import.meta.env.DEV) {
     // Q — следующий уровень качества по кругу: сравнить low/med/high на одном кадре
-    addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
-    Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels,
+    addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 4); });
+    Object.assign(window, { __renderer: renderer, __THREE: THREE, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __dust: dust, __surface: surface, __hill: () => hill,
+      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => finish(w), chars: () => menu.onCharacters?.() }, __dust: dust, __surface: surface, __hill: () => hill,
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
   }
 
+  /* Авто-пауза (Playgama 3.3.4–3.3.5): вкладка скрыта, площадка прислала паузу (реклама, свернули) — мир замирает
+   * целиком; звук глушит core.audio. Если это случилось посреди раунда — открываем экран паузы, чтобы игрок
+   * вернулся и сам нажал «Продолжить», а не получил метеорит в лоб. Окно потеряло фокус (щёлкнули громкость в
+   * трее, другое окно) — тоже пауза раунда: вкладка видна, но играть ребёнок уже не может. */
   let paused = false;
   const clock = new THREE.Clock();
-  document.addEventListener('visibilitychange', () => {
-    paused = document.hidden;
+  const autoPause = () => { if (mode === 'round' && state === 'play') menu.onPause?.(); };
+  const syncPaused = () => {
+    const was = paused;
+    paused = document.hidden || core.isPaused;
+    if (paused && !was) autoPause();
     if (!paused) clock.getDelta();
-  });
+  };
+  document.addEventListener('visibilitychange', syncPaused);
+  core.onPauseChange(syncPaused);
+  addEventListener('blur', autoPause);
 
   return {
     renderer,
@@ -748,7 +792,7 @@ export function createScene(parent: HTMLElement): Game {
       await sfx.load();
       onProgress(0.4);
       // текстуры карты: трава, земля, камень, ящики, кора, листва, заборчик (нет картинки — блок гладкий, как раньше)
-      await applyMapTextures({
+      if (new URLSearchParams(location.search).get('tex') !== '0') await applyMapTextures({
         [C.grass]: 'grass', [C.dirt]: 'dirt', [C.stone]: 'stone', [C.stoneDark]: 'stone', [C.crate]: 'planks',
         [C.trunk]: 'bark', [C.leaves]: 'leaves', [C.fence]: 'wood', [C.post]: 'wood',
       }, quality.tier === 0 ? 1 : 4);
@@ -762,11 +806,26 @@ export function createScene(parent: HTMLElement): Game {
       // по 0,2–0,33 с — сборка шейдеров существ, грозы, теней и загрузка 30 картинок на видеокарту; во втором — чисто).
       // compileAsync видит только видимое, а существа, гроза, луч НЛО и метки до первого появления спрятаны —
       // поэтому на время прогрева показываем всё и рисуем один кадр (с тенями и текстурами) под заставкой
+      // Ещё и ПУСТЫЕ объекты (стаи существ, ноги, пламя — 0 копий до первого появления): драйвер (ANGLE/D3D11)
+      // докомпилирует шейдер под их раскладку вершин только на первом НАСТОЯЩЕМ рисовании — это и было
+      // «стоп на секунду, когда барабан выкинул новых существ» (tools/fps.cjs ловил долгие задачи 0,7–1 с).
+      // Поэтому на кадр прогрева у каждой стаи 1 копия, у буферов — полный диапазон, отсечение выключено.
       const hidden: THREE.Object3D[] = [];
-      scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+      const undo: (() => void)[] = [];
+      scene.traverse((o) => {
+        if (!o.visible) { hidden.push(o); o.visible = true; }
+        const im = o as THREE.InstancedMesh;
+        if (im.isInstancedMesh && im.count === 0) { im.count = 1; undo.push(() => { im.count = 0; }); }
+        const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+        if (g && g.drawRange.count === 0) { g.drawRange.count = Infinity; undo.push(() => { g.drawRange.count = 0; }); }
+        if (o.frustumCulled) { o.frustumCulled = false; undo.push(() => { o.frustumCulled = true; }); }
+      });
+      // лица персонажей (атласы) — на видеокарту заранее: соперники меняют облик каждый раунд
+      for (const m of models.values()) { const map = (m.mat as THREE.MeshStandardMaterial).map; if (map) renderer.initTexture(map); }
       await renderer.compileAsync(scene, cam.camera);
       renderer.render(scene, cam.camera);
       for (const o of hidden) o.visible = false;
+      for (const u of undo) u();
       onProgress(1);
     },
     start() {

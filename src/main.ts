@@ -20,7 +20,6 @@
 import { pixelRatio, splashCaption, splashHide, splashProgress } from 'yg-core';
 import { core } from './core.ts';
 import { t } from './i18n.ts';
-import { showStickyBanner } from './ads.ts';
 import type { Game } from './game.ts';
 import { quality } from './engine/quality.ts';
 
@@ -28,8 +27,8 @@ import { quality } from './engine/quality.ts';
  * Ждать чего-либо дольше этого нельзя: игрок смотрит на полосу загрузки.
  * Если SDK не ответил, игра запускается без него — локально это обычное дело.
  */
-// Локально и на GitHub Pages SDK нет вовсе — ждать 8 с при каждой перезагрузке незачем.
-const SDK_DEADLINE_MS = /^(localhost|127.0.0.1)$|github.io$/.test(location.hostname) ? 800 : 8000;
+// Bridge на чужом домене (локально, GitHub Pages) отвечает сам, моком, — срок тот же, просто не понадобится.
+const SDK_DEADLINE_MS = 8000;
 
 /** Докуда доходит полоса, пока ждём SDK. Дальше её двигают ассеты. */
 const HEAD_START = 0.34;
@@ -45,6 +44,11 @@ async function boot(): Promise<void> {
   splashProgress(0.08);
 
   await withDeadline(core.ready, SDK_DEADLINE_MS);
+  // прогресс — до игры: от него зависит, что показать первым (обучение / меню)
+  const { prepareProgress } = await import('./progress.ts');
+  await withDeadline(prepareProgress(), SDK_DEADLINE_MS);
+  // логотип на заставке — на языке площадки, а не браузера (Playgama 3.4.2)
+  (window as unknown as { splashLang?: (ru: boolean) => void }).splashLang?.(core.lang === 'ru');
 
   // Подпись появляется ТОЛЬКО теперь: до этого язык неизвестен, а написать
   // не на том языке и переписать — то самое нарушение п. 2.14.
@@ -66,8 +70,7 @@ async function boot(): Promise<void> {
   // Кадр отрисован — только теперь убираем заставку и отчитываемся площадке.
   requestAnimationFrame(() => {
     splashHide();
-    core.loadingReady();
-    void showStickyBanner();
+    core.loadingReady();   // Bridge: game_ready — заставка убрана, игра видна
   });
 }
 

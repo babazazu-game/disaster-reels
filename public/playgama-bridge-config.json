@@ -1,0 +1,26 @@
+{
+  "platforms": {
+    "playgama": {
+      "publicToken": "REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN"
+    },
+    "playgama_sandbox": {
+      "publicToken": "REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN"
+    }
+  },
+  "advertisement": {
+    "rewarded": {
+      "placements": [
+        {
+          "id": "bonus"
+        }
+      ]
+    },
+    "interstitial": {
+      "placements": [
+        {
+          "id": "outpost"
+        }
+      ]
+    }
+  }
+}

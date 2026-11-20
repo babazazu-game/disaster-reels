@@ -15,8 +15,8 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "yg-core": ["../yg-core/src/index.ts"]
+      "yg-core": ["./src/platform-core/index.ts"]
     }
   },
-  "include": ["src", "../yg-core/src"]
+  "include": ["src"]
 }

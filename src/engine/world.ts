@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { quality, type QualityPreset } from './quality.ts';
+import { quality, strongGpu, type QualityPreset } from './quality.ts';
 
 /**
  * Общий для всей роблокс-серии «мир»: рендерер, небо, свет, плита-основание.
@@ -45,8 +45,14 @@ export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): Wor
    * а MSAA поверх него на встроенной графике стоит заметных миллисекунд.
    * Переключить его на ходу нельзя — решается один раз при создании контекста.
    */
-  const renderer = new THREE.WebGLRenderer({ antialias: devicePixelRatio < 1.5, alpha: false, powerPreference: 'high-performance' });
+  const AA = new URLSearchParams(location.search).get('aa');   // замеры: ?aa=0|1
+  // MSAA на встроенной графике при большом экране стоит дорого (Intel UHD, 1080p) — там только на мощной карте
+  // или на небольшом экране; на плотных экранах (DPR ≥ 1,5) лесенку и так съедает плотность.
+  const smallScreen = screen.width * screen.height <= 1600 * 900;
+  const renderer = new THREE.WebGLRenderer({ antialias: AA !== null ? AA === '1' : devicePixelRatio < 1.5 && (smallScreen || strongGpu()), alpha: false, powerPreference: 'high-performance' });
   quality.guess(renderer);
+  // проверка ошибок шейдеров заставляет ждать сборку каждого шейдера синхронно — в сборке для игроков не нужна
+  renderer.debug.checkShaderErrors = import.meta.env.DEV;
   renderer.shadowMap.enabled = quality.preset.shadows;
   // PCFSoft брал 16 выборок на пиксель против 4 у PCF — на встроенной графике это заметно.
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -74,11 +80,23 @@ export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): Wor
    * появляется та самая «игрушечная» полоска света. Считается один раз.
    */
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.45;
 
   // Заливка: голубое небо сверху, тёплый отражённый свет снизу — тени не чёрные, а голубоватые.
-  scene.add(new THREE.HemisphereLight(0xbfe0ff, 0xfff0d8, 0.9));
+  const hemi = new THREE.HemisphereLight(0xbfe0ff, 0xfff0d8, 0.9);
+  scene.add(hemi);
+  /*
+   * Карта окружения — самое дорогое в кадре на встроенной графике (замер tools/fps_probe.cjs на Intel UHD, 1080p:
+   * без неё +16% FPS), а на картинке почти незаметна. Включаем только на уровне high (дискретная видеокарта);
+   * ниже — её вклад в заливку возмещает полусферный свет поярче.
+   */
+  const applyEnv = (p: QualityPreset): void => {
+    const rich = p.name === 'high';
+    scene.environment = rich ? envTex : null;
+    hemi.intensity = rich ? 0.9 : 1.5;
+  };
+  applyEnv(quality.preset);
   const sun = new THREE.DirectionalLight(0xfff1dc, 3.0);
   sun.position.set(25, 45, 18);
   sun.castShadow = quality.preset.shadows;
@@ -101,7 +119,8 @@ export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): Wor
    * создаётся заново. Случается редко (один-два раза за игру), рывок допустим.
    */
   quality.onChange((p: QualityPreset) => {
-    const was = renderer.shadowMap.enabled;
+    const was = renderer.shadowMap.enabled, hadEnv = scene.environment !== null;
+    applyEnv(p);
     renderer.shadowMap.enabled = p.shadows;
     sun.castShadow = p.shadows;
     if (p.shadows && sun.shadow.mapSize.x !== p.shadowMap) {
@@ -109,7 +128,7 @@ export function createWorld(parent: HTMLElement, look: WorldLook = CLASSIC): Wor
       sun.shadow.map = null;
       sun.shadow.mapSize.setScalar(p.shadowMap);
     }
-    if (was !== p.shadows) scene.traverse((o) => {
+    if (was !== p.shadows || hadEnv !== (scene.environment !== null)) scene.traverse((o) => {
       const m = (o as THREE.Mesh).material;
       for (const x of m ? (Array.isArray(m) ? m : [m]) : []) x.needsUpdate = true;
     });
@@ -149,7 +168,9 @@ function skyDome(top: number, horizon: number): THREE.Mesh {
     side: THREE.BackSide, depthWrite: false, fog: false,
   });
   const dome = new THREE.Mesh(new THREE.SphereGeometry(420, 32, 16), m);
-  dome.renderOrder = -1;
+  // Купол рисуется ПОСЛЕДНИМ из непрозрачного, с проверкой глубины: пиксели, закрытые островом, отсекаются
+  // ещё до шейдера. Раньше рисовался первым на весь экран, а остров поверх — лишняя заливка на слабой графике.
+  dome.renderOrder = 1;
   dome.frustumCulled = false;
   return dome;
 }

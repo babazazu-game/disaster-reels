@@ -1,4 +1,4 @@
-import { YgCore } from 'yg-core';
+import { PlatformCore } from 'yg-core';
 
 /**
  * Единая точка входа в SDK площадки.
@@ -16,4 +16,4 @@ import { YgCore } from 'yg-core';
  * музыку — прямое нарушение п. 4.7, которое никак не проявлялось только
  * потому, что реклама ещё не подключена.
  */
-export const core = new YgCore();
+export const core = new PlatformCore({ platform: 'playgama' });

@@ -83,6 +83,9 @@ export class Input {
     el.addEventListener('touchcancel', (e) => this.onTouch(e, 'end'), { passive: false });
     this.layout();
     addEventListener('resize', () => this.layout());
+    // Телефон/планшет: джойстик-подсказка и кнопка прыжка видны сразу, а не после первого касания —
+    // ребёнок должен с первой секунды видеть, чем прыгать.
+    if (matchMedia('(pointer: coarse)').matches) { this.state.touch = true; this.ui.classList.add('on'); }
   }
 
   /** Кнопка прыжка и джойстик — от краёв внутрь с учётом safe-area (п. 1.10.1). */
@@ -104,6 +107,9 @@ export class Input {
     this.ui.style.visibility = v ? '' : 'hidden';
     if (!v) { this.stick = null; this.touchJump = false; this.base.classList.remove('show'); this.jumpBtn.classList.remove('down'); }
   }
+
+  /** Обучение: кнопка прыжка пульсирует. */
+  highlightJump(on: boolean): void { this.jumpBtn.classList.toggle('tut-glow', on); }
 
   private onTouch(e: TouchEvent, phase: 'start' | 'move' | 'end'): void {
     // Касание кнопок интерфейса (меню, магазин, настройки) — не наше: preventDefault

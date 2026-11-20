@@ -335,9 +335,19 @@ export class ArenaBots {
   }
 
   /** player — контроллер игрока, пока он в игре (с ним тоже толкаемся), иначе null. */
-  update(dt: number, player: Controller | null = null): void {
+  update(dt: number, player: Controller | null = null, cam?: THREE.Vector3): void {
     for (const b of this.list) b.update(dt, this.h);
     this.shove(player, dt);
+    // Соперник вплотную к камере закрывал полэкрана, а его ник становился огромным — прячем, пока он там
+    if (cam) for (const b of this.list) {
+      if (b.gone) continue;
+      const p = b.pos;
+      const d = Math.hypot(p.x - cam.x, p.y + 1.2 - cam.y, p.z - cam.z);
+      b.avatar.root.visible = d > 3.2 && this.h.lava() <= p.y - 0.2;   // и утонувший в лаве не всплывает
+      // ник вблизи не раздувается: ближе 9 м уменьшаем его вместе с расстоянием — на экране он держит один размер
+      const k = Math.min(1, d / 9);
+      b.tag.scale.set(2.4 * k, 0.6 * k, 1);
+    }
   }
 
   /**

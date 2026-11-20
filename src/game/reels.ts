@@ -151,6 +151,12 @@ export class Reels {
   /** Мир ждёт, пока все символы встанут по центру. */
   get spinning(): boolean { return this.open && this.landed < this.lanes.length; }
 
+  /** Рамка барабана на экране, пока он открыт (обучение не кладёт подсказку поверх). */
+  rect(): DOMRect | null { return this.open ? this.box.getBoundingClientRect() : null; }
+
+  /** Обучение: СТОП пульсирует. */
+  highlight(on: boolean): void { this.btn.classList.toggle('tut-glow', on); }
+
   /** Нажатие СТОП — останавливает следующую ленту. */
   press(): void {
     if (!this.open || this.stopped === this.lanes.length) return;
@@ -195,7 +201,9 @@ export class Reels {
     };
     const cb = this.onDone;
     this.onDone = null;
-    this.hideTimer = window.setTimeout(() => this.hide(), 1400);
+    // заказчик: «барабан долго исчезает — уже выпадает хаос, а он мешает, не видно». Было 1,4 с — теперь
+    // только миг, чтобы глаз успел увидеть три символа (фраза хаоса всё равно остаётся надписью над ареной)
+    this.hideTimer = window.setTimeout(() => this.hide(), 450);
     cb(result);
   }
 

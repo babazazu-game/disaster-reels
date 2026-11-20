@@ -40,6 +40,11 @@ export async function watchRewarded(): Promise<boolean> {
   return PRETEND_ADS_WATCHED;
 }
 
+/** Есть ли у площадки ролик за награду. Нет — кнопки «за рекламу» не показываем вовсе (Playgama 2.2). */
+export function rewardedAvailable(): boolean {
+  return PRETEND_ADS_WATCHED || core.ads.rewardedAvailable;
+}
+
 /**
  * Полноэкранная реклама между уровнями.
  *

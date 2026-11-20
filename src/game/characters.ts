@@ -1,5 +1,6 @@
 import { sfx } from '../engine/sfx.ts';
 import { ROSTER, type CharDef } from './roster.ts';
+import { rewardedAvailable } from '../ads.ts';
 
 export interface CharState { coins: number; owned: string[]; selected: string; adViews: Record<string, number> }
 
@@ -105,7 +106,7 @@ export class Characters {
       const buy = button(actions, 'chr-candy chr-buy', () => this.onBuy?.(c.id));
       buy.append(uiIcon('coin'), String(c.price));
       buy.setAttribute('aria-label', this.L(`Купить: ${name}, монет: ${c.price}`, `Buy ${name} for ${c.price} coins`));
-      if (c.ads > 0) {
+      if (c.ads > 0 && rewardedAvailable()) {
         const ad = button(actions, 'chr-candy chr-ad', () => { void this.watchAd(c); });
         ad.append(uiIcon('ad'));
         element('span', ad, 'chr-ad-count');
@@ -162,10 +163,7 @@ export class Characters {
     if (!this.open || event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
     // Пока модальное окно открыто, горячие клавиши меню за ним не действуют.
     event.stopPropagation();
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      if (!event.repeat) this.onClose?.();
-    }
+    // Esc не используем (Playgama 1.5.2) — окно закрывается кнопкой
     if (event.key !== 'Tab') return;
     const buttons = this.overlay.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
     const focused = document.activeElement;

@@ -3,7 +3,7 @@ import { core } from './core.ts';
 
 /**
  * Прогресс игрока — ЕДИНСТВЕННАЯ точка доступа к сохранению (правило заготовки).
- * localStorage сразу, облако Яндекса — с дебаунсом (лимиты setData, см. yg-core/save).
+ * Хранилище — bridge.storage Playgama (src/platform-core/bridge-store.ts), один ключ на всё.
  *
  * Чекпоинт внутри забега НЕ храним: обби проходят за один заход, а продолжение
  * с середины после перезагрузки ломало бы честность звёзд за забег. Храним
@@ -33,16 +33,24 @@ export interface ProgressData extends Record<string, unknown> {
   difficulty: string;
   /** Этап 8: сколько роликов за награду посмотрено ради каждого персонажа. */
   adViews: Record<string, number>;
+  /** Мини-обучение первого раунда уже показано. */
+  tutorial: boolean;
 }
 
 // v2: прогресс по мирам и лавки хаба (v1 был до хаба — несовместим по полю best)
 export const progress = new Save<ProgressData>('disaster-reels-v1', {
   coins: 0, owned: ['rookie'], skin: 'rookie', muted: false, best: {}, runs: 0,
-  unlocked: 1, upgrades: {}, pets: ['none'], pet: 'none', trails: ['none'], trail: 'none', chest: '', sfxVol: 1, musicVol: 1, difficulty: 'normal', adViews: {},
+  unlocked: 1, upgrades: {}, pets: ['none'], pet: 'none', trails: ['none'], trail: 'none', chest: '', sfxVol: 1, musicVol: 1, difficulty: 'normal', adViews: {}, tutorial: false,
 });
 
-/** Облако подключаем, когда SDK готов и игрок известен; без площадки — только локально. */
-void core.ready.then(() => {
-  const p = core.currentPlayer;
-  if (p) void progress.attachCloud(p);
-}).catch(() => undefined);
+/**
+ * Сохранение — только через Bridge (Playgama: localStorage напрямую нельзя). Зовётся из main.ts ПОСЛЕ
+ * готовности Bridge и ДО импорта игры: иначе первый кадр нарисовался бы с пустым прогрессом и обучение
+ * показалось бы снова. Bridge не поднялся — играем без сохранения, но играем.
+ */
+export async function prepareProgress(): Promise<void> {
+  const ok = await core.ready.then(() => true, () => false);
+  if (!ok) return;
+  try { await progress.attachCloud(core.currentPlayer); } catch (e) { console.warn('[progress]', e); }
+}
+addEventListener('pagehide', () => { void progress.flushCloud().catch(() => undefined); });
