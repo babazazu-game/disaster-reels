@@ -277,9 +277,12 @@ export class Creatures {
   has(adj: AdjId): boolean { return this.waves.some((w) => w.r.adj === adj) || this.mobs.some((m) => m.live && m.adj === adj); }
 
   /** Новая волна по итогу барабана. aim — доля падающих, нацеленных в игрока (финальный дождь — больше). */
+  /** Сложность (ставит игра перед раундом): доля бегающих и множитель их скорости. */
+  readonly level = { runners: 1, speed: 1 };
+
   start(r: ReelResult, aim = 0.25): void {
     const run = RUNNERS.includes(r.noun);
-    let n = run ? Math.min(FEW[r.noun] ?? 99, runners(r.n)) : Math.min(30, r.n), s = 1;
+    let n = run ? Math.min(FEW[r.noun] ?? 99, Math.max(1, Math.round(runners(r.n) * this.level.runners))) : Math.min(30, r.n), s = 1;
     if (r.adj === 'giant') { n = Math.min(run ? 3 : 6, Math.max(1, Math.ceil(n / 3))); s = 2.2; }
     if (r.n === 1) s *= 1.7;               // одиночка — крупнее, чтобы «1» не была скучной
     this.waves.push({ r, left: n, gap: Math.min(0.7, (run ? 4 : EVENT_TIME) / n), next: 0, s, t: 0, aim });
@@ -441,7 +444,7 @@ export class Creatures {
     m.steerT -= dt;
     const ux = dx / len, uz = dz / len;
     const wx = ux * Math.cos(turn) - uz * Math.sin(turn), wz = ux * Math.sin(turn) + uz * Math.cos(turn);
-    let sp = (SPEED[m.kind] ?? 4) * (m.adj === 'fast' ? 1.4 : 1) * (m.adj === 'giant' ? 0.75 : 1);
+    let sp = this.level.speed * (SPEED[m.kind] ?? 4) * (m.adj === 'fast' ? 1.4 : 1) * (m.adj === 'giant' ? 0.75 : 1);
     if (m.kind === 'slime' || m.kind === 'shark') sp *= m.y > m.ground + 0.05 ? 1.0 : 0.25;   // перемещаются прыжками
     const cell = m.y < 0.5 ? this.surface.at(m.x, m.z) : Cell.None;
     if (cell === Cell.Slime && m.kind !== 'slime') sp *= 0.45;   // вязнут в слизи

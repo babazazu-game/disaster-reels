@@ -72,6 +72,12 @@ export class RoundUi {
   hideResult(): void { this.panel.classList.remove('show'); }
   get resultOpen(): boolean { return this.panel.classList.contains('show'); }
 
+  /** Таймер и сердечки прячем под меню, надпись волны гасим сразу. */
+  setHud(visible: boolean): void {
+    this.timer.style.display = this.hearts.style.display = visible ? '' : 'none';
+    if (!visible) { this.bannerT = 0; this.banner.classList.remove('show'); }
+  }
+
   update(dt: number): void {
     if (this.bannerT > 0 && (this.bannerT -= dt) <= 0) this.banner.classList.remove('show');
   }

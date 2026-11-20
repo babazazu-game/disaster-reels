@@ -32,6 +32,8 @@ import { agree, phrase, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './gam
 import { RoundUi } from './game/roundUi.ts';
 import { ArenaBots, type Spot } from './game/arenaBots.ts';
 import { L } from './i18n.ts';
+import { Menu } from './game/menu.ts';
+import { progress } from './progress.ts';
 
 export interface Game {
   renderer: THREE.WebGLRenderer;
@@ -52,6 +54,16 @@ const SPAWN = { x: 0, z: 5 };
 const DUMMIES = 5;
 /** Сердечек на раунд: касание отнимает одно (ребёнку одно касание = смерть — слишком строго). Лава и падение — сразу. */
 const HEARTS = 3;
+export type Difficulty = 'easy' | 'normal' | 'chaos';
+/**
+ * Сложность (этап 6): сердечки, сколько существ бегает и как быстро, как быстро встаёт лава,
+ * метеоры финала (две волны) и какая их доля метит в игрока. «Обычный» — то, что выверено автотестом.
+ */
+const DIFF: Record<Difficulty, { hearts: number; runners: number; speed: number; lava: number; meteors: [number, number]; aim: number }> = {
+  easy: { hearts: 5, runners: 0.6, speed: 0.8, lava: 1.4, meteors: [7, 8], aim: 0.2 },
+  normal: { hearts: HEARTS, runners: 1, speed: 1, lava: 1, meteors: [12, 14], aim: 0.35 },
+  chaos: { hearts: 2, runners: 1.3, speed: 1.15, lava: 0.8, meteors: [16, 18], aim: 0.45 },
+};
 /** Неуязвимость после удара, с — успеть убежать. */
 const INVULN = 1.6;
 /** Длина раунда, с. Время идёт только после первого барабана и стоит, пока ленты крутятся. */
@@ -290,6 +302,7 @@ export function createScene(parent: HTMLElement): Game {
   const ui = new RoundUi(parent);
   ui.setLabels(L('ЕЩЁ РАЗ', 'AGAIN'));
   const reels = new Reels(parent, L('СТОП', 'STOP'));
+  const menu = new Menu(parent, L);
   const tmp = new THREE.Vector3();
   // боты (этап 5): бегают, прячутся и гибнут смешно; барабан не крутят
   const bots: ArenaBots = new ArenaBots(scene, physics, DUMMIES, {
@@ -307,6 +320,8 @@ export function createScene(parent: HTMLElement): Game {
   let slowT = 0, shockT = 0;
   const reacted = new Map<string, number>();   // сколько раз за раунд сработала каждая реакция — для автотеста
   let lavaWarned = false, deathCause = '', hearts = HEARTS, hurtT = 0, hits = 0;
+  let diff: Difficulty = 'normal';
+  const D = () => DIFF[diff];
   const reelLog: string[] = [];   // итоги барабанов за раунд — для автопрогона
 
 
@@ -315,14 +330,14 @@ export function createScene(parent: HTMLElement): Game {
     if (import.meta.env.DEV && (window as unknown as { __god?: boolean }).__god) return;   // съёмка скриншотов
     state = 'dead';
     deathCause = cause;
-    hearts = 0; hurtT = 0; ui.setHearts(0, HEARTS);
+    hearts = 0; hurtT = 0; ui.setHearts(0, D().hearts);
     player.root.visible = false;
     reels.hide();
     fx.emit('poof', tmp.copy(ctl.pos).setY(ctl.pos.y + 1.2), 1.6);
     fx.emit('confetti', tmp, 1);
     cam.shake(0.4);
     sfx.play('respawn', 0);
-    ui.showResult(L('ТЫ ПОГИБ', 'YOU DIED'), L(`${deathCause} · продержался ${Math.floor(t)} с из ${ROUND}`, `${deathCause} · survived ${Math.floor(t)} of ${ROUND} s`), false);
+    finish(false);
   };
 
   /** Удар: минус сердечко, отброс от источника (dx, dz — от него к игроку) и мигание-неуязвимость. Последнее — гибель. */
@@ -330,7 +345,7 @@ export function createScene(parent: HTMLElement): Game {
     if (state !== 'play' || hurtT > 0) return;
     if (import.meta.env.DEV && (window as unknown as { __god?: boolean }).__god) return;
     hearts--; hits++;
-    ui.setHearts(hearts, HEARTS);
+    ui.setHearts(hearts, D().hearts);
     if (hearts <= 0) { die(cause); return; }
     hurtT = INVULN;
     let l = Math.hypot(dx, dz);
@@ -405,16 +420,65 @@ export function createScene(parent: HTMLElement): Game {
     reels.hide();
     buildLayout();
     bots.reset(dummySpots);
-    hearts = HEARTS; hurtT = 0; ui.setHearts(hearts, HEARTS);
+    hearts = D().hearts; hurtT = 0; ui.setHearts(hearts, hearts);
+    creatures.level.runners = D().runners; creatures.level.speed = D().speed;
     player.root.visible = true;
     ctl.respawn();
     ctl.grip = 1; ctl.speedMul = 1;
     ui.hideResult();
-    ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
     ui.setTime(ROUND);
   };
-  ui.onRetry = restart;
-  addEventListener('keydown', (e) => { if (e.code === 'Enter' && ui.resultOpen) restart(); });
+
+  /* ───────────── МЕНЮ, ПАУЗА, ИТОГ (этап 6) ─────────────
+   * Первый запуск — сразу в раунд на лёгком (ребёнок играет с первой секунды), меню — после итога.
+   * Дальше при входе — меню с выбранной сложностью. Под меню арена рисуется, камера облетает её. */
+  let mode: 'menu' | 'round' | 'pause' = 'round';
+  let muted = progress.snapshot().muted;
+  const applyMute = () => { sfx.setSfxVolume(muted ? 0 : 1); sfx.setMusicVolume(muted ? 0 : 1); };
+  const startRound = () => {
+    mode = 'round';
+    menu.hide();
+    menu.setPauseButton(true);
+    ui.setHud(true);
+    restart();
+    ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
+    core.gameplayStart();
+  };
+  const showMain = () => {
+    mode = 'menu';
+    reels.hide();
+    menu.setPauseButton(false);
+    ui.setHud(false);
+    menu.showMain(diff, muted);
+    core.gameplayStop();
+  };
+  /** Конец раунда: рекорд по сложности, счётчик забегов, экран итога. */
+  const finish = (win: boolean) => {
+    const p = progress.snapshot();
+    const time = win ? ROUND : Math.floor(t), was = p.best[diff] ?? 0, newBest = time > was;
+    progress.patch({ runs: p.runs + 1, best: newBest ? { ...p.best, [diff]: time } : p.best });
+    menu.setPauseButton(false);
+    core.gameplayStop();
+    // итог не сразу: полсекунды видно, что произошло (взрыв, конфетти)
+    setTimeout(() => {
+      if (mode !== 'round') return;
+      ui.setHud(false);
+      menu.showResult({ win, title: win ? L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!') : L('ТЫ ПОГИБ', 'YOU DIED'), cause: win ? undefined : deathCause,
+        time, round: ROUND, botsAlive: bots.alive, botsTotal: DUMMIES, best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff });
+    }, 700);
+  };
+  menu.onPlay = (d) => { diff = d; progress.patch({ difficulty: d }); startRound(); };
+  menu.onRetry = startRound;
+  menu.onMenu = showMain;
+  menu.onPause = () => {
+    if (mode !== 'round' || state !== 'play') return;
+    mode = 'pause';
+    ui.setHud(false);
+    menu.showPause(muted);
+    core.gameplayStop();
+  };
+  menu.onResume = () => { if (mode !== 'pause') return; mode = 'round'; ui.setHud(true); menu.hide(); core.gameplayStart(); };
+  menu.onMute = (m) => { muted = m; applyMute(); progress.patch({ muted: m }); };
 
   /** Барабан встал: большая фраза и волна существ. */
   const onReel = (r: ReelResult) => {
@@ -440,12 +504,12 @@ export function createScene(parent: HTMLElement): Game {
     while (lavaStep < LAVA_STEPS.length && t >= LAVA_STEPS[lavaStep].at) {
       const st = LAVA_STEPS[lavaStep];
       ui.announce(L(st.ru, st.en), '#ff5a2a');
-      lava.rise(st.sec, st.top);
+      lava.rise(st.sec * D().lava, st.top);
       cam.shake(0.25);
       // метеоритный дождь до конца раунда: две волны, половина метит в игрока
       // первая волна мягче (по автотесту финал убивал 44% дошедших)
-      if (lavaStep === 0) creatures.start({ n: 12, adj: 'fire', noun: 'meteor' }, 0.35);
-      if (lavaStep === 2) creatures.start({ n: 14, adj: 'fire', noun: 'meteor' }, 0.35);
+      if (lavaStep === 0) creatures.start({ n: D().meteors[0], adj: 'fire', noun: 'meteor' }, D().aim);
+      if (lavaStep === 2) creatures.start({ n: D().meteors[1], adj: 'fire', noun: 'meteor' }, D().aim);
       lavaStep++;
     }
     // ледяные существа приносят с собой град; град морозит землю понемногу
@@ -459,8 +523,7 @@ export function createScene(parent: HTMLElement): Game {
       reels.hide();
       sfx.play('finish', 0);
       fx.emit('confetti', tmp.copy(ctl.pos).setY(ctl.pos.y + 2), 2);
-      const saved = bots.alive;
-      ui.showResult(L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!'), L(`Ботов уцелело: ${saved} из ${DUMMIES}`, `Bots alive: ${saved} of ${DUMMIES}`), true);
+      finish(true);
     }
   };
 
@@ -483,6 +546,12 @@ export function createScene(parent: HTMLElement): Game {
 
   const fwd = new THREE.Vector3();
   const tick = (dt: number) => {
+    // меню и пауза: мир стоит; в меню камера медленно облетает арену
+    if (mode !== 'round') {
+      if (mode === 'menu') cam.yaw += dt * 0.12;
+      cam.update(dt, ctl.pos);
+      return;
+    }
     input.update();
     const look = input.consumeLook();
     cam.rotate(look.x, look.y, look.zoom);
@@ -522,7 +591,7 @@ export function createScene(parent: HTMLElement): Game {
   if (import.meta.env.DEV) {
     // Q — следующий уровень качества по кругу: сравнить low/med/high на одном кадре
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
-    Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels,
+    Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
       __heightAt: heightAt, __bots: bots, __dust: dust, __surface: surface, __hill: () => hill,
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
@@ -548,8 +617,10 @@ export function createScene(parent: HTMLElement): Game {
       onProgress(1);
     },
     start() {
-      core.gameplayStart();
-      restart();
+      applyMute();
+      const p = progress.snapshot();
+      if (p.runs === 0) { diff = 'easy'; startRound(); }
+      else { diff = (['easy', 'normal', 'chaos'] as const).find((d) => d === p.difficulty) ?? 'normal'; restart(); showMain(); }
       renderer.setAnimationLoop(() => {
         const real = clock.getDelta();
         const dt = Math.min(real, 1 / 20);   // после подвисания не «телепортируемся» сквозь пол
