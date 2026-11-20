@@ -410,7 +410,8 @@ function injectCss(): void {
 }
 .mnu-main::before { content:''; grid-row:3; }
 .mnu-logo {
-  width:min(81%,calc(55 * var(--u)),460px); aspect-ratio:3/2; display:grid; place-items:center;
+  /* 42vh — на коротком экране (телефон с адресной строкой) логотип уступает место кнопкам */
+  width:min(81%,calc(55 * var(--u)),460px,42vh); aspect-ratio:3/2; display:grid; place-items:center;
   font-size:clamp(30px,min(calc(12.8 * var(--u)),13vw),105px); line-height:.88;
   text-align:center; white-space:nowrap;
   -webkit-text-stroke:clamp(5px,calc(1.4 * var(--u)),12px) #36104f;
@@ -472,7 +473,7 @@ function injectCss(): void {
 .mnu-choice > .mnu-art { width:clamp(32px,min(14cqi,calc(8 * var(--u))),65px); }
 .mnu-mode-name { font-size:clamp(11px,min(4.6cqi,calc(4.2 * var(--u))),36px); line-height:1; text-transform:uppercase; white-space:nowrap; }
 .mnu-mode-hint {
-  font-size:clamp(var(--min-font),min(3.4cqi,calc(2.2 * var(--u))),19px);
+  font-size:clamp(11px,min(3.4cqi,calc(2.2 * var(--u))),19px);
   line-height:1.05; -webkit-text-stroke:2px var(--ink); text-shadow:0 1px var(--ink);
 }
 .mnu-check {
@@ -544,7 +545,7 @@ function injectCss(): void {
 .mnu-stats { display:grid; width:100%; min-width:0; justify-items:center; gap:clamp(4px,var(--u),8px); }
 /* строки итога не рвём посреди фразы: в узком портрете чуть мельче (было «из 60 / с») */
 .mnu-stats > * { overflow-wrap:normal; }
-@media (orientation:portrait) and (max-width:480px) { .mnu-stats { font-size:min(1em,4.6vw); } .mnu-result { padding-inline:10px; } }
+@media (orientation:portrait) and (max-width:480px) { .mnu-stats { font-size:15px; } .mnu-result { padding-inline:10px; } }
 .mnu-progress {
   width:100%; height:clamp(12px,calc(2.7 * var(--u)),22px); overflow:hidden;
   background:#c6b7eb; border:2px solid var(--ink); border-radius:999px; box-shadow:inset 0 2px #2a125033;
