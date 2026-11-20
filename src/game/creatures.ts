@@ -23,14 +23,25 @@ const MAX = 20;
  * (живут до конца раунда и копятся) (заказчик: при 10 выжить нереально, ребёнок потеряется). Падающие — до 30 за волну.
  */
 const runners = (n: number) => (n <= 3 ? n : n <= 7 ? 4 : 5);   // «10» → 5 бегающих (автотест: к финалу копилось до 19)
-const CHASE = 14;          // дальше этого бегающие бродят сами по себе
+const CHASE = 11;          // дальше этого бегающие бродят сами по себе (было 14 — заказчик: «слишком за мной бегают»)
+/**
+ * Увлечённость: каждое существо гонится не всё время, а ~2/3 своего цикла (~12 с), остальное бродит само.
+ * Фаза от seed — стая отвлекается вразнобой, и от погони есть передышки на любой сложности.
+ */
+const keen = (m: { t: number; seed: number }): boolean => Math.sin(m.t * 0.5 + m.seed * 7) > -0.45;
 const WARN = 1.3;           // сколько летит падающее (видна метка)
 const EVENT_TIME = 8;       // за столько секунд выходит вся волна
 /** Существа живут до конца раунда (или до лавы): хаос КОПИТСЯ — просьба заказчика. */
 const FOREVER = Infinity;
 const G = 30;
-/** Выше этого бегающие не забираются (вторая ступенька холма, одиночный ящик): заказчик — «от котов не скрыться». */
-const CLIMB_MAX = 2.05;
+/**
+ * Докуда бегающие забираются (заказчик): курицы и прочие — только по земле (шаг 0,45 м), коты — на одну ступеньку (1 м),
+ * динозавр и гиганты перешагивают метровый уступ. Прыгучий («выпала пружина») — на уровень выше своего.
+ * Выше всех прыгают лягушки — у них своё движение (frog), это ограничение их не касается.
+ */
+const LEVEL = 1;   // высота ступеньки арены, м
+const climbCap = (m: { kind: NounId; adj: AdjId; s: number }): number =>
+  (m.kind === 'cat' ? LEVEL + 0.05 : m.kind === 'dino' || m.s > 2 ? 1.15 : 0.45) + (m.adj === 'bouncy' ? LEVEL : 0);
 const TRAIL = 0.5;          // как часто бегающий оставляет след (огонь/лёд), с
 const TRAIL_BURN = 3;       // след горит недолго — иначе стая поджигает всю арену
 
@@ -58,6 +69,8 @@ interface Mob {
   vx: number; vz: number; kx: number; kz: number;
   /** Оглушён током: стоит и трясётся. */
   stun: number;
+  /** Фаза шага (ноги двуногих). */
+  gait: number;
   /** Валун: угол качения и направление (единичный вектор). */
   roll: number; dx: number; dz: number;
 }
@@ -97,7 +110,6 @@ const MODELS: Record<NounId, Part[]> = {
   chicken: [
     [box(0.7, 0.6, 0.85), 0xffffff, 0, 0.6, 0], [box(0.42, 0.45, 0.42), 0xffffff, 0, 1.05, 0.35],
     [box(0.18, 0.12, 0.22), 0xffa21a, 0, 1.0, 0.65], [box(0.12, 0.2, 0.3), 0xe8303a, 0, 1.36, 0.33],
-    [box(0.1, 0.3, 0.1), 0xffa21a, -0.18, 0.15, 0], [box(0.1, 0.3, 0.1), 0xffa21a, 0.18, 0.15, 0],
     [box(0.08, 0.08, 0.02), 0x111111, -0.12, 1.12, 0.57], [box(0.08, 0.08, 0.02), 0x111111, 0.12, 1.12, 0.57],
   ],
   cat: [
@@ -119,7 +131,6 @@ const MODELS: Record<NounId, Part[]> = {
   zombie: [
     [box(0.55, 0.7, 0.3), 0x2f9aa0, 0, 1.25, 0], [box(0.5, 0.5, 0.5), 0x7bd36a, 0, 1.85, 0],
     [box(0.2, 0.2, 0.75), 0x7bd36a, -0.38, 1.45, 0.3], [box(0.2, 0.2, 0.75), 0x7bd36a, 0.38, 1.45, 0.3],
-    [box(0.24, 0.9, 0.26), 0x6b4a2e, -0.14, 0.45, 0], [box(0.24, 0.9, 0.26), 0x6b4a2e, 0.14, 0.45, 0],
     [box(0.12, 0.08, 0.02), 0x111111, -0.12, 1.92, 0.26], [box(0.12, 0.08, 0.02), 0x111111, 0.12, 1.92, 0.26],
     [box(0.24, 0.06, 0.02), 0x5a1a1a, 0, 1.72, 0.26],
   ],
@@ -127,7 +138,6 @@ const MODELS: Record<NounId, Part[]> = {
     [box(0.9, 0.9, 1.5), 0x5cc94a, 0, 1.25, 0], [box(0.75, 0.6, 0.85), 0x5cc94a, 0, 1.95, 0.85],
     [box(0.6, 0.12, 0.5), 0xffffff, 0, 1.68, 1.05], [box(0.5, 0.5, 1.1), 0x4fae3f, 0, 1.15, -1.1],
     [box(0.3, 0.3, 0.6), 0x4fae3f, 0, 1.0, -1.85], [box(0.6, 0.35, 1.0), 0xf3e2a8, 0, 1.0, 0.1],
-    [box(0.3, 0.8, 0.4), 0x4fae3f, -0.3, 0.4, 0], [box(0.3, 0.8, 0.4), 0x4fae3f, 0.3, 0.4, 0],
     [box(0.12, 0.3, 0.12), 0x4fae3f, -0.3, 1.35, 0.75], [box(0.12, 0.3, 0.12), 0x4fae3f, 0.3, 1.35, 0.75],
     [box(0.12, 0.12, 0.02), 0x111111, -0.25, 2.1, 1.28], [box(0.12, 0.12, 0.02), 0x111111, 0.25, 2.1, 1.28],
   ],
@@ -169,6 +179,18 @@ const MODELS: Record<NounId, Part[]> = {
   ],
 };
 
+/**
+ * Шагающие ноги (заказчик: «динозавру хоть две ноги, чтобы ходили»): у двуногих ноги — отдельный InstancedMesh,
+ * по два экземпляра на существо, качаются от бедра в такт шагу. Ещё 1 вызов отрисовки на вид, только пока он на арене.
+ * Нога строится от бедра вниз (верх в нуле), hip — где бедро у модели, x — смещение вбок.
+ */
+const LEGS: Partial<Record<NounId, { part: Part; x: number; hip: number; swing: number }>> = {
+  chicken: { part: [box(0.1, 0.3, 0.1), 0xffa21a, 0, -0.15, 0], x: 0.18, hip: 0.3, swing: 0.7 },
+  zombie: { part: [box(0.24, 0.9, 0.26), 0x6b4a2e, 0, -0.45, 0], x: 0.14, hip: 0.9, swing: 0.45 },
+  dino: { part: [box(0.3, 0.8, 0.4), 0x4fae3f, 0, -0.4, 0], x: 0.3, hip: 0.8, swing: 0.55 },
+};
+const legM = new THREE.Matrix4(), legR = new THREE.Matrix4();
+
 function buildModel(parts: Part[]): THREE.BufferGeometry {
   const c = new THREE.Color();
   const geos = parts.map(([g, color, x, y, z]) => {
@@ -190,7 +212,7 @@ const TINT: Record<AdjId, THREE.Color> = {
 };
 
 /** Скорость бегающих, м/с (у игрока 8). */
-const SPEED: Partial<Record<NounId, number>> = { chicken: 4, cat: 3.8, shark: 3.8, slime: 3, snowman: 2.2, zombie: 2.4, dino: 5, frog: 3 };
+const SPEED: Partial<Record<NounId, number>> = { chicken: 4, cat: 3.8, shark: 3.8, slime: 3, snowman: 2.2, zombie: 2.4, dino: 4.3, frog: 3 };
 
 const dummy = new THREE.Object3D();
 let beams = 0;
@@ -201,6 +223,7 @@ const tc = new THREE.Color();
 export class Creatures {
   readonly mobs: Mob[] = [];
   private meshes = {} as Record<NounId, THREE.InstancedMesh>;
+  private legs = {} as Partial<Record<NounId, THREE.InstancedMesh>>;
   private ring: THREE.InstancedMesh;
   private beam: THREE.InstancedMesh;
   private waves: Wave[] = [];
@@ -214,6 +237,14 @@ export class Creatures {
       m.count = 0; m.frustumCulled = false; m.castShadow = true;
       scene.add(m);
       this.meshes[k] = m;
+      const lg = LEGS[k];
+      if (lg) {
+        const l = new THREE.InstancedMesh(buildModel([lg.part]), mat, MAX * 2);
+        l.setColorAt(0, TINT.plain);
+        l.count = 0; l.frustumCulled = false; l.castShadow = true;
+        scene.add(l);
+        this.legs[k] = l;
+      }
     }
     this.ring = new THREE.InstancedMesh(new THREE.RingGeometry(0.8, 1, 28).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: 0xff2a2a, transparent: true, opacity: 0.8, depthWrite: false }), MAX * 3);
@@ -310,7 +341,7 @@ export class Creatures {
     const back = m.hold > 0;
     m.hold -= dt;
     let tx: number, ty: number, tz: number;
-    if (p && Math.hypot(p.x - m.x, p.z - m.z) < CHASE * 1.5) { tx = p.x; ty = p.y + 1.1; tz = p.z; }
+    if (p && keen(m) && Math.hypot(p.x - m.x, p.z - m.z) < CHASE * 1.5) { tx = p.x; ty = p.y + 1.1; tz = p.z; }
     else { tx = Math.sin(m.seed + m.t * 0.3) * this.half * 0.5; ty = 3; tz = Math.cos(m.seed + m.t * 0.25) * this.half * 0.5; }
     // покачивание: стая не летит в одну точку цепочкой
     tx += Math.sin(m.t * 2.3 + m.seed) * 1.2; tz += Math.cos(m.t * 1.9 + m.seed) * 1.2; ty += Math.sin(m.t * 3 + m.seed) * 0.4;
@@ -403,12 +434,14 @@ export class Creatures {
     if (grounded) {
       m.vx = m.vz = 0;
       m.hold += dt;
-      const wait = m.adj === 'fast' ? 0.35 : m.adj === 'bouncy' ? 0.25 : 0.8;
+      const wait = m.adj === 'fast' ? 0.6 : m.adj === 'bouncy' ? 0.5 : 1.2;   // сидит дольше — не прыгает в игрока очередью
       if (m.hold < wait) return;
       m.hold = 0;
       const p = this.h.target();
-      const near = p && Math.hypot(p.x - m.x, p.z - m.z) < CHASE * 1.3;
-      const tx = near ? p!.x : Math.sin(m.seed + m.t * 0.3) * this.half * 0.55, tz = near ? p!.z : Math.cos(m.seed + m.t * 0.3) * this.half * 0.55;
+      const near = p && keen(m) && Math.hypot(p.x - m.x, p.z - m.z) < CHASE;
+      // не точно в игрока, а примерно в его сторону (±1,5 м): прыжок можно переждать на месте или отойти
+      const jx = (Math.random() - 0.5) * 3, jz = (Math.random() - 0.5) * 3;
+      const tx = near ? p!.x + jx : Math.sin(m.seed + m.t * 0.3) * this.half * 0.55, tz = near ? p!.z + jz : Math.cos(m.seed + m.t * 0.3) * this.half * 0.55;
       let dx = tx - m.x, dz = tz - m.z;
       const d = Math.hypot(dx, dz) || 1, L = Math.min(d, FROG_JUMP * (m.adj === 'giant' ? 1.3 : 1));
       dx /= d; dz /= d;
@@ -452,6 +485,7 @@ export class Creatures {
     this.waves.length = 0;
     for (const m of this.mobs) m.live = false;
     for (const k in this.meshes) this.meshes[k as NounId].count = 0;
+    for (const k in this.legs) this.legs[k as NounId]!.count = 0;
     this.ring.count = 0;
   }
 
@@ -461,7 +495,7 @@ export class Creatures {
     if (this.alive(r.noun) >= MAX) return;
     const m = this.mobs.find((q) => !q.live) ?? (this.mobs.push({} as Mob), this.mobs[this.mobs.length - 1]);
     const H = this.half - 1.5;
-    Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 0, bounces: 0, tick: 0, seed: Math.random() * 100, life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0, vx: 0, vz: 0, kx: 0, kz: 0, stun: 0, roll: 0, dx: 0, dz: 1 });
+    Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 0, bounces: 0, tick: 0, seed: Math.random() * 100, life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0, vx: 0, vz: 0, kx: 0, kz: 0, stun: 0, roll: 0, dx: 0, dz: 1, gait: 0 });
     if (r.noun === 'boulder') { this.launch(m, H, aim); return; }
     if (FALLING.includes(r.noun)) {
       // падающее: метка на земле, часть целится туда, куда бежит игрок; одиночные — всегда к игроку, иначе их не увидеть
@@ -497,7 +531,7 @@ export class Creatures {
     if (this.alive(r.noun) >= MAX) return;
     const m = this.mobs.find((q) => !q.live) ?? (this.mobs.push({} as Mob), this.mobs[this.mobs.length - 1]);
     Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 4, bounces: 0, tick: 0, seed: Math.random() * 100,
-      life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0, vx: 0, vz: 0, kx: 0, kz: 0, stun: 0, roll: 0, dx: 0, dz: 1, phase: 'run' as Phase, x, z, y: 0, ground: this.h.heightAt(x, z) });
+      life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0, vx: 0, vz: 0, kx: 0, kz: 0, stun: 0, roll: 0, dx: 0, dz: 1, gait: 0, phase: 'run' as Phase, x, z, y: 0, ground: this.h.heightAt(x, z) });
     this.fx.emit('poof', this.v.set(x, 1, z), 0.8, [0x7bd36a, 0x3f8f3a]);
   }
 
@@ -590,10 +624,18 @@ export class Creatures {
 
   private run(m: Mob, dt: number): void {
     // оглушён током — стоит, трясётся (можно заманить в электролужу)
-    if (m.stun > 0) { m.stun -= dt; m.yaw += Math.sin(m.t * 60) * 0.15; return; }
+    if (m.stun > 0) { m.stun -= dt; m.vx = m.vz = 0; m.yaw += Math.sin(m.t * 60) * 0.15; return; }
+    // динозавр гонится рывками (заказчик: «слишком за мной бегут»): из каждых 7 с около 2 стоит и ревёт, повернувшись
+    // к игроку, — есть время оторваться. Фаза от seed: стая не замирает разом
+    if (m.kind === 'dino' && (m.t + m.seed) % 7 > 5) {
+      m.vx = m.vz = 0;
+      const q = this.h.target();
+      if (q) { let dy = Math.atan2(q.x - m.x, q.z - m.z) - m.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); m.yaw += dy * Math.min(1, dt * 4); }
+      return;
+    }
     // гонятся только вблизи (CHASE): иначе к финалу вся накопленная орда шла за игроком через весь остров
     const pt = this.h.target();
-    const p = pt && Math.hypot(pt.x - m.x, pt.z - m.z) < CHASE ? pt : null;
+    const p = pt && keen(m) && Math.hypot(pt.x - m.x, pt.z - m.z) < CHASE ? pt : null;
     let dx: number, dz: number;
     if (p) { dx = p.x - m.x; dz = p.z - m.z; }
     // бродят к блуждающей точке внутри острова — а не упираются в забор, двигаясь в одну сторону
@@ -615,18 +657,18 @@ export class Creatures {
     if (k < 1 && Math.hypot(m.vx, m.vz) > 2.5) this.h.react('skate', m.x, m.z);
     m.vx += (wx * sp * (k < 1 ? 1.3 : 1) - m.vx) * k; m.vz += (wz * sp * (k < 1 ? 1.3 : 1) - m.vz) * k;
     const nx = m.x + m.vx * dt, nz = m.z + m.vz * dt;
-    const grounded = m.y <= m.ground + 0.01, b = this.body(m), st = this.step(m);
+    const grounded = m.y <= m.ground + 0.01, b = this.body(m), st = this.step(m), cap = climbCap(m);
     let moved = true;
     const fl = m.ground + 0.05;
-    if (this.free(nx, nz, m.y, b, st, CLIMB_MAX, fl)) { m.x = nx; m.z = nz; }
-    else if (this.free(nx, m.z, m.y, b, st, CLIMB_MAX, fl)) m.x = nx;
-    else if (this.free(m.x, nz, m.y, b, st, CLIMB_MAX, fl)) m.z = nz;
+    if (this.free(nx, nz, m.y, b, st, cap, fl)) { m.x = nx; m.z = nz; }
+    else if (this.free(nx, m.z, m.y, b, st, cap, fl)) m.x = nx;
+    else if (this.free(m.x, nz, m.y, b, st, cap, fl)) m.z = nz;
     else { moved = false; m.vx = m.vz = 0; }
     // коты (и прыгучие) лезут наверх: игрок на ящике или холме рядом, а прямой путь упирается — прыжок к нему
     const climber = (m.kind === 'cat' || m.adj === 'bouncy') && m.s < 2;   // гиганты не скачут на ящики
     // прыжок ровно на высоту уступа впереди и только если он не выше второй ступеньки
     const ahead = this.h.heightAt(m.x + wx * (b + 0.7), m.z + wz * (b + 0.7));
-    const hop = ahead > m.y + 0.3 && ahead <= CLIMB_MAX ? Math.min(12.5, Math.sqrt(2 * G * (ahead - m.y + 0.6))) : 0;
+    const hop = ahead > m.y + 0.3 && ahead <= cap ? Math.min(12.5, Math.sqrt(2 * G * (ahead - m.y + 0.6))) : 0;
     if (climber && grounded && hop && p && p.y > m.y + 0.6 && len < 7 && !this.free(nx, nz, m.y, b, st)) m.vy = hop;
     // совсем не может шагнуть дольше 1,5 с (зажат между ящиками или появился вплотную) — переносим на ближайшее свободное место
     m.hold = moved ? Math.max(0, m.hold - dt) : m.hold + dt;
@@ -634,7 +676,7 @@ export class Creatures {
       m.hold = 0;
       search: for (let r = 0.8; r <= 5; r += 0.7) for (let a = 0; a < 12; a++) {
         const qx = m.x + Math.cos(a * 0.524 + m.seed) * r, qz = m.z + Math.sin(a * 0.524 + m.seed) * r;
-        if (this.h.heightAt(qx, qz) <= CLIMB_MAX && this.free(qx, qz, this.h.heightAt(qx, qz), b, st)) { m.x = qx; m.z = qz; m.ground = m.y = this.h.heightAt(qx, qz); this.fx.emit('poof', this.v.set(qx, m.y + 0.5, qz), 0.5 * m.s); break search; }
+        if (this.h.heightAt(qx, qz) <= cap && this.free(qx, qz, this.h.heightAt(qx, qz), b, st)) { m.x = qx; m.z = qz; m.ground = m.y = this.h.heightAt(qx, qz); this.fx.emit('poof', this.v.set(qx, m.y + 0.5, qz), 0.5 * m.s); break search; }
       }
     }
     if (!moved) {
@@ -705,7 +747,8 @@ export class Creatures {
         if (this.rollStep(m, dt, rings)) continue;
         if (m.t < ROLL_WARN) rings += 4;
       } else if (m.phase === 'lie') {
-        if (m.adj === 'bouncy' || m.adj === 'fast') this.run(m, dt * 0.6);
+        // банан лежит (заказчик: «почему бананы бегают?»): прыгучий только подскакивает на месте
+        if (m.adj === 'bouncy' && m.y <= m.ground + 0.01) m.vy = 6;
         // опасный банан (огненный, ледяной, гигантский) убивает касанием — заказчик не понял этого: мигает и под ним красный круг
         if (this.deadly(m)) { warn = 0.5 + 0.5 * Math.sin(m.t * 9 + m.seed); this.setRing(rings++, m.x, m.ground, m.z, (this.reach(m) + 0.5) * (0.9 + 0.15 * warn)); }
         if (m.t > m.life) { m.live = false; this.fx.emit('poof', this.v.set(m.x, m.y + 0.3, m.z), 0.5); continue; }
@@ -729,7 +772,7 @@ export class Creatures {
         // отброс взрывом: летит, пока не затухнет
         if (Math.abs(m.kx) + Math.abs(m.kz) > 0.1) {
           const qx = m.x + m.kx * dt, qz = m.z + m.kz * dt, b = this.body(m);
-          if (this.free(qx, qz, m.y, b, 1.2, CLIMB_MAX, m.ground + 0.05)) { m.x = qx; m.z = qz; } else { m.kx = m.kz = 0; }
+          if (this.free(qx, qz, m.y, b, 1.2, climbCap(m), m.ground + 0.05)) { m.x = qx; m.z = qz; } else { m.kx = m.kz = 0; }
           const f = Math.exp(-(m.y > m.ground + 0.05 ? 0.8 : 5) * dt); m.kx *= f; m.kz *= f;
         }
         if (this.cellReact(m)) continue;
@@ -743,11 +786,26 @@ export class Creatures {
       dummy.position.set(m.x, m.y + (m.kind === 'meteor' ? 0.9 * m.s : m.kind === 'boulder' ? m.s : 0), m.z);
       const spin = m.kind === 'tornado' ? m.t * 9 : m.kind === 'ufo' ? m.t * 1.5 : 0;
       if (m.kind === 'boulder') { dummy.rotation.order = 'YXZ'; dummy.rotation.set(m.roll, m.yaw, 0); }   // катится вперёд: курс, потом наклон
+      // ревущий динозавр запрокидывается назад и трясётся
+      else if (m.kind === 'dino' && m.phase === 'run' && m.stun <= 0 && (m.t + m.seed) % 7 > 5) dummy.rotation.set(-0.22 + Math.sin(m.t * 40) * 0.03, m.yaw, 0);
       else dummy.rotation.set(fall ? tumble : 0, m.yaw + spin + (fall ? tumble * 0.6 : 0), m.phase === 'lie' || spin ? 0 : Math.sin(m.t * (m.kind === 'bee' ? 30 : 14) + m.seed) * (m.kind === 'bee' ? 0.25 : 0.08));
       dummy.scale.set(m.s / Math.sqrt(squash), m.s * squash, m.s / Math.sqrt(squash));
       dummy.updateMatrix();
       dummy.rotation.order = 'XYZ';
       mesh.setMatrixAt(i, dummy.matrix);
+      const lg = LEGS[m.kind], lm = this.legs[m.kind];
+      if (lg && lm) {
+        // шаг: фаза растёт со скоростью; стоит — ноги плавно возвращаются вниз
+        const v = Math.hypot(m.vx, m.vz);
+        m.gait = v > 0.3 ? m.gait + v * dt * (3.2 / Math.max(1, m.s * 0.8)) : m.gait * Math.max(0, 1 - dt * 8);
+        const sw = Math.sin(m.gait) * lg.swing * Math.min(1, v / 2);
+        for (const side of [-1, 1]) {
+          legR.makeRotationX(sw * side).setPosition(lg.x * side, lg.hip, 0);
+          legM.multiplyMatrices(dummy.matrix, legR);
+          lm.setMatrixAt(i * 2 + (side > 0 ? 1 : 0), legM);
+          lm.setColorAt(i * 2 + (side > 0 ? 1 : 0), blink ? flash : warn >= 0 ? tc.copy(TINT[m.adj]).lerp(danger, warn) : tc.copy(TINT[m.adj]));
+        }
+      }
       mesh.setColorAt(i, blink ? flash : warn >= 0 ? tc.copy(TINT[m.adj]).lerp(danger, warn) : tc.copy(TINT[m.adj]));
       // огненные горят по-настоящему: языки пламени на спине; метеорит — пылает в полёте
       if (m.adj === 'fire' || m.kind === 'meteor') {
@@ -763,6 +821,12 @@ export class Creatures {
       }
     }
 
+    for (const k in this.legs) {
+      const l = this.legs[k as NounId]!;
+      l.count = Math.min(MAX, counts[k as NounId]) * 2;
+      l.visible = l.count > 0;
+      if (l.count) { l.instanceMatrix.needsUpdate = true; l.instanceColor!.needsUpdate = true; }
+    }
     for (const k in this.meshes) {
       const mesh = this.meshes[k as NounId];
       mesh.count = Math.min(MAX, counts[k as NounId]);

@@ -64,7 +64,14 @@ export interface ArenaBotHooks {
   puff?(x: number, y: number, z: number, scale: number): void;
   /** Бот погиб — игре для звука/эффекта. */
   died?(x: number, y: number, z: number): void;
+  /** Где игрок (ноги) или null, если он не в игре: соперники иногда бегут к нему, как живые. */
+  player?(): THREE.Vector3 | null;
 }
+
+/** Радиус «тела» для толкания, м (плечи — около метра в ширину). */
+const PUSH_R = 0.5;
+/** Какую долю расталкивания берёт на себя игрок: он «тяжелее» — соперник не столкнёт его в лаву одним касанием. */
+const PLAYER_SHARE = 0.3;
 
 class ArenaBot {
   readonly avatar: Avatar;
@@ -82,6 +89,13 @@ class ArenaBot {
   /** Ловкость 0..1: задержка реакции и шанс паники. */
   private skill = 0.35 + Math.random() * 0.55;
   private noticeT = 0;
+  /** Куда бежит, пока тихо (заказчик: «пусть ведут себя активнее — бегают, прыгают»). */
+  private wx = 0;
+  private wz = 0;
+  private wanderT = 0;
+  private idleT = 0;
+  /** Попрыгунчик: как часто прыгает просто так (дети в Роблоксе жмут прыжок без конца). */
+  private hoppy = 0.06 + Math.random() * 0.14;
   // гибель кувырком
   private rv = new THREE.Vector3();
   private spin = new THREE.Vector3();
@@ -101,6 +115,8 @@ class ArenaBot {
     this.alive = true; this.gone = false; this.lying = false;
     this.burnT = 0; this.panicT = 0; this.noticeT = 0; this.moving = false;
     this.skill = 0.35 + Math.random() * 0.55;
+    this.hoppy = 0.06 + Math.random() * 0.14;
+    this.wanderT = 0; this.idleT = 0;
     const r = this.avatar.root;
     r.visible = true; r.rotation.set(0, 0, 0);
     (this.tag.material as THREE.SpriteMaterial).opacity = 1;
@@ -197,10 +213,13 @@ class ArenaBot {
       // уже высоко — не слезаем: держимся середины площадки, уворачиваемся только от меток падения
       const top = h.spots().find((s) => Math.abs(p.x - s.x) < s.sx && Math.abs(p.z - s.z) < s.sz && Math.abs(s.h - ground) < 0.2);
       if (top) { fx = fx * 0.25 + (top.x - p.x) * 0.15; fz = fz * 0.25 + (top.z - p.z) * 0.15; }
-    } else if (threat === 0 && Math.random() < 0.15) {
-      // тихо — бродим по острову
-      const a = Math.random() * 6.28; fx = Math.cos(a) * 0.3; fz = Math.sin(a) * 0.3;
-      if (Math.random() < 0.3) { this.moving = false; return; }
+    } else if (threat === 0) {
+      // тихо — не стоим столбом: бегаем по острову к своей цели, иногда к игроку, иногда на горку
+      this.wanderT -= THINK;
+      if (this.idleT > 0) { this.idleT -= THINK; this.moving = false; return; }
+      if (this.wanderT <= 0 || Math.hypot(this.wx - p.x, this.wz - p.z) < 1.2) this.pickWander(h, p);
+      const wx = this.wx - p.x, wz = this.wz - p.z, wl = Math.hypot(wx, wz) || 1;
+      fx = wx / wl; fz = wz / wl;
     }
     // паника: неловкий иногда бежит не туда
     if (this.panicT > 0) this.panicT -= THINK;
@@ -218,6 +237,37 @@ class ArenaBot {
     // уступ впереди, на который можно запрыгнуть, — прыжок
     const ax = p.x + this.dir.x * 1.3, az = p.z + this.dir.z * 1.3, ah = h.heightAt(ax, az);
     if (this.moving && ah > p.y + 0.3 && ah <= p.y + JUMP_UP && this.ctl.grounded) this.jump = true;
+    if (this.moving && this.ctl.grounded && !this.jump) {
+      // бегающий прямо по курсу — перепрыгнуть; а просто так прыгают все, в опасности — чаще
+      for (const m of h.mobs()) {
+        if (!m.live || m.phase === 'fall' || m.kind === 'tornado' || m.kind === 'ufo' || Math.abs(m.y - p.y) > 1.5) continue;
+        const dx = m.x - p.x, dz = m.z - p.z, d = Math.hypot(dx, dz);
+        if (d < 2.6 && (dx * this.dir.x + dz * this.dir.z) / (d || 1) > 0.5) { this.jump = true; break; }
+      }
+      if (!this.jump && Math.random() < this.hoppy * (threat > 0 ? 1.6 : 1)) this.jump = true;
+    }
+  }
+
+  /** Новая цель прогулки: к игроку (живые тоже толпятся рядом), на постройку повыше или просто в другой конец острова. */
+  private pickWander(h: ArenaBotHooks, p: THREE.Vector3): void {
+    this.wanderT = 2 + Math.random() * 3.5;
+    if (Math.random() < 0.12) { this.idleT = 0.4 + Math.random() * 1.2; }   // постоять, покрутить головой — но недолго
+    const pl = h.player?.();
+    const r = Math.random();
+    if (pl && r < 0.3) {
+      const a = Math.random() * 6.28, d = 1.5 + Math.random() * 4;
+      this.wx = pl.x + Math.cos(a) * d; this.wz = pl.z + Math.sin(a) * d;
+      return;
+    }
+    if (r < 0.55) {
+      // на постройку, куда можно запрыгнуть с места
+      const y = h.heightAt(p.x, p.z);
+      const ok = h.spots().filter((s) => s.h > y + 0.3 && s.h <= y + JUMP_UP && Math.max(s.sx, s.sz) >= 0.9 && Math.hypot(s.x - p.x, s.z - p.z) < 18);
+      if (ok.length) { const s = pickOf(ok); this.wx = s.x; this.wz = s.z; return; }
+    }
+    const a = Math.random() * 6.28, d = 4 + Math.random() * 12;
+    this.wx = THREE.MathUtils.clamp(p.x + Math.cos(a) * d, -21, 21);
+    this.wz = THREE.MathUtils.clamp(p.z + Math.sin(a) * d, -21, 21);
   }
 
   /** Куда идти, чтобы оказаться на высоте need: само место или промежуточная ступенька по пути. */
@@ -266,7 +316,9 @@ class ArenaBot {
 export class ArenaBots {
   readonly list: ArenaBot[] = [];
 
-  constructor(scene: THREE.Scene, physics: Physics, count: number, private h: ArenaBotHooks) {
+  private readonly step = new THREE.Vector3();
+
+  constructor(scene: THREE.Scene, private physics: Physics, count: number, private h: ArenaBotHooks) {
     for (let i = 0; i < count; i++) this.list.push(new ArenaBot(scene, physics, i, makeNick(), h));
   }
 
@@ -282,7 +334,40 @@ export class ArenaBots {
     });
   }
 
-  update(dt: number): void { for (const b of this.list) b.update(dt, this.h); }
+  /** player — контроллер игрока, пока он в игре (с ним тоже толкаемся), иначе null. */
+  update(dt: number, player: Controller | null = null): void {
+    for (const b of this.list) b.update(dt, this.h);
+    this.shove(player, dt);
+  }
+
+  /**
+   * Толкание (заказчик: «не проходили друг в друга, а толкались»): тела — вертикальные цилиндры радиусом PUSH_R.
+   * Перекрылись — расходятся на перекрытие (сдвиг идёт через физику: сквозь стену не вытолкнет) и получают
+   * лёгкий толчок скоростью. На разной высоте (один на ящике, другой внизу) не толкаются.
+   */
+  private shove(player: Controller | null, dt: number): void {
+    const who: { c: Controller; share: number }[] = [];
+    if (player) who.push({ c: player, share: PLAYER_SHARE });
+    for (const b of this.list) if (b.alive) who.push({ c: b.ctl, share: 1 });
+    const R2 = PUSH_R * 2, kick = Math.min(1, dt * 60) * 1.2;
+    for (let i = 0; i < who.length; i++) for (let j = i + 1; j < who.length; j++) {
+      const a = who[i], b = who[j];
+      if (Math.abs(a.c.pos.y - b.c.pos.y) > 1.6) continue;
+      const dx = b.c.pos.x - a.c.pos.x, dz = b.c.pos.z - a.c.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d >= R2) continue;
+      const nx = d > 1e-4 ? dx / d : Math.random() - 0.5, nz = d > 1e-4 ? dz / d : Math.random() - 0.5;
+      const over = R2 - d, sum = a.share + b.share;
+      this.push(a.c, -nx, -nz, (over * a.share) / sum, (kick * a.share) / sum * 2);
+      this.push(b.c, nx, nz, (over * b.share) / sum, (kick * b.share) / sum * 2);
+    }
+  }
+
+  private push(c: Controller, nx: number, nz: number, dist: number, kick: number): void {
+    this.step.set(nx * dist, 0, nz * dist);
+    this.physics.move(c.pos, this.step, 1);
+    c.vel.x += nx * kick; c.vel.z += nz * kick;
+  }
 
   get alive(): number { return this.list.filter((b) => b.alive).length; }
 

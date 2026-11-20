@@ -99,7 +99,7 @@ class Sfx {
   private sfxVol = 1;
   private musicVol = 1;
   private duck = 1;
-  private static readonly MUSIC_BASE = 0.3;
+  private static readonly MUSIC_BASE = 0.375;   // было 0,3 — заказчик: «музыку на 25% громче»
   private static readonly TRACKS = 5;
   private static readonly LOOPS = 2;
   private lastTrack = -1;

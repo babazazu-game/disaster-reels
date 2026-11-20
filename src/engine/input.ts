@@ -89,7 +89,11 @@ export class Input {
   private layout(): void {
     const ins = safeInsets();
     const s = Math.max(44, Math.round(Math.min(innerWidth, innerHeight) * 0.2));   // CSS-пиксели; tapSize из yg-core умножал на DPR — на телефоне кнопка была втрое больше
-    Object.assign(this.jumpBtn.style, { width: s + 'px', height: s + 'px', right: ins.right + s * 0.35 + 'px', bottom: ins.bottom + s * 0.35 + 'px' });
+    // В вертикальном телефоне низ экрана съедают жест «домой» и панель браузера (заказчик: «прыжок надо нажимать
+    // выше, чтобы сработал») — кнопку поднимаем на ~9 % высоты от края.
+    const portrait = innerHeight > innerWidth;
+    const lift = portrait ? Math.max(s * 0.35, innerHeight * 0.09) : s * 0.35;
+    Object.assign(this.jumpBtn.style, { width: s + 'px', height: s + 'px', right: ins.right + s * 0.35 + 'px', bottom: ins.bottom + lift + 'px' });
     const b = Math.round(s * 1.4);
     Object.assign(this.base.style, { width: b + 'px', height: b + 'px' });
     Object.assign(this.knob.style, { width: b * 0.45 + 'px', height: b * 0.45 + 'px' });
@@ -108,9 +112,10 @@ export class Input {
     if (tg !== this.el && tg.tagName !== 'CANVAS' && !this.ui.contains(tg)) return;
     e.preventDefault();
     if (!this.state.touch) { this.state.touch = true; this.ui.classList.add('on'); }
-    const jr = this.jumpBtn.getBoundingClientRect();
+    // зона прыжка шире нарисованного круга на треть: пальцем по краю тоже прыгаем
+    const jr = this.jumpBtn.getBoundingClientRect(), pad = jr.width * 0.33;
     for (const t of Array.from(e.changedTouches)) {
-      const inJump = t.clientX >= jr.left && t.clientX <= jr.right && t.clientY >= jr.top && t.clientY <= jr.bottom;
+      const inJump = t.clientX >= jr.left - pad && t.clientX <= jr.right + pad && t.clientY >= jr.top - pad && t.clientY <= jr.bottom + pad;
       if (phase === 'start') {
         if (inJump) { this.touchJump = true; this.jumpBtn.classList.add('down'); continue; }
         if (t.clientX < innerWidth * 0.45 && !this.stick) {

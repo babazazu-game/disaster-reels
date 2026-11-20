@@ -280,6 +280,11 @@ function injectCss(): void {
   box-shadow:inset 0 2px #ffffff9c,0 3px var(--edge),0 4px var(--ink); color:#fff;
   font:inherit; -webkit-text-stroke:2px var(--ink); paint-order:stroke fill; text-shadow:0 1px var(--ink);
 }
+/* низ вертикального телефона перехватывают жест «домой» и панель браузера */
+@media (orientation:portrait) and (max-width:550px) { .chr-overlay { padding-bottom:calc(env(safe-area-inset-bottom) + max(7px, 5dvh)); } }
+/* зона нажатия с «толщиной» снизу: на телефоне палец попадает в низ кнопки */
+.chr-candy { position:relative; }
+.chr-candy::after { content:''; position:absolute; inset:-4px -4px -9px; border-radius:inherit; }
 .chr-candy:active:not(:disabled) { translate:0 2px; box-shadow:inset 0 2px #ffffff9c,0 1px var(--edge),0 2px var(--ink); }
 .chr-overlay button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .chr-back { width:clamp(44px,calc(7 * var(--u)),60px); aspect-ratio:1; font-size:clamp(26px,calc(5 * var(--u)),40px); }

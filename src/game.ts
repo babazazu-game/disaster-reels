@@ -332,6 +332,7 @@ export function createScene(parent: HTMLElement): Game {
     spots: () => spots,
     puff: (x, y, z, k) => puff(x, y, z, k, 1),
     died: (x, y, z) => { fx.emit('poof', tmp.set(x, y + 1, z), 0.8); if (Math.hypot(ctl.pos.x - x, ctl.pos.z - z) < 18) sfx.play('respawn', 0.25, 0.5); },
+    player: () => (state === 'play' ? ctl.pos : null),
   });
 
   let t = 0, introT = 0, started = false, state: 'play' | 'dead' | 'win' = 'play', reelNo = 0, lavaStep = 0, burnT = 0, sparkT = 0, slipT = 0;
@@ -713,7 +714,7 @@ export function createScene(parent: HTMLElement): Game {
       fx.emit('lava', surface.center(k, tmp).setY(0.3), 0.35);
       sparkT = 0.12;
     }
-    bots.update(dt);
+    bots.update(dt, state === 'play' ? ctl : null);   // с игроком тоже толкаются
     fx.update(dt);
     dust.update(dt);
     dustLeft = DUST_FRAME;
@@ -757,8 +758,15 @@ export function createScene(parent: HTMLElement): Game {
       wearSkin(progress.snapshot().skin);
       dressBots();
       onProgress(0.6);
-      // прогрев шейдеров за полосой загрузки: иначе первый кадр с новым материалом подвисает
+      // прогрев за полосой загрузки: иначе первый кадр с новым материалом подвисает (замер: в первом раунде 4 кадра
+      // по 0,2–0,33 с — сборка шейдеров существ, грозы, теней и загрузка 30 картинок на видеокарту; во втором — чисто).
+      // compileAsync видит только видимое, а существа, гроза, луч НЛО и метки до первого появления спрятаны —
+      // поэтому на время прогрева показываем всё и рисуем один кадр (с тенями и текстурами) под заставкой
+      const hidden: THREE.Object3D[] = [];
+      scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
       await renderer.compileAsync(scene, cam.camera);
+      renderer.render(scene, cam.camera);
+      for (const o of hidden) o.visible = false;
       onProgress(1);
     },
     start() {

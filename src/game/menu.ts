@@ -527,6 +527,8 @@ function injectCss(): void {
   content:''; position:absolute; z-index:-1; pointer-events:none; inset:3px 7% auto;
   height:34%; border-radius:inherit; background:var(--shine); opacity:.75;
 }
+/* зона нажатия = кнопка вместе с нарисованной «толщиной» снизу и полями вокруг: на телефоне палец попадает в низ кнопки */
+.mnu-button::after { content:''; position:absolute; inset:-5px -5px calc(-1 * var(--depth) - 9px); border-radius:inherit; }
 .mnu-button:focus-visible { outline:3px solid #fff; outline-offset:3px; }
 .mnu-button:active {
   translate:0 calc(var(--depth) * .7);
@@ -673,6 +675,8 @@ function injectCss(): void {
 }
 @media (orientation:portrait) and (max-width:550px) {
   .mnu-main { padding-top:36px; }
+  /* низ вертикального экрана перехватывают жест «домой» и панель браузера — нижний ряд кнопок поднимаем */
+  .mnu-overlay { padding-bottom:calc(env(safe-area-inset-bottom) + max(16px, 7dvh)); }
 }
 @media (max-height:430px) {
   /* Компактный логотип оставляет место для целей нажатия в альбоме. */
