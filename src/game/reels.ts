@@ -1,4 +1,5 @@
 import { installTap } from '../engine/tap.ts';
+import { fontPx, tapSize } from 'yg-core';
 import { COUNTS, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './words.ts';
 
 /**
@@ -89,7 +90,16 @@ export class Reels {
     this.btn.type = 'button';
     this.btn.className = 'reels-stop';
     this.btn.disabled = true;
-    this.btn.textContent = stopLabel;   // счётчик нажатий добавляется ниже отдельным элементом
+    // фирменная кнопка — рисованная картинка с надписью на своём языке (заказчик); текст — запасной, пока картинка не пришла
+    const label = document.createElement('span');
+    label.className = 'reels-stop-label';
+    label.textContent = stopLabel;
+    this.btn.appendChild(label);
+    this.btn.setAttribute('aria-label', stopLabel);
+    const art = new Image();
+    const lang = /[а-яё]/i.test(stopLabel) ? 'ru' : 'en';
+    art.onload = () => { this.btn.style.backgroundImage = `url(${art.src})`; this.btn.classList.add('art'); };
+    art.src = `./assets/ui/stop_${lang}.webp?v=${__BUILD__}`;
     this.btn.addEventListener('click', () => this.press());
     this.badge = document.createElement('b');
     this.badge.className = 'reels-count';
@@ -255,6 +265,7 @@ function injectCss(): void {
   const s = document.createElement('style');
   s.textContent = `
 .reels{--margin:max(18px,env(safe-area-inset-left),env(safe-area-inset-right));
+  --ink:#2a1250;--font:Nunito,"Arial Black",system-ui,sans-serif;
   --w:min(91vh,728px,calc(100vw - 2*var(--margin)));--y:0%;
   position:absolute;left:50%;z-index:7;bottom:calc(env(safe-area-inset-bottom) + max(10px,2vh));
   display:flex;align-items:center;gap:calc(var(--w)*.025);width:var(--w);pointer-events:none;
@@ -263,10 +274,21 @@ function injectCss(): void {
 @media (pointer:coarse){.reels{--y:-50%;bottom:auto;top:calc(46% + (env(safe-area-inset-top) - env(safe-area-inset-bottom))/2)}}
 .reels.show{opacity:1;visibility:visible;transform:translate(-50%,var(--y)) scale(1);
   transition:transform .32s cubic-bezier(.3,1.55,.55,1),opacity .18s ease-out,visibility 0s}
-.reels-frame{flex:1;min-width:0;display:flex;gap:calc(var(--w)*.012);padding:calc(var(--w)*.018);border-radius:calc(var(--w)*.04);
-  background:#d8313a;border:calc(var(--w)*.008) solid #fff;box-shadow:0 0 0 calc(var(--w)*.006) #ffd23a inset,0 calc(var(--w)*.012) 0 rgba(0,0,0,.25)}
+.reels-frame{position:relative;flex:1;min-width:0;display:flex;gap:calc(var(--w)*.012);padding:calc(var(--w)*.018);
+  border-radius:calc(var(--w)*.04);border:clamp(3px,calc(var(--w)*.008),6px) solid var(--ink);
+  background:linear-gradient(#ffe481 0%,#ffbd44 12%,#9e36cd 32%,#7322b1 65%,#e49126 95%,#ffe383);
+  box-shadow:inset 0 0 0 clamp(2px,calc(var(--w)*.006),4px) #ffc13d,inset 0 2px #fff5c1,
+    0 calc(var(--w)*.012) #4d1784,0 calc(var(--w)*.016) var(--ink)}
+/* Лампочки ложатся на кайму, чтобы не сужать окна лент. */
+.reels-frame::before,.reels-frame::after{content:'';position:absolute;z-index:2;pointer-events:none;
+  left:4%;right:4%;height:calc(var(--w)*.017);border-radius:999px;
+  background:radial-gradient(circle,#fffde0 0 24%,#ffeb79 27% 39%,#ffb92e8c 43%,transparent 64%) center/11.111% 100% repeat-x}
+.reels-frame::before{top:0}
+.reels-frame::after{bottom:0}
 .reel{position:relative;flex:1;min-width:0;height:calc(var(--w)*.2);border-radius:calc(var(--w)*.025);overflow:hidden;
-  background:#fffaf0;color:#c41f2a;font:900 calc(var(--w)*.105)/1 Nunito,system-ui,sans-serif;white-space:nowrap}
+  background:linear-gradient(#e8d4c3,#fff9e8 34%,#fffdf3 64%,#ead6bf);color:#fff9e8;
+  font:900 calc(var(--w)*.105)/1 var(--font);white-space:nowrap;
+  -webkit-text-stroke:clamp(3px,calc(var(--w)*.009),7px) var(--ink);paint-order:stroke fill;text-shadow:0 .08em #522257}
 .reel:first-child{flex:.65}
 .reel-track{position:absolute;inset:0}
 .reel.rolling .reel-track{filter:blur(.7px);will-change:transform}
@@ -275,20 +297,36 @@ function injectCss(): void {
 .reel i{display:block;width:min(100%,calc(var(--w)*.16));aspect-ratio:1;background:url(./assets/reel.webp?v=${__BUILD__}) 0 0/400% 500% no-repeat}
 /* Тень скрывает обрезку символов у краёв, а блик выгибает окно по центру. */
 .reel::after{content:'';position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(to bottom,rgba(44,25,19,.60),rgba(61,38,25,.16) 26%,transparent 39%,rgba(255,255,255,.18) 48%,rgba(255,255,255,.18) 52%,transparent 61%,rgba(61,38,25,.18) 76%,rgba(44,25,19,.64))}
-.reels-stop{pointer-events:none;flex:none;width:calc(var(--w)*.22);height:calc(var(--w)*.22);min-width:56px;min-height:56px;border-radius:50%;cursor:pointer;
-  background:radial-gradient(circle at 40% 35%,#ff6b6b,#d8313a 60%,#a51a22);color:#fff;border:calc(var(--w)*.01) solid #ffd23a;
-  font:900 max(13px,calc(var(--w)*.045))/1 Nunito,system-ui,sans-serif;box-shadow:0 calc(var(--w)*.012) 0 #7a1016}
+  background:linear-gradient(#4e286a65,transparent 34%,#ffffff24 49%,transparent 68%,#4e286a73);
+  border-radius:inherit;box-shadow:inset 0 0 0 max(2px,calc(var(--w)*.004)) #351642}
+.reels-stop{position:relative;isolation:isolate;pointer-events:none;flex:none;width:calc(var(--w)*.22);height:calc(var(--w)*.22);
+  min-width:${tapSize(56)}px;min-height:${tapSize(56)}px;padding:0;border-radius:50%;cursor:pointer;touch-action:manipulation;
+  background:linear-gradient(#ff7479,#f72d47 48%,#d50c36 75%,#a91237);color:#fff;border:clamp(3px,calc(var(--w)*.009),6px) solid #321034;
+  font:900 max(${fontPx(13, 1)}px,calc(var(--w)*.05))/1 var(--font);white-space:nowrap;
+  -webkit-text-stroke:clamp(2px,calc(var(--w)*.007),5px) #521129;paint-order:stroke fill;text-shadow:0 .09em #521129;
+  box-shadow:inset 0 0 0 max(2px,calc(var(--w)*.0045)) #ffcf50,0 calc(var(--w)*.012) #951442,0 calc(var(--w)*.017) #321034}
+.reels-stop::before{content:'';position:absolute;z-index:-1;pointer-events:none;inset:8% 15% auto;height:35%;border-radius:50%;
+  background:linear-gradient(#fffdf2d9,#fff6ec20)}
+.reels-stop.art{background:center/contain no-repeat;border:none;box-shadow:none;border-radius:50%;filter:drop-shadow(0 calc(var(--w)*.012) 0 #321034)}
+.reels-stop.art::before,.reels-stop.art .reels-stop-label{display:none}
+.reels-stop.art:active{box-shadow:none;transform:translateY(3px) scale(.97)}
+/* телефон вертикально (заказчик): по центру сверху большая СТОП, под ней барабан — всё по центру */
+@media (pointer:coarse) and (orientation:portrait){
+  .reels{flex-direction:column-reverse;gap:calc(var(--w)*.04)}
+  .reels-frame{width:100%;flex:none}
+  .reels-stop{width:calc(var(--w)*.36);height:calc(var(--w)*.36)}
+}
 .reels.show .reels-stop:not(:disabled){pointer-events:auto}
-.reels-stop:active{transform:translateY(3px);box-shadow:0 2px 0 #7a1016}
+.reels-stop:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.reels-stop:active{transform:translateY(3px);box-shadow:inset 0 0 0 2px #ffcf50,0 2px #73122f}
 .reels-stop:disabled{filter:grayscale(.4) brightness(.9)}
-.reels.show .reels-stop:not(:disabled){animation:stopPulse .8s ease-in-out infinite}
-.reels-stop{position:relative}
+.reels.show .reels-stop:not(:disabled):not(:active){animation:stopPulse .8s ease-in-out infinite}
 .reels-count{position:absolute;top:-12%;right:-12%;width:42%;height:42%;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  background:#ffd23a;color:#7a1016;border:calc(var(--w)*.006) solid #fff;font:900 max(13px,calc(var(--w)*.045))/1 Nunito,system-ui,sans-serif;box-shadow:0 2px 0 rgba(0,0,0,.25)}
-.reel.next{box-shadow:0 0 0 calc(var(--w)*.008) #ffd23a,0 0 calc(var(--w)*.03) #ffd23a}
-@keyframes stopPulse{0%,100%{transform:scale(1);box-shadow:0 calc(var(--w)*.012) 0 #7a1016,0 0 0 0 rgba(255,210,58,.9)}
-  50%{transform:scale(1.12);box-shadow:0 calc(var(--w)*.012) 0 #7a1016,0 0 0 calc(var(--w)*.03) rgba(255,210,58,0)}}
+  background:linear-gradient(#fff392,#ffb221);color:#63270e;border:max(2px,calc(var(--w)*.004)) solid #592543;
+  font:900 max(${fontPx(13, 1)}px,calc(var(--w)*.045))/1 var(--font);-webkit-text-stroke:0;text-shadow:none;box-shadow:inset 0 1px #fffde0,0 2px #8c4317}
+.reel.next{box-shadow:0 0 0 max(2px,calc(var(--w)*.006)) #fff699,0 0 calc(var(--w)*.018) #ffd23a}
+@keyframes stopPulse{50%{transform:scale(1.055)}}
+@media (prefers-reduced-motion:reduce){.reels,.reels.show{transition:none}.reels.show .reels-stop:not(:disabled):not(:active){animation:none}}
 `;
   document.head.appendChild(s);
 }
