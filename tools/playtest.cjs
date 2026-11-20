@@ -116,6 +116,7 @@ const PAGE_LIB = () => {
       if (s.state === 'dead') { log.tDeath = +s.t.toFixed(1); log.cause = s.deathCause; }
       log.reels = s.reels;
       log.hits = s.hits; log.reacted = s.reacted;
+      log.bots = s.dummies; log.botT = s.t;
       { const q = W.__ctl.pos; log.pos = [+q.x.toFixed(1), +q.y.toFixed(1), +q.z.toFixed(1)]; log.hill = HILL; log.lava = +s.lava.toFixed(2); }
       for (const m of W.__creatures.mobs.filter((q) => q.live)) log.kinds[m.kind] = (log.kinds[m.kind] || 0) + 1;
       log.tickMs = +(log.tickMs / Math.max(1, log.ticks)).toFixed(3);
@@ -147,7 +148,7 @@ const PAGE_LIB = () => {
     const bot = i % 3 === 2 ? 'idle' : 'smart';
     const r = await page.evaluate((b) => window.__pt.round(b), bot);
     rounds.push(r);
-    console.log(`#${i + 1} ${bot.padEnd(5)} ${r.survived ? 'ВЫЖИЛ ' : `погиб на ${String(r.tDeath).padStart(4)} с: ${r.cause}`.padEnd(40)} | ${r.reels.join(' / ')} | ударов ${r.hits}, мобов max ${r.maxMobs}, застряли ${r.stuck}`);
+    console.log(`#${i + 1} ${bot.padEnd(5)} ${r.survived ? 'ВЫЖИЛ ' : `погиб на ${String(r.tDeath).padStart(4)} с: ${r.cause}`.padEnd(40)} | ${r.reels.join(' / ')} | ударов ${r.hits}, ботов живо ${r.bots}, мобов max ${r.maxMobs}, застряли ${r.stuck}`);
     if (SHOTS && i < 3) {
       const calls = await page.evaluate(() => window.__pt.draw());
       await page.screenshot({ path: path.join(OUT, 'shots', `round${i + 1}_end.png`) });
@@ -197,6 +198,7 @@ const PAGE_LIB = () => {
     avgDeathSec: { smart: avg(smart.filter((r) => r.tDeath).map((r) => r.tDeath)), idle: avg(idle.filter((r) => r.tDeath).map((r) => r.tDeath)) },
     causes,
     avgHits: avg(rounds.map((r) => r.hits)),
+    botsAliveAvg: avg(rounds.map((r) => r.bots)), botsAliveIfWin: avg(rounds.filter((r) => r.survived).map((r) => r.bots)),
     reactions: rounds.reduce((acc, r) => { for (const [k, v] of Object.entries(r.reacted || {})) acc[k] = (acc[k] || 0) + v; return acc; }, {}),
     roundsWithReaction: rounds.filter((r) => Object.keys(r.reacted || {}).length > 0).length,
     worst,

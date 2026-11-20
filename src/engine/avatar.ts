@@ -383,6 +383,22 @@ export class Avatar {
 
   setState(s: AvatarState): void { this.state = s; }
 
+  /**
+   * Обмякшее тело (гибель бота): руки и ноги раскинуты и болтаются тем сильнее, чем быстрее летит.
+   * energy 0..1. Полноценный рэгдолл не нужен: кости аватара и так дают «тряпичную куклу» дёшево.
+   */
+  limp(dt: number, energy: number): void {
+    this.t += dt;
+    const w = Math.sin(this.t * 17) * energy, v = Math.cos(this.t * 13) * energy;
+    this.armL.rotation.set(-1.2 + w * 0.9, 0, -1.1 - v * 0.5);
+    this.armR.rotation.set(-1.4 - v * 0.9, 0, 1.1 + w * 0.5);
+    this.legL.rotation.set(0.5 + v * 0.7, 0, -0.35);
+    this.legR.rotation.set(-0.4 - w * 0.7, 0, 0.35);
+    this.torso.rotation.set(0.15 * w, 0, 0);
+    this.head.rotation.set(0.3 * v, 0.4 * w, 0);
+    this.body.position.y = 0;
+  }
+
   /** speed01 — доля от максимальной скорости: на бегу шаг размашистее. */
   update(dt: number, speed01 = 1): void {
     this.t += dt;

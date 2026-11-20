@@ -29,6 +29,8 @@ const EVENT_TIME = 8;       // за столько секунд выходит �
 /** Существа живут до конца раунда (или до лавы): хаос КОПИТСЯ — просьба заказчика. */
 const FOREVER = Infinity;
 const G = 30;
+/** Выше этого бегающие не забираются (вторая ступенька холма, одиночный ящик): заказчик — «от котов не скрыться». */
+const CLIMB_MAX = 2.05;
 const TRAIL = 0.5;          // как часто бегающий оставляет след (огонь/лёд), с
 const TRAIL_BURN = 3;       // след горит недолго — иначе стая поджигает всю арену
 
@@ -169,7 +171,7 @@ const danger = new THREE.Color(1.6, 0.12, 0.08);   // лежащее опасн�
 const tc = new THREE.Color();
 
 export class Creatures {
-  private mobs: Mob[] = [];
+  readonly mobs: Mob[] = [];
   private meshes = {} as Record<NounId, THREE.InstancedMesh>;
   private ring: THREE.InstancedMesh;
   private beam: THREE.InstancedMesh;
@@ -411,8 +413,9 @@ export class Creatures {
   }
 
   /** Может ли существо шагнуть в (x, z) с высоты y: ящики и холм — укрытие от бегающих. */
-  private free(x: number, z: number, y: number, r: number, step = 0.45): boolean {
-    const H = this.half - 0.6 - r, top = y + step, h = this.h.heightAt;
+  private free(x: number, z: number, y: number, r: number, step = 0.45, cap = Infinity, floor = -Infinity): boolean {
+    // cap — выше не залезть даже в прыжке; floor — по своему уровню и вниз ходить можно всегда
+    const H = this.half - 0.6 - r, top = Math.max(Math.min(y + step, cap), floor), h = this.h.heightAt;
     // центр и четыре угла тела: иначе курица наполовину въезжает в ящик
     return Math.abs(x) < H && Math.abs(z) < H && h(x, z) <= top
       && h(x - r, z - r) <= top && h(x + r, z - r) <= top && h(x - r, z + r) <= top && h(x + r, z + r) <= top;
@@ -447,24 +450,28 @@ export class Creatures {
     const nx = m.x + m.vx * dt, nz = m.z + m.vz * dt;
     const grounded = m.y <= m.ground + 0.01, b = this.body(m), st = this.step(m);
     let moved = true;
-    if (this.free(nx, nz, m.y, b, st)) { m.x = nx; m.z = nz; }
-    else if (this.free(nx, m.z, m.y, b, st)) m.x = nx;
-    else if (this.free(m.x, nz, m.y, b, st)) m.z = nz;
+    const fl = m.ground + 0.05;
+    if (this.free(nx, nz, m.y, b, st, CLIMB_MAX, fl)) { m.x = nx; m.z = nz; }
+    else if (this.free(nx, m.z, m.y, b, st, CLIMB_MAX, fl)) m.x = nx;
+    else if (this.free(m.x, nz, m.y, b, st, CLIMB_MAX, fl)) m.z = nz;
     else { moved = false; m.vx = m.vz = 0; }
     // коты (и прыгучие) лезут наверх: игрок на ящике или холме рядом, а прямой путь упирается — прыжок к нему
     const climber = (m.kind === 'cat' || m.adj === 'bouncy') && m.s < 2;   // гиганты не скачут на ящики
-    if (climber && grounded && p && p.y > m.y + 0.6 && len < 7 && !this.free(nx, nz, m.y, b, st)) m.vy = 12.5;
+    // прыжок ровно на высоту уступа впереди и только если он не выше второй ступеньки
+    const ahead = this.h.heightAt(m.x + wx * (b + 0.7), m.z + wz * (b + 0.7));
+    const hop = ahead > m.y + 0.3 && ahead <= CLIMB_MAX ? Math.min(12.5, Math.sqrt(2 * G * (ahead - m.y + 0.6))) : 0;
+    if (climber && grounded && hop && p && p.y > m.y + 0.6 && len < 7 && !this.free(nx, nz, m.y, b, st)) m.vy = hop;
     // совсем не может шагнуть дольше 1,5 с (зажат между ящиками или появился вплотную) — переносим на ближайшее свободное место
     m.hold = moved ? Math.max(0, m.hold - dt) : m.hold + dt;
     if (m.hold > 1.5 && grounded) {
       m.hold = 0;
       search: for (let r = 0.8; r <= 5; r += 0.7) for (let a = 0; a < 12; a++) {
         const qx = m.x + Math.cos(a * 0.524 + m.seed) * r, qz = m.z + Math.sin(a * 0.524 + m.seed) * r;
-        if (this.free(qx, qz, this.h.heightAt(qx, qz), b, st)) { m.x = qx; m.z = qz; m.ground = m.y = this.h.heightAt(qx, qz); this.fx.emit('poof', this.v.set(qx, m.y + 0.5, qz), 0.5 * m.s); break search; }
+        if (this.h.heightAt(qx, qz) <= CLIMB_MAX && this.free(qx, qz, this.h.heightAt(qx, qz), b, st)) { m.x = qx; m.z = qz; m.ground = m.y = this.h.heightAt(qx, qz); this.fx.emit('poof', this.v.set(qx, m.y + 0.5, qz), 0.5 * m.s); break search; }
       }
     }
     if (!moved) {
-      if (grounded && climber) m.vy = 12.5;
+      if (grounded && climber && hop) m.vy = hop;
       // остальные обходят: в сторону, а если снова упёрлись — в другую
       // обходят вдоль стенки в одну сторону, всё круче, а не мечутся влево-вправо (заказчик: «застряли и дрыгаются»)
       const sg = m.steerT > 0 ? Math.sign(m.steer) : (m.seed % 2 < 1 ? 1 : -1);
@@ -549,7 +556,7 @@ export class Creatures {
         // отброс взрывом: летит, пока не затухнет
         if (Math.abs(m.kx) + Math.abs(m.kz) > 0.1) {
           const qx = m.x + m.kx * dt, qz = m.z + m.kz * dt, b = this.body(m);
-          if (this.free(qx, qz, m.y, b, 1.2)) { m.x = qx; m.z = qz; } else { m.kx = m.kz = 0; }
+          if (this.free(qx, qz, m.y, b, 1.2, CLIMB_MAX, m.ground + 0.05)) { m.x = qx; m.z = qz; } else { m.kx = m.kz = 0; }
           const f = Math.exp(-(m.y > m.ground + 0.05 ? 0.8 : 5) * dt); m.kx *= f; m.kz *= f;
         }
         if (this.cellReact(m)) continue;

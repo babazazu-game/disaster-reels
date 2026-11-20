@@ -29,6 +29,7 @@ import { Reels, type ReelResult } from './game/reels.ts';
 import { Creatures } from './game/creatures.ts';
 import { agree, phrase, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './game/words.ts';
 import { RoundUi } from './game/roundUi.ts';
+import { ArenaBots, type Spot } from './game/arenaBots.ts';
 import { L } from './i18n.ts';
 
 export interface Game {
@@ -46,7 +47,8 @@ const FALL_Y = -12;
 const FENCE_H = 1.0;
 /** Старт игрока; вокруг него ящики не ставятся. */
 const SPAWN = { x: 0, z: 5 };
-const DUMMIES = 7;
+/** Ботов на арене (этап 5). */
+const DUMMIES = 5;
 /** Сердечек на раунд: касание отнимает одно (ребёнку одно касание = смерть — слишком строго). Лава и падение — сразу. */
 const HEARTS = 3;
 /** Неуязвимость после удара, с — успеть убежать. */
@@ -227,8 +229,11 @@ export function createScene(parent: HTMLElement): Game {
     // манекены — тоже на новые места
     dummySpots = [];
     for (let k = 0; k < DUMMIES; k++) dummySpots.push(spot(0.8) ?? [k * 3 - 9, -3]);
+    // верхушки построек — куда боты лезут прятаться и спасаться от лавы
+    spots = layoutSolids.map((sd) => { const b = sd.box; return { x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, h: b.max.y, sx: (b.max.x - b.min.x) / 2 - 0.3, sz: (b.max.z - b.min.z) / 2 - 0.3 }; });
   };
   let dummySpots: [number, number][] = [];
+  let spots: Spot[] = [];
 
   /** Верх самой высокой опоры в точке (куда падает метеор). */
   const heightAt = (x: number, z: number): number => {
@@ -251,13 +256,6 @@ export function createScene(parent: HTMLElement): Game {
   ctl.onJump = () => sfx.play('jump', 0.08);
   ctl.onLand = (v) => { if (v > 10) sfx.play('land', 0.1); };
 
-  // манекены — будущие боты: по ним видно, что персонаж стоит 1 вызов отрисовки
-  const dummies: Avatar[] = [];
-  for (let i = 0; i < DUMMIES; i++) {
-    const a = new Avatar(SKINS[(i + 1) % SKINS.length].look, true);
-    scene.add(a.root);
-    dummies.push(a);
-  }
 
   /* ───────────────────────────── ХАОС ────────────────────────────── */
   const fx = new Particles(scene);
@@ -270,7 +268,16 @@ export function createScene(parent: HTMLElement): Game {
   ui.setLabels(L('ЕЩЁ РАЗ', 'AGAIN'));
   const reels = new Reels(parent, L('СТОП', 'STOP'));
   const tmp = new THREE.Vector3();
-  const alive = dummies.map(() => true);
+  // боты (этап 5): бегают, прячутся и гибнут смешно; барабан не крутят
+  const bots: ArenaBots = new ArenaBots(scene, physics, DUMMIES, {
+    heightAt: (x, z) => heightAt(x, z),
+    cell: (x, z) => surface.at(x, z),
+    lava: () => lava.level,
+    time: () => t,
+    mobs: () => creatures.mobs,
+    spots: () => spots,
+    died: (x, y, z) => { fx.emit('poof', tmp.set(x, y + 1, z), 0.8); if (Math.hypot(ctl.pos.x - x, ctl.pos.z - z) < 18) sfx.play('respawn', 0.25, 0.5); },
+  });
 
   let t = 0, introT = 0, started = false, state: 'play' | 'dead' | 'win' = 'play', reelNo = 0, lavaStep = 0, burnT = 0, sparkT = 0, slipT = 0;
   let slowT = 0, shockT = 0;
@@ -278,13 +285,6 @@ export function createScene(parent: HTMLElement): Game {
   let lavaWarned = false, deathCause = '', hearts = HEARTS, hurtT = 0, hits = 0;
   const reelLog: string[] = [];   // итоги барабанов за раунд — для автопрогона
 
-  const killDummy = (i: number) => {
-    if (!alive[i]) return;
-    alive[i] = false;
-    const r = dummies[i].root;
-    r.rotation.x = -Math.PI / 2; r.position.y = 0.35;   // упал плашмя — на этапе 5 станет рэгдоллом
-    fx.emit('poof', tmp.copy(r.position).setY(1), 0.8);
-  };
 
   const die = (cause: string) => {
     if (state !== 'play') return;
@@ -339,16 +339,8 @@ export function createScene(parent: HTMLElement): Game {
     const s = agree(1, m.adj, m.kind).join(' ');
     return s[0].toUpperCase() + s.slice(1);
   };
-  /** Манекены в радиусе: гибнут, а укушенные зомби — исчезают (встают зомби). Вернёт места. */
-  const dummiesNear = (x: number, y: number, z: number, r: number, infect = false) => {
-    const out: [number, number][] = [];
-    dummies.forEach((dm, i) => {
-      const p = dm.root.position;
-      if (!alive[i] || (p.x - x) ** 2 + (p.z - z) ** 2 >= r * r || Math.abs(p.y - y) >= 2) return;
-      if (infect) { alive[i] = false; dm.root.visible = false; out.push([p.x, p.z]); } else killDummy(i);
-    });
-    return out;
-  };
+  /** Боты в радиусе: гибнут (взрыв отбрасывает сильнее), укушенные зомби исчезают — там встают зомби. */
+  const dummiesNear = (x: number, y: number, z: number, r: number, infect = false, power = 1) => bots.hit(x, y, z, r, infect, power);
 
   const creatures = new Creatures(scene, HALF, surface, fx, flames, bolts, {
     heightAt,
@@ -374,7 +366,7 @@ export function createScene(parent: HTMLElement): Game {
       cam.shake(Math.max(0, 0.45 - d * 0.03) * Math.min(2, r / 2));
       if (d < 16) sfx.play(ice ? 'land' : 'lava', 0.15);
       if (state === 'play' && d < r && Math.abs(ctl.pos.y - y) < 2.6) hurt(causeOf(m), ctl.pos.x - x, ctl.pos.z - z);
-      dummiesNear(x, y, z, r);
+      dummiesNear(x, y, z, r * 1.2, false, 1.8);
     },
     hitDummies: (x, y, z, r, infect) => (r > 0 ? dummiesNear(x, y, z, r, infect) : []),
     react: (id, x, z, label) => moment(id, x, z, label),
@@ -387,10 +379,7 @@ export function createScene(parent: HTMLElement): Game {
     surface.reset(); creatures.reset(); lava.reset(); flames.clear(); bolts.clear(); hail.on = false;
     reels.hide();
     buildLayout();
-    dummies.forEach((d, i) => {
-      const [x, z] = dummySpots[i];
-      alive[i] = true; d.root.rotation.set(0, Math.atan2(-x, -z), 0); d.root.position.set(x, 0, z); d.root.visible = true;
-    });
+    bots.reset(dummySpots);
     hearts = HEARTS; hurtT = 0; ui.setHearts(hearts, HEARTS);
     player.root.visible = true;
     ctl.respawn();
@@ -445,8 +434,8 @@ export function createScene(parent: HTMLElement): Game {
       reels.hide();
       sfx.play('finish', 0);
       fx.emit('confetti', tmp.copy(ctl.pos).setY(ctl.pos.y + 2), 2);
-      const saved = alive.filter(Boolean).length;
-      ui.showResult(L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!'), L(`Ботов уцелело: ${saved} из ${dummies.length}`, `Bots alive: ${saved} of ${dummies.length}`), true);
+      const saved = bots.alive;
+      ui.showResult(L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!'), L(`Ботов уцелело: ${saved} из ${DUMMIES}`, `Bots alive: ${saved} of ${DUMMIES}`), true);
     }
   };
 
@@ -496,12 +485,7 @@ export function createScene(parent: HTMLElement): Game {
       fx.emit('lava', surface.center(k, tmp).setY(0.3), 0.35);
       sparkT = 0.12;
     }
-    dummies.forEach((d, i) => {
-      if (alive[i]) {
-        d.update(dt, 0);
-        if (lava.level > 0.1) killDummy(i);
-      } else if (lava.level > d.root.position.y - 0.3) d.root.visible = false;   // утонул в лаве
-    });
+    bots.update(dt);
     fx.update(dt);
     ui.update(realDt);
     cam.update(realDt, ctl.pos);
@@ -512,8 +496,8 @@ export function createScene(parent: HTMLElement): Game {
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
     Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __surface: surface, __hill: () => hill,
-      __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: alive.filter(Boolean).length, reels: reelLog.slice() }) });
+      __heightAt: heightAt, __bots: bots, __surface: surface, __hill: () => hill,
+      __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
   }
 
   let paused = false;
