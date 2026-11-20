@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import type { CharModel } from './charModel.ts';
 
 /**
  * Блочный аватар серии — силуэт R6 классического Роблокса.
@@ -279,7 +280,9 @@ export class Avatar {
    * Для ботов: настоящая тень рисует все ~14 деталей аватара второй раз,
    * а у шести ботов это ~90 лишних вызовов отрисовки в кадре.
    */
+  private cheap: boolean;
   constructor(look: AvatarLook = NOOB, cheapShadow = false) {
+    this.cheap = cheapShadow;
     const shoes = look.shoes ?? 0x2b2b30;
     const sleeve = look.sleeve ?? 0.35;
     this.root.add(this.body);
@@ -379,6 +382,40 @@ export class Avatar {
     this.root.add(sm);
     this.root.updateMatrixWorld(true);
     sm.bind(new THREE.Skeleton(bones));
+  }
+
+  /**
+   * Сменить облик на персонажа из Blender (этап 8, src/engine/charModel.ts). Кости те же —
+   * бег, прыжок и «тряпичная кукла» работают как раньше; меняются меш и положения шарниров.
+   * Геометрия общая на всех носителей одного персонажа, свой у каждого — только скелет.
+   */
+  setModel(m: CharModel): void {
+    const bones = [this.body, this.torso, this.legL, this.legR, this.armL, this.armR, this.head];
+    for (const o of [...this.root.children]) {
+      const sm = o as THREE.SkinnedMesh;
+      if (sm.isSkinnedMesh) { sm.skeleton.dispose(); this.root.remove(sm); }
+    }
+    for (const b of bones) for (const o of [...b.children]) if (o.userData.extra) b.remove(o);
+    // привязка — в стойке: сбрасываем позу анимации
+    for (const b of bones) b.rotation.set(0, 0, 0);
+    this.body.position.set(0, 0, 0);
+    const P = m.pivots;
+    this.legL.position.copy(P.legL); this.legR.position.copy(P.legR);
+    this.torso.position.copy(P.torso);
+    this.armL.position.subVectors(P.armL, P.torso); this.armR.position.subVectors(P.armR, P.torso);
+    this.head.position.subVectors(P.head, P.torso);
+    const sm = new THREE.SkinnedMesh(m.geo, m.mat);
+    sm.castShadow = !this.cheap;
+    sm.frustumCulled = false;   // сфера геометрии — в позе привязки, при беге/полёте куклой её не пересчитываем
+    this.root.add(sm);
+    this.root.updateMatrixWorld(true);
+    sm.bind(new THREE.Skeleton(bones));
+    for (const e of m.extras) {
+      const x = new THREE.Mesh(e.geo, e.mat);
+      x.userData.extra = true;
+      x.renderOrder = 2;
+      ({ body: this.body, torso: this.torso, legL: this.legL, legR: this.legR, armL: this.armL, armR: this.armR, head: this.head })[e.bone].add(x);
+    }
   }
 
   setState(s: AvatarState): void { this.state = s; }

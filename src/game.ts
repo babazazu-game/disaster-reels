@@ -21,9 +21,11 @@ import { occludable, setOccluder } from './engine/occlude.ts';
 import { Controller } from './engine/controller.ts';
 import { Physics, type Solid } from './engine/physics.ts';
 import { FpsMeter } from './engine/fps.ts';
-import { sfx, type SfxName, type Track } from './engine/sfx.ts';
+import { sfx, type SfxName } from './engine/sfx.ts';
 import { quality } from './engine/quality.ts';
 import { SKINS } from './game/skins.ts';
+import { loadChar, type CharModel } from './engine/charModel.ts';
+import { ROSTER, charById, roundCoins } from './game/roster.ts';
 import { Particles } from './engine/particles.ts';
 import { Surface, Hail, Lava, Flames, boltTexture, Cell, GROUND_Y } from './game/chaos.ts';
 import { Reels, type ReelResult } from './game/reels.ts';
@@ -33,6 +35,8 @@ import { RoundUi } from './game/roundUi.ts';
 import { ArenaBots, type Spot } from './game/arenaBots.ts';
 import { L } from './i18n.ts';
 import { Menu } from './game/menu.ts';
+import { Characters } from './game/characters.ts';
+import { watchRewarded } from './ads.ts';
 import { progress } from './progress.ts';
 
 export interface Game {
@@ -303,6 +307,7 @@ export function createScene(parent: HTMLElement): Game {
   ui.setLabels(L('ЕЩЁ РАЗ', 'AGAIN'));
   const reels = new Reels(parent, L('СТОП', 'STOP'));
   const menu = new Menu(parent, L);
+  const chars = new Characters(parent, L);
   const tmp = new THREE.Vector3();
   // боты (этап 5): бегают, прячутся и гибнут смешно; барабан не крутят
   const bots: ArenaBots = new ArenaBots(scene, physics, DUMMIES, {
@@ -414,6 +419,21 @@ export function createScene(parent: HTMLElement): Game {
     nudge: (vx, vy, vz) => { if (state === 'play') { ctl.vel.x += vx; ctl.vel.y = Math.min(ctl.vel.y + vy, 9); ctl.vel.z += vz; } },
   });
 
+  /* ───────────── ПЕРСОНАЖИ (этап 8) ───────────── */
+  const models = new Map<string, CharModel>();
+  let skin = 'rookie';
+  /** Надеть игроку персонажа (если модель загрузилась). */
+  const wearSkin = (id: string) => {
+    skin = charById(id).id;
+    const m = models.get(skin);
+    if (m) player.setModel(m);
+  };
+  /** Соперники — случайные персонажи, не такие, как у игрока: пусть выглядят как живые игроки со своими скинами. */
+  const dressBots = () => {
+    const pool = ROSTER.map((c) => c.id).filter((id) => id !== skin && models.has(id)).sort(() => Math.random() - 0.5);
+    bots.list.forEach((b, i) => { const m = models.get(pool[i % Math.max(1, pool.length)]); if (m) b.avatar.setModel(m); });
+  };
+
   const restart = () => {
     reelLog.length = 0; hits = 0; lavaWarned = false; reacted.clear(); slowT = 0; shockT = 0;
     t = 0; introT = INTRO; started = false; reelNo = 0; lavaStep = 0; burnT = 0; slipT = 0; state = 'play';
@@ -421,6 +441,7 @@ export function createScene(parent: HTMLElement): Game {
     reels.hide();
     buildLayout();
     bots.reset(dummySpots);
+    if (models.size) dressBots();   // каждый раунд — новые облики соперников
     hearts = D().hearts; hurtT = 0; ui.setHearts(hearts, hearts);
     creatures.level.runners = D().runners; creatures.level.speed = D().speed;
     player.root.visible = true;
@@ -436,10 +457,7 @@ export function createScene(parent: HTMLElement): Game {
   let mode: 'menu' | 'round' | 'pause' = 'round';
   let muted = progress.snapshot().muted;
   const applyMute = () => { sfx.setSfxVolume(muted ? 0 : 1); sfx.setMusicVolume(muted ? 0 : 1); };
-  let roundTrack: Track = Math.random() < 0.5 ? 'round1' : 'round2';
-  let roundId = 0;   // «ещё раз» раньше, чем доиграли фанфары, не должен включать музыку меню посреди раунда
   const startRound = () => {
-    roundId++;
     mode = 'round';
     menu.hide();
     menu.setPauseButton(true);
@@ -447,10 +465,7 @@ export function createScene(parent: HTMLElement): Game {
     input.setVisible(true);
     restart();
     ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
-    // раунды чередуют две петли, чтобы музыка не приедалась
-    roundTrack = roundTrack === 'round1' ? 'round2' : 'round1';
     sfx.setDuck(false);
-    void sfx.music(roundTrack);
     core.gameplayStart();
   };
   const showMain = () => {
@@ -459,21 +474,21 @@ export function createScene(parent: HTMLElement): Game {
     menu.setPauseButton(false);
     ui.setHud(false);
     input.setVisible(false);
-    menu.showMain(diff, muted);
+    menu.showMain(diff, muted, progress.snapshot().coins, skin);
     core.gameplayStop();
     sfx.setDuck(false);
-    void sfx.music('menu');
   };
   /** Конец раунда: рекорд по сложности, счётчик забегов, экран итога. */
   const finish = (win: boolean) => {
     const p = progress.snapshot();
     const time = win ? ROUND : Math.floor(t), was = p.best[diff] ?? 0, newBest = time > was;
-    progress.patch({ runs: p.runs + 1, best: newBest ? { ...p.best, [diff]: time } : p.best });
+    // монеты начисляем сразу (а не по кнопке): закрыл вкладку на экране итога — заработанное не пропало
+    const coins = roundCoins(time, win, diff);
+    lastCoins = coins;
+    progress.patch({ runs: p.runs + 1, best: newBest ? { ...p.best, [diff]: time } : p.best, coins: p.coins + coins });
     menu.setPauseButton(false);
     core.gameplayStop();
     if (!win) sfx.play('fail', 0, 1);
-    const id = roundId;
-    setTimeout(() => { if (id === roundId && mode !== 'pause') void sfx.music('menu'); }, 1800);   // после «вау-вау» / фанфар — спокойная музыка меню
     // итог не сразу: полсекунды видно, что произошло (взрыв, конфетти)
     setTimeout(() => {
       if (mode !== 'round') return;
@@ -481,8 +496,58 @@ export function createScene(parent: HTMLElement): Game {
       input.setVisible(false);
       menu.showResult({ win, title: win ? L('ТЫ ВЫЖИЛ!', 'YOU SURVIVED!') : L('ТЫ ПОГИБ', 'YOU DIED'), cause: win ? undefined : deathCause,
         time, round: ROUND, botsAlive: bots.alive + (win ? 1 : 0), botsTotal: DUMMIES + 1,   // «игроки», не «боты» (заказчик: пусть думают, что это люди)
-        best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff });
+        best: Math.max(was, time), newBest: newBest && was > 0, difficulty: diff, coins, total: progress.snapshot().coins });
     }, 700);
+  };
+  /* ── монеты и персонажи (этап 8) ── */
+  let lastCoins = 0;
+  /** ×2 за ролик на экране итога: доплачиваем ещё столько же. Награда — строго по ответу площадки. */
+  menu.onDouble = async () => {
+    if (lastCoins <= 0) return false;
+    core.gameplayStop();
+    const ok = await watchRewarded();
+    if (!ok) return false;
+    const p = progress.snapshot();
+    progress.patch({ coins: p.coins + lastCoins });
+    lastCoins = 0;
+    menu.setCoins(progress.snapshot().coins);
+    return true;
+  };
+  const charState = () => {
+    const p = progress.snapshot();
+    const owned = p.owned.includes('rookie') ? p.owned : ['rookie', ...p.owned];
+    return { coins: p.coins, owned, selected: skin, adViews: p.adViews ?? {} };
+  };
+  const unlock = (id: string) => {
+    const p = progress.snapshot();
+    if (!p.owned.includes(id)) progress.patch({ owned: [...p.owned, id] });
+    pick(id);
+  };
+  const pick = (id: string) => {
+    wearSkin(id);
+    progress.patch({ skin });
+    dressBots();   // соперник не должен оказаться в том же облике
+    sfx.play('tada', 0, 0.5);
+    chars.show(charState());
+  };
+  menu.onCharacters = () => { chars.show(charState()); };
+  chars.onClose = () => { chars.hide(); menu.showMain(diff, muted, progress.snapshot().coins, skin); };
+  chars.onSelect = (id) => { if (charState().owned.includes(id)) pick(id); };
+  chars.onBuy = (id) => {
+    const c = charById(id), p = progress.snapshot();
+    if (c.id !== id || charState().owned.includes(id) || p.coins < c.price) return;
+    progress.patch({ coins: p.coins - c.price });
+    unlock(id);
+  };
+  chars.onAd = async (id) => {
+    const c = charById(id);
+    if (c.id !== id || c.ads <= 0 || charState().owned.includes(id)) return;
+    const ok = await watchRewarded();
+    if (!ok) { chars.show(charState()); return; }
+    const p = progress.snapshot();
+    const views = (p.adViews?.[id] ?? 0) + 1;
+    progress.patch({ adViews: { ...(p.adViews ?? {}), [id]: views } });
+    if (views >= c.ads) unlock(id); else chars.show(charState());
   };
   menu.onPlay = (d) => { diff = d; progress.patch({ difficulty: d }); startRound(); };
   menu.onRetry = startRound;
@@ -645,6 +710,11 @@ export function createScene(parent: HTMLElement): Game {
       ctl.respawn();
       onProgress(0.3);
       await sfx.load();
+      onProgress(0.5);
+      // персонажи (этап 8): все 11 моделей сразу — соперники каждый раунд в новых обликах, ~1 МБ
+      await Promise.all(ROSTER.map(async (c) => { try { models.set(c.id, await loadChar(c.id)); } catch { /* нет модели — останется старый аватар */ } }));
+      wearSkin(progress.snapshot().skin);
+      dressBots();
       onProgress(0.6);
       // прогрев шейдеров за полосой загрузки: иначе первый кадр с новым материалом подвисает
       await renderer.compileAsync(scene, cam.camera);
@@ -652,6 +722,7 @@ export function createScene(parent: HTMLElement): Game {
     },
     start() {
       applyMute();
+      sfx.startMusic();
       const p = progress.snapshot();
       if (p.runs === 0) { diff = 'easy'; startRound(); }
       else { diff = (['easy', 'normal', 'chaos'] as const).find((d) => d === p.difficulty) ?? 'normal'; restart(); showMain(); }

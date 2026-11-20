@@ -1,5 +1,7 @@
 import { installTap } from '../engine/tap.ts';
 import { sfx } from '../engine/sfx.ts';
+import { addUiImage, coinBadge, uiIcon } from './characters.ts';
+import { charById } from './roster.ts';
 // В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
 // на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
 
@@ -16,6 +18,8 @@ export interface ResultInfo {
   best: number;
   newBest: boolean;
   difficulty: Difficulty;
+  coins: number;
+  total: number;
 }
 
 type Screen = 'main' | 'result' | 'pause';
@@ -47,6 +51,7 @@ export class Menu {
   onPause?: () => void;
   onMute?: (muted: boolean) => void;
   onCharacters?: () => void;
+  onDouble?: () => Promise<boolean>;
 
   private readonly overlay: HTMLDivElement;
   private readonly screens: Record<Screen, HTMLElement>;
@@ -56,7 +61,10 @@ export class Menu {
   private readonly playButton: HTMLButtonElement;
   private readonly retryButton: HTMLButtonElement;
   private readonly resumeButton: HTMLButtonElement;
-  private readonly soon: HTMLSpanElement;
+  private readonly charactersButton: HTMLButtonElement;
+  private readonly balances: readonly HTMLSpanElement[];
+  private readonly rewardAmount: HTMLSpanElement;
+  private readonly doubleButton: HTMLButtonElement;
   private readonly resultTitle: HTMLHeadingElement;
   private readonly cause: HTMLParagraphElement;
   private readonly record: HTMLSpanElement;
@@ -72,7 +80,11 @@ export class Menu {
   private difficulty: Difficulty = 'normal';
   private muted = false;
   private pauseVisible = false;
-  private soonTimer = 0;
+  private coins = 0;
+  private skin?: string;
+  private reward = 0;
+  private rewardTimer = 0;
+  private resultVersion = 0;
 
   constructor(parent: HTMLElement, private readonly L: Localize) {
     injectCss();
@@ -83,6 +95,7 @@ export class Menu {
     this.overlay.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('button')) sfx.play('click', 0.05); });
 
     const main = this.panel('mnu-main');
+    const balance = coinBadge(this.overlay, 'mnu-main-wallet', L('Монеты', 'Coins'));
     const logo = element('h1', main, 'mnu-logo');
     const logoText = element('span', logo, 'mnu-logo-text');
     element('span', logoText, 'mnu-logo-top').textContent = L('КРУТИ', 'SPIN THE');
@@ -100,12 +113,8 @@ export class Menu {
     const playSlot = element('div', main, 'mnu-play-slot');
     this.playButton = button(playSlot, 'mnu-primary mnu-play', L('ИГРАТЬ', 'PLAY'), () => this.onPlay?.(this.difficulty));
     const tools = element('div', main, 'mnu-tools');
-    const characterSlot = element('div', tools, 'mnu-character-slot');
-    const characters = button(characterSlot, 'mnu-blue mnu-characters', '', () => this.showSoon());
-    characters.setAttribute('aria-label', L('Персонажи', 'Characters'));
-    characters.append(artIcon('people', 'person'));
-    this.soon = element('span', characterSlot, 'mnu-soon');
-    this.soon.setAttribute('role', 'status');
+    this.charactersButton = button(tools, 'mnu-blue mnu-characters', '', () => this.onCharacters?.());
+    this.charactersButton.setAttribute('aria-label', L('Персонажи', 'Characters'));
     this.soundButton(tools);
 
     const result = this.panel('mnu-card mnu-result');
@@ -125,6 +134,15 @@ export class Menu {
     const bestRow = element('div', result, 'mnu-best-row');
     this.best = element('span', bestRow, 'mnu-best');
     this.resultMode = element('span', bestRow, 'mnu-badge');
+    const rewards = element('div', result, 'mnu-rewards');
+    const earned = element('span', rewards, 'mnu-earned');
+    earned.setAttribute('role', 'group');
+    earned.setAttribute('aria-label', L('Монеты за раунд', 'Coins earned this round'));
+    this.rewardAmount = element('span', earned, 'mnu-earned-amount');
+    earned.append(uiIcon('coin'));
+    this.doubleButton = button(rewards, 'mnu-blue mnu-double', L('×2', '×2'), () => { void this.doubleReward(); });
+    this.doubleButton.append(uiIcon('ad'));
+    this.balances = [balance, coinBadge(rewards, 'mnu-result-wallet', L('Всего монет', 'Total coins'))];
     const actions = element('div', result, 'mnu-actions');
     this.retryButton = button(actions, 'mnu-primary', L('ЕЩЁ РАЗ', 'PLAY AGAIN'), () => this.onRetry?.());
     button(actions, 'mnu-secondary', L('МЕНЮ', 'MENU'), () => this.onMenu?.());
@@ -147,10 +165,28 @@ export class Menu {
     document.addEventListener('keydown', (event) => this.handleKey(event));
   }
 
-  showMain(d: Difficulty, muted: boolean): void {
+  showMain(d: Difficulty, muted: boolean, coins: number, skin: string): void {
     this.select(d);
     this.setMuted(muted);
     this.show('main', this.L('Крути хаос!', 'Spin the Chaos!'));
+    this.setCoins(coins);
+    const id = charById(skin).id;
+    if (id !== this.skin) {
+      this.skin = id;
+      const portrait = element('span', this.charactersButton, 'mnu-art');
+      portrait.setAttribute('aria-hidden', 'true');
+      addUiImage(portrait, `chars/${id}`, portrait.appendChild(icon('person')));
+      this.charactersButton.replaceChildren(portrait);
+    }
+  }
+
+  setCoins(n: number): void {
+    const grew = n > this.coins;
+    this.coins = n;
+    for (const balance of this.balances) {
+      balance.textContent = String(n);
+      if (grew && balance.getClientRects().length) this.bounce(balance);
+    }
   }
 
   showResult(r: ResultInfo): void {
@@ -182,12 +218,17 @@ export class Menu {
     this.resultMode.className = `mnu-badge mnu-${r.difficulty}`;
     const [nameRu, nameEn] = MODES[r.difficulty].name;
     this.resultMode.textContent = L(nameRu, nameEn);
+    this.resultVersion++;
+    this.doubleButton.hidden = r.coins === 0;
+    this.setDoubleWaiting(false);
 
     // Обновление уже открытого итога тоже запускает заполнение и ленту с начала.
     result.classList.remove('mnu-celebrate');
     void result.offsetWidth;
     result.classList.add('mnu-celebrate');
     this.show('result', r.title);
+    this.setCoins(r.total);
+    this.countReward(r.coins);
   }
 
   showPause(muted: boolean): void {
@@ -196,7 +237,7 @@ export class Menu {
   }
 
   hide(): void {
-    this.clearSoon();
+    window.clearInterval(this.rewardTimer);
     this.screen = null;
     this.overlay.inert = true;
     this.overlay.classList.remove('mnu-visible');
@@ -220,7 +261,7 @@ export class Menu {
   }
 
   private show(screen: Screen, label: string): void {
-    if (screen !== 'main') this.clearSoon();
+    if (screen !== 'result') window.clearInterval(this.rewardTimer);
     this.screen = screen;
     for (const panel of Object.values(this.screens)) panel.hidden = panel !== this.screens[screen];
     const panel = this.screens[screen];
@@ -267,16 +308,63 @@ export class Menu {
     }
   }
 
-  private showSoon(): void {
-    this.clearSoon();
-    this.soon.textContent = this.L('Скоро!', 'Soon!');
-    this.soonTimer = window.setTimeout(() => this.clearSoon(), 1500);
-    this.onCharacters?.();
+  private showReward(amount: number): void {
+    this.rewardAmount.textContent = this.L(`+${amount}`, `+${amount}`);
   }
 
-  private clearSoon(): void {
-    clearTimeout(this.soonTimer);
-    this.soon.textContent = '';
+  private countReward(amount: number): void {
+    window.clearInterval(this.rewardTimer);
+    this.reward = amount;
+    this.rewardAmount.getAnimations().forEach((animation) => animation.cancel());
+    if (!amount || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.showReward(amount);
+      return;
+    }
+    this.showReward(0);
+    const start = performance.now();
+    this.rewardTimer = window.setInterval(() => {
+      const fraction = Math.min(1, (performance.now() - start) / 600);
+      this.showReward(Math.floor(amount * fraction));
+      if (fraction === 1) window.clearInterval(this.rewardTimer);
+    }, 24);
+  }
+
+  private setDoubleWaiting(waiting: boolean): void {
+    this.doubleButton.disabled = waiting;
+    this.doubleButton.setAttribute('aria-busy', String(waiting));
+    this.doubleButton.setAttribute('aria-label', waiting
+      ? this.L('Ждём рекламный ролик', 'Waiting for the ad')
+      : this.L('Удвоить монеты за ролик', 'Watch an ad to double your coins'));
+  }
+
+  private async doubleReward(): Promise<void> {
+    if (this.screen !== 'result' || this.doubleButton.hidden || this.doubleButton.disabled || !this.onDouble) return;
+    const version = this.resultVersion;
+    this.setDoubleWaiting(true);
+    let doubled = false;
+    try {
+      doubled = await this.onDouble();
+    } catch {
+      // Ролик может прерваться, тогда награду можно запросить ещё раз.
+    }
+    // Завершившийся ролик не должен менять итог следующего раунда.
+    if (version !== this.resultVersion || this.screen !== 'result') return;
+    this.setDoubleWaiting(false);
+    if (!doubled) return;
+    window.clearInterval(this.rewardTimer);
+    this.showReward(this.reward * 2);
+    this.bounce(this.rewardAmount);
+    this.doubleButton.hidden = true;
+  }
+
+  private bounce(target: HTMLElement): void {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    target.getAnimations().forEach((animation) => animation.cancel());
+    target.animate([
+      { transform: 'translateY(0) scale(1)' },
+      { transform: 'translateY(-.28em) scale(1.18)', offset: 0.42 },
+      { transform: 'translateY(0) scale(1)' },
+    ], { duration: 380, easing: 'ease-out' });
   }
 
   private handleKey(event: KeyboardEvent): void {
@@ -361,18 +449,8 @@ function artIcon(name: string, fallback: keyof typeof ICONS): HTMLSpanElement {
 }
 
 function addArt(slot: HTMLElement, path: string, fallback: HTMLElement | SVGSVGElement): void {
-  const art = document.createElement('img');
-  art.alt = '';
-  art.draggable = false;
-  art.hidden = true;
   // Заглушка остаётся видна, пока картинка не загрузилась.
-  art.onload = () => {
-    fallback.setAttribute('hidden', '');
-    art.hidden = false;
-  };
-  art.onerror = () => art.remove();
-  slot.append(art);
-  art.src = `./assets/ui/${path}.webp?v=${__BUILD__}`;
+  addUiImage(slot, `ui/${path}`, fallback);
 }
 
 let cssDone = false;
@@ -507,16 +585,15 @@ function injectCss(): void {
 @keyframes mnu-pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.04); } }
 .mnu-secondary { color:#542808; -webkit-text-stroke:0; text-shadow:0 1px #ffefac; }
 .mnu-tools { grid-row:5; display:flex; align-items:center; justify-content:center; gap:clamp(12px,calc(2.6 * var(--u)),22px); }
-.mnu-character-slot { position:relative; }
 .mnu-characters,.mnu-sound,.mnu-corner {
   width:clamp(var(--tap),calc(9 * var(--u)),74px); height:clamp(var(--tap),calc(9 * var(--u)),74px); padding:0;
 }
-.mnu-soon {
-  position:absolute; z-index:1; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
-  padding:.35em .8em; border:2px solid #d7b2ff; border-radius:999px; background:var(--ink); color:#fff;
-  white-space:nowrap; pointer-events:none;
+.mnu-characters .mnu-art { width:78%; }
+.mnu-main-wallet {
+  position:absolute; top:calc(env(safe-area-inset-top) + 10px); left:calc(env(safe-area-inset-left) + 12px);
 }
-.mnu-soon:empty { display:none; }
+.mnu-overlay:not(:has(.mnu-main:not([hidden]))) > .mnu-main-wallet { display:none; }
+:has(> .chr-overlay.chr-visible) > .mnu-overlay > :is(.mnu-panel,.mnu-main-wallet) { visibility:hidden; }
 .mnu-corner {
   position:absolute; z-index:20; top:calc(env(safe-area-inset-top) + max(8px,2.2 * var(--u)));
   right:calc(env(safe-area-inset-right) + max(8px,2.2 * var(--u))); border-radius:50%;
@@ -565,6 +642,18 @@ function injectCss(): void {
 .mnu-bots svg { width:clamp(14px,calc(4 * var(--u)),30px); height:auto; }
 .mnu-bots .mnu-alive { color:#247b45; }
 .mnu-best-row { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:.4em; }
+.mnu-rewards {
+  display:flex; align-items:center; justify-content:center; flex-wrap:wrap; column-gap:.65em; row-gap:5px;
+  width:100%; font-variant-numeric:tabular-nums;
+}
+.mnu-earned { display:flex; align-items:center; justify-content:center; gap:.16em; font-size:clamp(18px,calc(4 * var(--u)),32px); }
+.mnu-earned-amount { min-width:3ch; text-align:right; }
+.mnu-double {
+  --tap:44px; --line:clamp(2px,calc(.48 * var(--u)),4px); --depth:3px;
+  padding:3px .65em; white-space:nowrap;
+}
+.mnu-double[aria-busy="true"] { opacity:.65; cursor:wait; }
+.mnu-double[aria-busy="true"] .chr-icon { animation:chr-wait .7s ease-in-out infinite alternate; }
 .mnu-badge,.mnu-record {
   border:2px solid var(--ink); border-radius:999px; padding:.2em .65em;
   color:#fff; background:linear-gradient(var(--light),var(--dark)); box-shadow:inset 0 1px #ffffffa8;
@@ -582,6 +671,9 @@ function injectCss(): void {
 @media (max-width:420px), (max-height:430px) {
   .mnu-choice:not([aria-pressed="true"]) .mnu-mode-hint { display:none; }
 }
+@media (orientation:portrait) and (max-width:550px) {
+  .mnu-main { padding-top:36px; }
+}
 @media (max-height:430px) {
   /* Компактный логотип оставляет место для целей нажатия в альбоме. */
   .mnu-main { height:100%; row-gap:7px; width:min(100%,460px); }
@@ -589,11 +681,13 @@ function injectCss(): void {
   .mnu-choice { min-height:88px; }
   .mnu-panel .mnu-play { min-height:var(--tap); padding-block:3px; }
   .mnu-card { gap:6px; }
+  .mnu-result { width:min(100%,450px); }
 }
 @media (prefers-reduced-motion:reduce) {
   .mnu-overlay,.mnu-overlay.mnu-visible,.mnu-button { transition:none; }
   .mnu-visible .mnu-panel,.mnu-visible .mnu-logo,.mnu-visible .mnu-play:not(:active),
-  .mnu-visible .mnu-celebrate .mnu-fill,.mnu-visible .mnu-celebrate .mnu-record { animation:none; }
+  .mnu-visible .mnu-celebrate .mnu-fill,.mnu-visible .mnu-celebrate .mnu-record,
+  .mnu-double[aria-busy="true"] .chr-icon { animation:none; }
 }
 `;
   document.head.append(style);

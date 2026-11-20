@@ -20,7 +20,6 @@ export type SfxName = typeof NAMES[number];
 // громкости подобраны по замеру LUFS (earshot): громкие записи (взрыв, курица, кот) приглушены, тихий лёд — нет
 const VOLUME: Partial<Record<SfxName, number>> = { land: 0.45, jump: 0.55, click: 0.6, finish: 0.8, coin: 0.5,
   boom: 0.6, cluck: 0.5, meow: 0.5, fail: 0.6, zap: 0.5, cheer: 0.65, whoosh: 0.6, spin: 0.6, tada: 0.75, hurt: 0.8, thud: 0.8 };
-export type Track = 'menu' | 'round1' | 'round2';
 
 /** Музыка — Opus 48k; браузеру без Opus (Safari старше 18.4) — запасной mp3 (3 петли по 30 с, +1 МБ). */
 const MUSIC_OK = (() => {
@@ -87,9 +86,10 @@ class Sfx {
   setMuted(m: boolean): void { core.audio.setMuted(m); }
 
   /*
-   * Музыка (этап 7): петли по 30 с, сгенерированы ElevenLabs. Меню — своя, раунд — одна из двух.
-   * Смена — плавным перекрёстным затуханием. Тоже Web Audio: <audio> поднял бы системный медиаплеер.
-   * В памяти держим текущую и меню (декодированная петля ≈ 11 МБ — все сразу тяжело слабым телефонам).
+   * Музыка: 5 петель по 30 с (ElevenLabs). Играют подряд в СЛУЧАЙНОМ порядке, со случайной первой:
+   * каждая звучит два круга (~1 мин), затем плавно сменяется другой (не той же, что сейчас).
+   * Меню и раунд музыку не переключают — она идёт фоном всю игру (просьба заказчика).
+   * Тоже Web Audio: <audio> поднял бы системный медиаплеер. В памяти — одна-две петли.
    */
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
@@ -98,9 +98,11 @@ class Sfx {
   private musicVol = 1;
   private duck = 1;
   private static readonly MUSIC_BASE = 0.3;
-  private tracks = new Map<Track, Promise<AudioBuffer | null>>();
-  private cur: { name: Track; src: AudioBufferSourceNode; g: GainNode } | null = null;
-  private want: Track | null = null;
+  private static readonly TRACKS = 5;
+  private static readonly LOOPS = 2;
+  private lastTrack = -1;
+  private musicOn = false;
+  private cur: { src: AudioBufferSourceNode; g: GainNode } | null = null;
 
   setSfxVolume(v: number): void { this.sfxVol = v; if (this.sfxGain) this.sfxGain.gain.value = v; }
   setMusicVolume(v: number): void { this.musicVol = v; this.applyMusic(); }
@@ -110,50 +112,46 @@ class Sfx {
     if (this.musicGain && this.ctx) this.musicGain.gain.setTargetAtTime(this.musicVol * this.duck * Sfx.MUSIC_BASE, this.ctx.currentTime, 0.08);
   }
 
-  private load1(name: Track): Promise<AudioBuffer | null> {
-    let p = this.tracks.get(name);
-    if (!p) {
-      p = fetch(`./assets/music/${name}.${MUSIC_OK ? 'ogg' : 'mp3'}?v=${__BUILD__}`)
-        .then((r) => { if (!r.ok) throw new Error('нет трека'); return r.arrayBuffer(); })
-        .then((b) => this.ctx!.decodeAudioData(b))
-        .catch(() => null);   // нет файла — играем без музыки
-      this.tracks.set(name, p);
-    }
-    return p;
+  startMusic(): void {
+    if (!this.ctx || !this.master || this.musicOn) return;
+    this.musicOn = true;
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.connect(this.master);
+    this.applyMusic();
+    void this.nextTrack();
   }
 
-  /** Включить петлю (null — тишина). Повторный вызов с той же — ничего не делает. */
-  async music(name: Track | null): Promise<void> {
-    const ctx = this.ctx;
-    if (!ctx || !this.master) return;
-    this.want = name;
-    if (this.cur?.name === name) return;
-    if (!this.musicGain) {
-      this.musicGain = ctx.createGain();
-      this.musicGain.connect(this.master);
-      this.applyMusic();
+  private async nextTrack(): Promise<void> {
+    const ctx = this.ctx!;
+    let i = Math.floor(Math.random() * Sfx.TRACKS);
+    if (i === this.lastTrack) i = (i + 1 + Math.floor(Math.random() * (Sfx.TRACKS - 1))) % Sfx.TRACKS;
+    this.lastTrack = i;
+    let buf: AudioBuffer | null = null;
+    try {
+      const res = await fetch(`./assets/music/music${i + 1}.${MUSIC_OK ? 'ogg' : 'mp3'}?v=${__BUILD__}`);
+      if (!res.ok) throw new Error('нет трека');
+      buf = await ctx.decodeAudioData(await res.arrayBuffer());
+    } catch {
+      setTimeout(() => void this.nextTrack(), 20000);   // нет файла/сети — попробуем другой позже, игра без музыки
+      return;
     }
+    // старая петля плавно гаснет, новая плавно входит
     const old = this.cur;
-    this.cur = null;
-    if (old) {
-      old.g.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
-      old.src.stop(ctx.currentTime + 1.5);
-    }
-    // лишние петли выбрасываем из памяти
-    for (const k of this.tracks.keys()) if (k !== name && k !== 'menu') this.tracks.delete(k);
-    if (!name) return;
-    const buf = await this.load1(name);
-    if (!buf || this.want !== name || this.cur) return;   // пока грузили — попросили другую
+    if (old) { old.g.gain.setTargetAtTime(0, ctx.currentTime, 0.4); old.src.stop(ctx.currentTime + 2.5); }
     const g = ctx.createGain();
     g.gain.value = 0;
-    g.gain.setTargetAtTime(1, ctx.currentTime, 0.2);
-    g.connect(this.musicGain);
+    g.gain.setTargetAtTime(1, ctx.currentTime, old ? 0.4 : 0.15);
+    g.connect(this.musicGain!);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.loop = true;
     src.connect(g);
     src.start();
-    this.cur = { name, src, g };
+    this.cur = { src, g };
+    // время по часам контекста: в паузе вкладки (контекст остановлен) смена не убегает вперёд
+    const end = ctx.currentTime + buf.duration * Sfx.LOOPS - 1.5;
+    const wait = () => { if (ctx.currentTime >= end) void this.nextTrack(); else setTimeout(wait, 500); };
+    setTimeout(wait, 500);
   }
 }
 

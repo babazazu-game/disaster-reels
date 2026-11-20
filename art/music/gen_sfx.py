@@ -5,6 +5,8 @@ T = {
  'menu': "Seamless loop of bouncy cheerful cartoon game menu music, plucky marimba melody, pizzicato strings, ukulele, soft claps, 110 BPM, happy kids party game, instrumental",
  'round1': "Seamless loop of energetic chaotic cartoon action music, fast funky bassline, punchy drums, brass stabs, playful zany synth lead, 140 BPM, kids party game with silly disasters, instrumental",
  'round2': "Seamless loop of frantic comedic chase music, bouncy tuba, staccato strings, xylophone runs, driving drums, playful whistles, 150 BPM, cartoon kids game, instrumental",
+ 'track4': "Seamless loop of happy bouncy chiptune game music, catchy 8-bit lead melody over modern punchy drums and funky bass, 125 BPM, cheerful kids arcade game, instrumental",
+ 'track5': "Seamless loop of goofy cartoon party music, accordion and banjo, playful whistle melody, hand claps, bouncy tuba bass, 130 BPM, silly fun kids game, instrumental",
 }
 for name, text in T.items():
     if len(sys.argv) > 1 and name not in sys.argv[1:]: continue

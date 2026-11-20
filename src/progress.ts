@@ -31,12 +31,14 @@ export interface ProgressData extends Record<string, unknown> {
   musicVol: number;
   /** Выбранная в меню сложность ('easy' | 'normal' | 'chaos'). Рекорд по времени — best[сложность]. */
   difficulty: string;
+  /** Этап 8: сколько роликов за награду посмотрено ради каждого персонажа. */
+  adViews: Record<string, number>;
 }
 
 // v2: прогресс по мирам и лавки хаба (v1 был до хаба — несовместим по полю best)
 export const progress = new Save<ProgressData>('disaster-reels-v1', {
-  coins: 0, owned: ['noob'], skin: 'noob', muted: false, best: {}, runs: 0,
-  unlocked: 1, upgrades: {}, pets: ['none'], pet: 'none', trails: ['none'], trail: 'none', chest: '', sfxVol: 1, musicVol: 1, difficulty: 'normal',
+  coins: 0, owned: ['rookie'], skin: 'rookie', muted: false, best: {}, runs: 0,
+  unlocked: 1, upgrades: {}, pets: ['none'], pet: 'none', trails: ['none'], trail: 'none', chest: '', sfxVol: 1, musicVol: 1, difficulty: 'normal', adViews: {},
 });
 
 /** Облако подключаем, когда SDK готов и игрок известен; без площадки — только локально. */
