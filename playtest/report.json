@@ -1,29 +1,31 @@
 {
   "summary": {
-    "rounds": 1,
+    "rounds": 4,
     "survive": {
       "smart": "0%",
       "idle": "0%"
     },
     "avgDeathSec": {
-      "smart": 57.4,
-      "idle": null
+      "smart": 22.7,
+      "idle": 26.3
     },
     "causes": {
-      "Огненный метеорит": 1
+      "Гигантский слайм": 1,
+      "Обычный кот": 1,
+      "Гигантская акула": 1,
+      "Ледяной торнадо": 1
     },
     "avgHits": 3,
-    "botsAliveAvg": 0,
+    "botsAliveAvg": 5,
     "botsAliveIfWin": null,
     "reactions": {
-      "blast": 5,
-      "melt": 16,
-      "steam": 1
+      "skate": 1597,
+      "iceTornado": 2
     },
     "roundsWithReaction": 1,
     "worst": null,
     "stuckTotal": 0,
-    "maxMobs": 14,
+    "maxMobs": 8,
     "simMsPerTick": 0.1,
     "errors": []
   },
@@ -32,50 +34,184 @@
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 57.4,
-      "cause": "Огненный метеорит",
+      "tDeath": 21.6,
+      "cause": "Гигантский слайм",
       "reels": [
-        "5 ОБЫЧНЫХ БОМБ!",
-        "10 ЛЕДЯНЫХ БАНАНОВ!",
-        "10 ГИГАНТСКИХ БОМБ!"
+        "3 ГИГАНТСКИХ СЛАЙМА!",
+        "5 ПРЫГУЧИХ ЗОМБИ!"
       ],
-      "maxMobs": 14,
+      "maxMobs": 5,
       "stuck": 0,
       "kinds": {
-        "meteor": 2
+        "slime": 1,
+        "zombie": 4
       },
-      "tickMs": 0.083,
-      "ticks": 4016,
-      "stopPresses": 9,
+      "tickMs": 0.066,
+      "ticks": 1701,
+      "stopPresses": 7,
       "errors": [],
-      "reacted": {
-        "blast": 5,
-        "melt": 16,
-        "steam": 1
-      },
-      "bots": 0,
-      "botT": 57.43166666666495,
+      "reacted": {},
+      "bots": 5,
+      "botT": 21.550000000000058,
       "pos": [
-        -21.6,
-        3,
+        17.6,
+        1.6,
         17.1
       ],
       "hill": [
         [
-          -16,
+          9,
+          -16
+        ],
+        [
+          14,
+          -18
+        ],
+        [
+          18,
+          -21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 133
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 19.6,
+      "cause": "Обычный кот",
+      "reels": [
+        "5 ОБЫЧНЫХ КОТОВ!",
+        "7 ОГНЕННЫХ АКУЛ!"
+      ],
+      "maxMobs": 8,
+      "stuck": 0,
+      "kinds": {
+        "cat": 4,
+        "shark": 4
+      },
+      "tickMs": 0.076,
+      "ticks": 1597,
+      "stopPresses": 7,
+      "errors": [],
+      "reacted": {},
+      "bots": 5,
+      "botT": 19.60000000000017,
+      "pos": [
+        24,
+        2.2,
+        -17.4
+      ],
+      "hill": [
+        [
+          16,
           9
         ],
         [
-          -18,
+          18,
           14
         ],
         [
-          -21,
+          21,
           18
         ]
       ],
-      "lava": 2.11,
-      "wallMs": 379
+      "lava": -2.5,
+      "wallMs": 137
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 26.3,
+      "cause": "Гигантская акула",
+      "reels": [
+        "5 ОГНЕННЫХ БАНАНОВ!",
+        "3 ГИГАНТСКИЕ АКУЛЫ!"
+      ],
+      "maxMobs": 6,
+      "stuck": 0,
+      "kinds": {
+        "banana": 5,
+        "shark": 1
+      },
+      "tickMs": 0.065,
+      "ticks": 1959,
+      "stopPresses": 7,
+      "errors": [],
+      "reacted": {},
+      "bots": 5,
+      "botT": 26.283333333333122,
+      "pos": [
+        -0.1,
+        0,
+        4
+      ],
+      "hill": [
+        [
+          9,
+          16
+        ],
+        [
+          14,
+          18
+        ],
+        [
+          18,
+          21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 144
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 26.8,
+      "cause": "Ледяной торнадо",
+      "reels": [
+        "5 ЛЕДЯНЫХ СЛАЙМОВ!",
+        "7 ОБЫЧНЫХ ТОРНАДО!"
+      ],
+      "maxMobs": 6,
+      "stuck": 0,
+      "kinds": {
+        "slime": 4,
+        "tornado": 2
+      },
+      "tickMs": 0.109,
+      "ticks": 2067,
+      "stopPresses": 6,
+      "errors": [],
+      "reacted": {
+        "skate": 1597,
+        "iceTornado": 2
+      },
+      "bots": 5,
+      "botT": 26.776666666666443,
+      "pos": [
+        -12.8,
+        0,
+        -23.9
+      ],
+      "hill": [
+        [
+          -9,
+          16
+        ],
+        [
+          -14,
+          18
+        ],
+        [
+          -18,
+          21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 250
     }
   ]
 }

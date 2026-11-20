@@ -1,4 +1,5 @@
 import { installTap } from '../engine/tap.ts';
+import { sfx } from '../engine/sfx.ts';
 // В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
 // на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
 import { COUNTS, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './words.ts';
@@ -134,6 +135,7 @@ export class Reels {
     this.btn.disabled = false;
     this.open = true;
     this.renderControls();
+    sfx.play('spin', 0.04);   // трещотка колеса — барабан пошёл
   }
 
   hide(): void {
@@ -151,6 +153,7 @@ export class Reels {
   /** Нажатие СТОП — останавливает следующую ленту. */
   press(): void {
     if (!this.open || this.stopped === this.lanes.length) return;
+    sfx.play('click', 0.05);
     this.stop();
     this.autoT = AUTO_STOP;
   }
@@ -213,6 +216,8 @@ export class Reels {
         if (brake.elapsed >= LAND_TIME) {
           this.landed++;
           lane.cell.classList.remove('rolling');
+          // каждая следующая лента встаёт на тон выше: на слух понятно, что сейчас будет итог
+          sfx.play('reelstop', 0.02, 1, [1, 1.12, 1.26][this.landed - 1] ?? 1);
         }
       }
       if (brake.elapsed >= LAND_TIME) {

@@ -1,4 +1,5 @@
 import { installTap } from '../engine/tap.ts';
+import { sfx } from '../engine/sfx.ts';
 // В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
 // на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
 
@@ -78,6 +79,8 @@ export class Menu {
     installTap();
     this.overlay = element('div', parent, 'mnu-overlay');
     this.overlay.inert = true;
+    // щелчок на любую кнопку меню (и карточки сложности) — одним слушателем
+    this.overlay.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('button')) sfx.play('click', 0.05); });
 
     const main = this.panel('mnu-main');
     const logo = element('h1', main, 'mnu-logo');
@@ -136,7 +139,7 @@ export class Menu {
     this.soundButton(pause);
 
     this.screens = { main, result, pause };
-    this.pauseButton = button(parent, 'mnu-blue mnu-corner', '', () => this.onPause?.());
+    this.pauseButton = button(parent, 'mnu-blue mnu-corner', '', () => { sfx.play('click', 0.05); this.onPause?.(); });
     this.pauseButton.setAttribute('aria-label', L('Пауза', 'Pause'));
     this.pauseButton.append(icon('pause'));
     this.syncPauseButton();

@@ -1,0 +1,1721 @@
+{
+ "explosion": [
+  {
+   "file": "explosion_3.mp3",
+   "z": 4.95,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.011,
+    "end": 1.915,
+    "kind": "event",
+    "z": 4.59
+   }
+  },
+  {
+   "file": "explosion_1.mp3",
+   "z": 4.52,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.451,
+    "end": 0.985,
+    "kind": "stroke",
+    "z": 4.29
+   }
+  }
+ ],
+ "meteor": [
+  {
+   "file": "meteor_0.mp3",
+   "z": 2.94,
+   "verdict": "plausible",
+   "seg": {
+    "start": 4.003,
+    "end": 5.255,
+    "kind": "event",
+    "z": 3.4
+   }
+  }
+ ],
+ "impact": [
+  {
+   "file": "impact_2.mp3",
+   "z": 3.72,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.169,
+    "end": 0.525,
+    "kind": "event",
+    "z": 3.35
+   }
+  },
+  {
+   "file": "impact_3.mp3",
+   "z": 3.39,
+   "verdict": "strong",
+   "seg": {
+    "start": 2.175,
+    "end": 2.448,
+    "kind": "stroke",
+    "z": 3.63
+   }
+  }
+ ],
+ "lava": [
+  {
+   "file": "lava_3.mp3",
+   "z": 5.0,
+   "verdict": "strong",
+   "seg": {
+    "start": 3.036,
+    "end": 5.06,
+    "kind": "window",
+    "z": 5.38
+   }
+  },
+  {
+   "file": "lava_0.mp3",
+   "z": 4.9,
+   "verdict": "strong",
+   "seg": {
+    "start": 10.636,
+    "end": 12.763,
+    "kind": "window",
+    "z": 5.28
+   }
+  }
+ ],
+ "fire": [
+  {
+   "file": "fire_0.mp3",
+   "z": 2.81,
+   "verdict": "plausible",
+   "seg": {
+    "start": 0.0,
+    "end": 0.645,
+    "kind": "window",
+    "z": 2.5
+   }
+  },
+  {
+   "file": "fire_2.mp3",
+   "z": 0.04,
+   "verdict": "no match",
+   "seg": {
+    "start": 0.428,
+    "end": 1.355,
+    "kind": "event",
+    "z": 1.47
+   }
+  }
+ ],
+ "freeze": [
+  {
+   "file": "freeze_2.mp3",
+   "z": 5.08,
+   "verdict": "strong",
+   "seg": {
+    "start": 1.36,
+    "end": 2.36,
+    "kind": "window",
+    "z": 5.67
+   }
+  },
+  {
+   "file": "freeze_0.mp3",
+   "z": 4.22,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.5,
+    "end": 1.5,
+    "kind": "window",
+    "z": 5.02
+   }
+  }
+ ],
+ "zap": [
+  {
+   "file": "zap_3.mp3",
+   "z": 4.07,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.016,
+    "end": 0.12,
+    "kind": "stroke",
+    "z": 3.62
+   }
+  },
+  {
+   "file": "zap_1.mp3",
+   "z": 3.88,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.509,
+    "end": 2.204,
+    "kind": "event",
+    "z": 4.41
+   }
+  }
+ ],
+ "splash": [
+  {
+   "file": "splash_3.mp3",
+   "z": 4.2,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 1.0,
+    "kind": "window",
+    "z": 3.71
+   }
+  },
+  {
+   "file": "splash_0.mp3",
+   "z": 4.05,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.331,
+    "end": 1.331,
+    "kind": "window",
+    "z": 4.22
+   }
+  }
+ ],
+ "chicken": [
+  {
+   "file": "chicken_2.mp3",
+   "z": 6.07,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 1.0,
+    "kind": "window",
+    "z": 5.96
+   }
+  },
+  {
+   "file": "chicken_0.mp3",
+   "z": 2.83,
+   "verdict": "plausible",
+   "seg": {
+    "start": 0.0,
+    "end": 0.99,
+    "kind": "window",
+    "z": 2.83
+   }
+  }
+ ],
+ "cat": [
+  {
+   "file": "cat_2.mp3",
+   "z": 6.3,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 0.917,
+    "kind": "window",
+    "z": 6.3
+   }
+  },
+  {
+   "file": "cat_3.mp3",
+   "z": 5.63,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 1.0,
+    "kind": "window",
+    "z": 6.86
+   }
+  }
+ ],
+ "boing": [
+  {
+   "file": "boing_0.mp3",
+   "z": 6.29,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.123,
+    "end": 0.83,
+    "kind": "stroke",
+    "z": 5.65
+   }
+  },
+  {
+   "file": "boing_2.mp3",
+   "z": 6.16,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.029,
+    "end": 0.505,
+    "kind": "event",
+    "z": 6.1
+   }
+  }
+ ],
+ "hurt": [
+  {
+   "file": "hurt_2.mp3",
+   "z": 4.39,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.011,
+    "end": 0.17,
+    "kind": "event",
+    "z": 4.26
+   }
+  },
+  {
+   "file": "hurt_3.mp3",
+   "z": 3.18,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 0.375,
+    "kind": "window",
+    "z": 3.38
+   }
+  }
+ ],
+ "cheer": [
+  {
+   "file": "cheer_1.mp3",
+   "z": 5.75,
+   "verdict": "strong",
+   "seg": {
+    "start": 1.786,
+    "end": 3.655,
+    "kind": "event",
+    "z": 5.26
+   }
+  },
+  {
+   "file": "cheer_0.mp3",
+   "z": 3.9,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 1.0,
+    "kind": "window",
+    "z": 3.69
+   }
+  }
+ ],
+ "fail": [
+  {
+   "file": "fail_1.mp3",
+   "z": 5.53,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.253,
+    "end": 2.134,
+    "kind": "event",
+    "z": 5.3
+   }
+  },
+  {
+   "file": "fail_2.mp3",
+   "z": 4.95,
+   "verdict": "strong",
+   "seg": {
+    "start": 1.5,
+    "end": 2.83,
+    "kind": "window",
+    "z": 5.3
+   }
+  }
+ ],
+ "win": [
+  {
+   "file": "win_0.mp3",
+   "z": 3.4,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 1.0,
+    "kind": "window",
+    "z": 3.32
+   }
+  },
+  {
+   "file": "win_4.mp3",
+   "z": 3.12,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.0,
+    "end": 1.0,
+    "kind": "window",
+    "z": 3.28
+   }
+  }
+ ],
+ "reelspin": [
+  {
+   "file": "reelspin_1.mp3",
+   "z": 3.2,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.047,
+    "end": 1.48,
+    "kind": "event",
+    "z": 2.86
+   }
+  },
+  {
+   "file": "reelspin_0.mp3",
+   "z": 2.67,
+   "verdict": "plausible",
+   "seg": {
+    "start": 1.766,
+    "end": 3.531,
+    "kind": "window",
+    "z": 2.88
+   }
+  }
+ ],
+ "reelstop": [
+  {
+   "file": "reelstop_0.mp3",
+   "z": 3.39,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.02,
+    "end": 0.42,
+    "kind": "event",
+    "z": 3.51
+   }
+  },
+  {
+   "file": "reelstop_1.mp3",
+   "z": 3.21,
+   "verdict": "strong",
+   "seg": {
+    "start": 0.102,
+    "end": 0.335,
+    "kind": "event",
+    "z": 3.95
+   }
+  }
+ ],
+ "button": [
+  {
+   "file": "button_3.mp3",
+   "z": 2.32,
+   "verdict": "weak",
+   "seg": {
+    "start": 0.099,
+    "end": 0.255,
+    "kind": "stroke",
+    "z": 2.97
+   }
+  },
+  {
+   "file": "button_2.mp3",
+   "z": 2.12,
+   "verdict": "weak",
+   "seg": {
+    "start": 0.368,
+    "end": 0.465,
+    "kind": "stroke",
+    "z": 1.91
+   }
+  }
+ ],
+ "music:menu.mp3": {
+  "tags": {
+   "transitions": [
+    {
+     "term": "a record scratch",
+     "z": 0.43,
+     "cosine": 0.038
+    },
+    {
+     "term": "a rising riser building tension",
+     "z": 0.03,
+     "cosine": 0.005
+    },
+    {
+     "term": "a stutter glitch transition",
+     "z": -0.26,
+     "cosine": 0.002
+    }
+   ],
+   "impacts": [
+    {
+     "term": "a snare hit",
+     "z": 1.25,
+     "cosine": 0.052
+    },
+    {
+     "term": "a big braam",
+     "z": 0.25,
+     "cosine": 0.013
+    },
+    {
+     "term": "a kick drum",
+     "z": -0.03,
+     "cosine": -0.057
+    }
+   ],
+   "ui": [
+    {
+     "term": "a success chime",
+     "z": 1.52,
+     "cosine": 0.193
+    },
+    {
+     "term": "a chat message pop",
+     "z": 0.89,
+     "cosine": 0.145
+    },
+    {
+     "term": "a notification ding",
+     "z": 0.6,
+     "cosine": 0.052
+    }
+   ],
+   "keyboard": [
+    {
+     "term": "an old typewriter",
+     "z": -0.31,
+     "cosine": -0.061
+    },
+    {
+     "term": "a keyboard typing fast",
+     "z": -0.43,
+     "cosine": -0.05
+    },
+    {
+     "term": "a laptop keyboard typing",
+     "z": -0.57,
+     "cosine": -0.051
+    }
+   ],
+   "foley": [
+    {
+     "term": "a rubber stretch",
+     "z": 0.93,
+     "cosine": 0.06
+    },
+    {
+     "term": "a finger squeaking on glass",
+     "z": 0.84,
+     "cosine": 0.011
+    },
+    {
+     "term": "dominoes falling",
+     "z": 0.79,
+     "cosine": 0.05
+    }
+   ],
+   "water": [
+    {
+     "term": "ice cubes in a glass",
+     "z": 1.07,
+     "cosine": 0.08
+    },
+    {
+     "term": "bubbles underwater",
+     "z": 0.41,
+     "cosine": 0.001
+    },
+    {
+     "term": "a stream flowing",
+     "z": 0.35,
+     "cosine": 0.031
+    }
+   ],
+   "nature": [
+    {
+     "term": "a horse galloping",
+     "z": 0.61,
+     "cosine": 0.011
+    },
+    {
+     "term": "digging in soil",
+     "z": 0.36,
+     "cosine": -0.055
+    },
+    {
+     "term": "a bee flying by",
+     "z": -0.33,
+     "cosine": -0.081
+    }
+   ],
+   "chimes": [
+    {
+     "term": "a kalimba note",
+     "z": 3.08,
+     "cosine": 0.306
+    },
+    {
+     "term": "a music box melody",
+     "z": 1.85,
+     "cosine": 0.202
+    },
+    {
+     "term": "a celesta note",
+     "z": 1.57,
+     "cosine": 0.197
+    }
+   ],
+   "ambience": [
+    {
+     "term": "heavy rain",
+     "z": 0.86,
+     "cosine": 0.099
+    },
+    {
+     "term": "skylarks over a meadow",
+     "z": 0.77,
+     "cosine": 0.046
+    },
+    {
+     "term": "a summer meadow with insects",
+     "z": 0.74,
+     "cosine": 0.031
+    }
+   ],
+   "everyday": [
+    {
+     "term": "a cow mooing",
+     "z": 1.1,
+     "cosine": 0.029
+    },
+    {
+     "term": "an alarm clock beeping",
+     "z": 0.87,
+     "cosine": 0.041
+    },
+    {
+     "term": "a rooster crowing",
+     "z": 0.56,
+     "cosine": 0.021
+    }
+   ],
+   "music_genre": [
+    {
+     "term": "cheerful ukulele music",
+     "z": 3.88,
+     "cosine": 0.406
+    },
+    {
+     "term": "classical string quartet",
+     "z": 2.51,
+     "cosine": 0.223
+    },
+    {
+     "term": "chiptune video game music",
+     "z": 2.18,
+     "cosine": 0.243
+    }
+   ],
+   "music_mood": [
+    {
+     "term": "playful and quirky music",
+     "z": 2.88,
+     "cosine": 0.336
+    },
+    {
+     "term": "celebratory and joyful music",
+     "z": 2.34,
+     "cosine": 0.234
+    },
+    {
+     "term": "triumphant and heroic music",
+     "z": 2.17,
+     "cosine": 0.212
+    }
+   ],
+   "instruments": [
+    {
+     "term": "a ukulele",
+     "z": 4.42,
+     "cosine": 0.463
+    },
+    {
+     "term": "a marimba",
+     "z": 3.29,
+     "cosine": 0.383
+    },
+    {
+     "term": "pizzicato strings",
+     "z": 3.11,
+     "cosine": 0.32
+    }
+   ],
+   "voice": [
+    {
+     "term": "a voice-over narration",
+     "z": 0.8,
+     "cosine": 0.019
+    },
+    {
+     "term": "singing vocals",
+     "z": 0.13,
+     "cosine": -0.037
+    },
+    {
+     "term": "a man shouting",
+     "z": 0.09,
+     "cosine": -0.152
+    }
+   ],
+   "quality": [
+    {
+     "term": "a long sound",
+     "z": 0.52,
+     "cosine": 0.078
+    },
+    {
+     "term": "a satisfying sound",
+     "z": 0.48,
+     "cosine": 0.085
+    },
+    {
+     "term": "a dry close sound",
+     "z": 0.34,
+     "cosine": 0.112
+    }
+   ],
+   "production": [
+    {
+     "term": "an 8-bit sound effect",
+     "z": 1.0,
+     "cosine": 0.095
+    },
+    {
+     "term": "a professionally mixed and mastered music track",
+     "z": 1.0,
+     "cosine": 0.236
+    },
+    {
+     "term": "a square wave chiptune blip",
+     "z": 1.0,
+     "cosine": 0.073
+    }
+   ]
+  },
+  "audioset": [
+   {
+    "label": "Music",
+    "p": 0.814
+   },
+   {
+    "label": "Ukulele",
+    "p": 0.321
+   },
+   {
+    "label": "Musical instrument",
+    "p": 0.24
+   },
+   {
+    "label": "Pizzicato",
+    "p": 0.182
+   }
+  ],
+  "match": {
+   "summary": "menu.mp3: 'upbeat cheerful cartoon game music' -> strong (unvalidated: music / instrument / voice description) (z +3.2; would rank #4 among 322 vocabulary descriptions; cosine 0.34). Forced choice vs your alternatives: 'upbeat cheerful cartoon game music' >99%, 'sound effects without music' <1%, 'ambient noise' <1%, 'speech' <1%. It sounds most like: 'a ukulele' (z +4.4), 'cheerful ukulele music' (z +3.8), 'a marimba' (z +3.2), 'pizzicato strings' (z +3.1).",
+   "path": "D:/work/CLAUDE/GAME/disaster-reels/art/music/gen\\menu.mp3",
+   "start": null,
+   "end": null,
+   "peak_dbfs": 0.2,
+   "query": "upbeat cheerful cartoon game music",
+   "cosine": 0.342,
+   "z": 3.26,
+   "percentile": 99.1,
+   "rank_in_vocab": 4,
+   "p_vs_alts": 1.0,
+   "verdict": "strong",
+   "validated": false,
+   "alts": [
+    {
+     "query": "sound effects without music",
+     "p": 0.0,
+     "z": -0.37,
+     "cosine": -0.02
+    },
+    {
+     "query": "ambient noise",
+     "p": 0.0,
+     "z": -1.18,
+     "cosine": -0.196
+    },
+    {
+     "query": "speech",
+     "p": 0.0,
+     "z": 0.24,
+     "cosine": -0.082
+    }
+   ],
+   "results": [
+    {
+     "query": "upbeat cheerful cartoon game music",
+     "cosine": 0.342,
+     "z": 3.26,
+     "percentile": 99.1,
+     "rank_in_vocab": 4,
+     "vocab_size": 322,
+     "verdict": "strong",
+     "validated": false,
+     "p_vs_alts": 1.0,
+     "alts": [
+      {
+       "query": "sound effects without music",
+       "p": 0.0,
+       "z": -0.37,
+       "cosine": -0.02
+      },
+      {
+       "query": "ambient noise",
+       "p": 0.0,
+       "z": -1.18,
+       "cosine": -0.196
+      },
+      {
+       "query": "speech",
+       "p": 0.0,
+       "z": 0.24,
+       "cosine": -0.082
+      }
+     ]
+    }
+   ],
+   "closest_vocab": [
+    {
+     "term": "a ukulele",
+     "category": "instruments",
+     "z": 4.42,
+     "cosine": 0.463
+    },
+    {
+     "term": "cheerful ukulele music",
+     "category": "music_genre",
+     "z": 3.88,
+     "cosine": 0.406
+    },
+    {
+     "term": "a marimba",
+     "category": "instruments",
+     "z": 3.29,
+     "cosine": 0.383
+    },
+    {
+     "term": "pizzicato strings",
+     "category": "instruments",
+     "z": 3.11,
+     "cosine": 0.32
+    }
+   ],
+   "verdict_thresholds_z": {
+    "strong": 3.0,
+    "plausible": 2.5,
+    "weak": 2.0
+   },
+   "verdict_evidence": {
+    "strong": {
+     "z": ">= 3",
+     "lr": 1289,
+     "precision_library": 0.98,
+     "precision_even_odds": 1.0,
+     "lr_strict": 51,
+     "precision_library_strict": 0.61,
+     "recall_at_or_above": 0.51
+    },
+    "plausible": {
+     "z": "2.5 - 3",
+     "lr": 21,
+     "precision_library": 0.41,
+     "precision_even_odds": 0.95,
+     "lr_strict": 9.1,
+     "precision_library_strict": 0.22,
+     "recall_at_or_above": 0.63
+    },
+    "weak": {
+     "z": "2 - 2.5",
+     "lr": 12,
+     "precision_library": 0.28,
+     "precision_even_odds": 0.92,
+     "lr_strict": 6.6,
+     "precision_library_strict": 0.17,
+     "recall_at_or_above": 0.76
+    },
+    "no match": {
+     "z": "< 2",
+     "lr": 0.25,
+     "precision_library": 0.008,
+     "precision_even_odds": 0.2,
+     "lr_strict": 0.25,
+     "precision_library_strict": 0.008
+    }
+   }
+  }
+ },
+ "music:round1.mp3": {
+  "tags": {
+   "transitions": [
+    {
+     "term": "an uplifter sweep",
+     "z": 1.46,
+     "cosine": 0.126
+    },
+    {
+     "term": "a downlifter falling sweep",
+     "z": 0.86,
+     "cosine": 0.063
+    },
+    {
+     "term": "a record scratch",
+     "z": 0.44,
+     "cosine": 0.036
+    }
+   ],
+   "impacts": [
+    {
+     "term": "a sub bass drop",
+     "z": 0.03,
+     "cosine": -0.023
+    },
+    {
+     "term": "a low rumble",
+     "z": -0.18,
+     "cosine": -0.066
+    },
+    {
+     "term": "a punchy impact hit",
+     "z": -0.21,
+     "cosine": -0.107
+    }
+   ],
+   "ui": [
+    {
+     "term": "a success chime",
+     "z": 0.39,
+     "cosine": 0.073
+    },
+    {
+     "term": "a touchscreen tap",
+     "z": 0.19,
+     "cosine": 0.024
+    },
+    {
+     "term": "a digital glitch",
+     "z": 0.18,
+     "cosine": 0.03
+    }
+   ],
+   "keyboard": [
+    {
+     "term": "a keyboard typing fast",
+     "z": 0.06,
+     "cosine": 0.005
+    },
+    {
+     "term": "a laptop keyboard typing",
+     "z": -0.28,
+     "cosine": -0.01
+    },
+    {
+     "term": "a clicky mechanical keyboard",
+     "z": -0.41,
+     "cosine": -0.033
+    }
+   ],
+   "foley": [
+    {
+     "term": "a squishy wet squelch",
+     "z": 1.65,
+     "cosine": 0.079
+    },
+    {
+     "term": "a rubber stretch",
+     "z": 1.16,
+     "cosine": 0.065
+    },
+    {
+     "term": "a balloon squeak",
+     "z": 0.53,
+     "cosine": -0.01
+    }
+   ],
+   "water": [
+    {
+     "term": "ice cubes in a glass",
+     "z": 1.98,
+     "cosine": 0.138
+    },
+    {
+     "term": "bubbles underwater",
+     "z": 1.71,
+     "cosine": 0.105
+    },
+    {
+     "term": "pouring water",
+     "z": 0.82,
+     "cosine": 0.02
+    }
+   ],
+   "nature": [
+    {
+     "term": "footsteps on grass",
+     "z": 0.58,
+     "cosine": -0.023
+    },
+    {
+     "term": "walking through dry leaves",
+     "z": 0.28,
+     "cosine": -0.021
+    },
+    {
+     "term": "insects buzzing",
+     "z": 0.06,
+     "cosine": -0.031
+    }
+   ],
+   "chimes": [
+    {
+     "term": "wind chimes",
+     "z": 0.48,
+     "cosine": 0.035
+    },
+    {
+     "term": "a magic sparkle chime",
+     "z": 0.36,
+     "cosine": 0.061
+    },
+    {
+     "term": "a glockenspiel run",
+     "z": 0.06,
+     "cosine": 0.05
+    }
+   ],
+   "ambience": [
+    {
+     "term": "a crowd cheering",
+     "z": 0.75,
+     "cosine": -0.038
+    },
+    {
+     "term": "a crackling fire",
+     "z": 0.74,
+     "cosine": 0.063
+    },
+    {
+     "term": "people talking in the background",
+     "z": 0.68,
+     "cosine": -0.101
+    }
+   ],
+   "everyday": [
+    {
+     "term": "a police siren",
+     "z": 1.57,
+     "cosine": 0.057
+    },
+    {
+     "term": "a kettle whistling",
+     "z": 1.1,
+     "cosine": -0.005
+    },
+    {
+     "term": "keys jingling",
+     "z": 0.92,
+     "cosine": 0.038
+    }
+   ],
+   "music_genre": [
+    {
+     "term": "techno music",
+     "z": 3.74,
+     "cosine": 0.308
+    },
+    {
+     "term": "chiptune video game music",
+     "z": 3.54,
+     "cosine": 0.316
+    },
+    {
+     "term": "drum and bass music",
+     "z": 2.97,
+     "cosine": 0.217
+    }
+   ],
+   "music_mood": [
+    {
+     "term": "playful and quirky music",
+     "z": 3.15,
+     "cosine": 0.305
+    },
+    {
+     "term": "celebratory and joyful music",
+     "z": 3.06,
+     "cosine": 0.252
+    },
+    {
+     "term": "confident and cool music",
+     "z": 2.85,
+     "cosine": 0.272
+    }
+   ],
+   "instruments": [
+    {
+     "term": "a synthesizer lead",
+     "z": 2.54,
+     "cosine": 0.235
+    },
+    {
+     "term": "brass section",
+     "z": 1.4,
+     "cosine": 0.108
+    },
+    {
+     "term": "pizzicato strings",
+     "z": 0.89,
+     "cosine": 0.078
+    }
+   ],
+   "voice": [
+    {
+     "term": "a crowd talking",
+     "z": 0.62,
+     "cosine": -0.106
+    },
+    {
+     "term": "a man shouting",
+     "z": 0.54,
+     "cosine": -0.111
+    },
+    {
+     "term": "a baby crying",
+     "z": 0.39,
+     "cosine": -0.058
+    }
+   ],
+   "quality": [
+    {
+     "term": "a thin sound",
+     "z": 1.52,
+     "cosine": 0.078
+    },
+    {
+     "term": "a long sound",
+     "z": 1.5,
+     "cosine": 0.154
+    },
+    {
+     "term": "a harsh sound",
+     "z": 1.24,
+     "cosine": 0.086
+    }
+   ],
+   "production": [
+    {
+     "term": "a retro video game sound effect",
+     "z": 1.42,
+     "cosine": 0.12
+    },
+    {
+     "term": "a professionally mixed and mastered music track",
+     "z": 0.82,
+     "cosine": 0.206
+    },
+    {
+     "term": "a low quality recording with hiss",
+     "z": 0.6,
+     "cosine": -0.002
+    }
+   ]
+  },
+  "audioset": [
+   {
+    "label": "Music",
+    "p": 0.77
+   },
+   {
+    "label": "Speech",
+    "p": 0.173
+   },
+   {
+    "label": "Electronic music",
+    "p": 0.11
+   },
+   {
+    "label": "Video game music",
+    "p": 0.104
+   },
+   {
+    "label": "Soundtrack music",
+    "p": 0.097
+   }
+  ],
+  "match": {
+   "summary": "round1.mp3: 'upbeat cheerful cartoon game music' -> strong (unvalidated: music / instrument / voice description) (z +3.5; would rank #3 among 322 vocabulary descriptions; cosine 0.30). Forced choice vs your alternatives: 'upbeat cheerful cartoon game music' >99%, 'sound effects without music' <1%, 'ambient noise' <1%, 'speech' <1%. It sounds most like: 'techno music' (z +3.7), 'chiptune video game music' (z +3.5), 'playful and quirky music' (z +3.1), 'celebratory and joyful music' (z +3.0).",
+   "path": "D:/work/CLAUDE/GAME/disaster-reels/art/music/gen\\round1.mp3",
+   "start": null,
+   "end": null,
+   "peak_dbfs": -0.5,
+   "query": "upbeat cheerful cartoon game music",
+   "cosine": 0.302,
+   "z": 3.51,
+   "percentile": 99.4,
+   "rank_in_vocab": 3,
+   "p_vs_alts": 1.0,
+   "verdict": "strong",
+   "validated": false,
+   "alts": [
+    {
+     "query": "sound effects without music",
+     "p": 0.0,
+     "z": -0.18,
+     "cosine": 0.009
+    },
+    {
+     "query": "ambient noise",
+     "p": 0.0,
+     "z": 0.51,
+     "cosine": -0.027
+    },
+    {
+     "query": "speech",
+     "p": 0.0,
+     "z": -0.42,
+     "cosine": -0.136
+    }
+   ],
+   "results": [
+    {
+     "query": "upbeat cheerful cartoon game music",
+     "cosine": 0.302,
+     "z": 3.51,
+     "percentile": 99.4,
+     "rank_in_vocab": 3,
+     "vocab_size": 322,
+     "verdict": "strong",
+     "validated": false,
+     "p_vs_alts": 1.0,
+     "alts": [
+      {
+       "query": "sound effects without music",
+       "p": 0.0,
+       "z": -0.18,
+       "cosine": 0.009
+      },
+      {
+       "query": "ambient noise",
+       "p": 0.0,
+       "z": 0.51,
+       "cosine": -0.027
+      },
+      {
+       "query": "speech",
+       "p": 0.0,
+       "z": -0.42,
+       "cosine": -0.136
+      }
+     ]
+    }
+   ],
+   "closest_vocab": [
+    {
+     "term": "techno music",
+     "category": "music_genre",
+     "z": 3.74,
+     "cosine": 0.308
+    },
+    {
+     "term": "chiptune video game music",
+     "category": "music_genre",
+     "z": 3.54,
+     "cosine": 0.316
+    },
+    {
+     "term": "playful and quirky music",
+     "category": "music_mood",
+     "z": 3.15,
+     "cosine": 0.305
+    },
+    {
+     "term": "celebratory and joyful music",
+     "category": "music_mood",
+     "z": 3.06,
+     "cosine": 0.252
+    }
+   ],
+   "verdict_thresholds_z": {
+    "strong": 3.0,
+    "plausible": 2.5,
+    "weak": 2.0
+   },
+   "verdict_evidence": {
+    "strong": {
+     "z": ">= 3",
+     "lr": 1289,
+     "precision_library": 0.98,
+     "precision_even_odds": 1.0,
+     "lr_strict": 51,
+     "precision_library_strict": 0.61,
+     "recall_at_or_above": 0.51
+    },
+    "plausible": {
+     "z": "2.5 - 3",
+     "lr": 21,
+     "precision_library": 0.41,
+     "precision_even_odds": 0.95,
+     "lr_strict": 9.1,
+     "precision_library_strict": 0.22,
+     "recall_at_or_above": 0.63
+    },
+    "weak": {
+     "z": "2 - 2.5",
+     "lr": 12,
+     "precision_library": 0.28,
+     "precision_even_odds": 0.92,
+     "lr_strict": 6.6,
+     "precision_library_strict": 0.17,
+     "recall_at_or_above": 0.76
+    },
+    "no match": {
+     "z": "< 2",
+     "lr": 0.25,
+     "precision_library": 0.008,
+     "precision_even_odds": 0.2,
+     "lr_strict": 0.25,
+     "precision_library_strict": 0.008
+    }
+   }
+  }
+ },
+ "music:round2.mp3": {
+  "tags": {
+   "transitions": [
+    {
+     "term": "a stick swung fast through the air",
+     "z": 0.46,
+     "cosine": 0.022
+    },
+    {
+     "term": "a rising riser building tension",
+     "z": 0.37,
+     "cosine": 0.049
+    },
+    {
+     "term": "a whip pan transition",
+     "z": 0.3,
+     "cosine": 0.062
+    }
+   ],
+   "impacts": [
+    {
+     "term": "a snare hit",
+     "z": 0.95,
+     "cosine": 0.029
+    },
+    {
+     "term": "a big braam",
+     "z": 0.61,
+     "cosine": 0.06
+    },
+    {
+     "term": "an explosion",
+     "z": -0.11,
+     "cosine": -0.082
+    }
+   ],
+   "ui": [
+    {
+     "term": "a chat message pop",
+     "z": -0.24,
+     "cosine": 0.041
+    },
+    {
+     "term": "an error buzz",
+     "z": -0.37,
+     "cosine": -0.065
+    },
+    {
+     "term": "a notification ding",
+     "z": -0.45,
+     "cosine": -0.044
+    }
+   ],
+   "keyboard": [
+    {
+     "term": "an old typewriter",
+     "z": 0.43,
+     "cosine": 0.024
+    },
+    {
+     "term": "a keyboard typing fast",
+     "z": 0.0,
+     "cosine": 0.005
+    },
+    {
+     "term": "a laptop keyboard typing",
+     "z": -0.51,
+     "cosine": -0.032
+    }
+   ],
+   "foley": [
+    {
+     "term": "a balloon squeak",
+     "z": 1.79,
+     "cosine": 0.13
+    },
+    {
+     "term": "a rubber stretch",
+     "z": 1.44,
+     "cosine": 0.119
+    },
+    {
+     "term": "dominoes falling",
+     "z": 1.34,
+     "cosine": 0.113
+    }
+   ],
+   "water": [
+    {
+     "term": "bubbles underwater",
+     "z": 1.49,
+     "cosine": 0.118
+    },
+    {
+     "term": "ice cubes in a glass",
+     "z": 0.77,
+     "cosine": 0.057
+    },
+    {
+     "term": "being underwater",
+     "z": 0.73,
+     "cosine": 0.057
+    }
+   ],
+   "nature": [
+    {
+     "term": "a horse galloping",
+     "z": 0.62,
+     "cosine": 0.021
+    },
+    {
+     "term": "a bee flying by",
+     "z": 0.54,
+     "cosine": 0.018
+    },
+    {
+     "term": "a bird flapping its wings",
+     "z": 0.1,
+     "cosine": -0.041
+    }
+   ],
+   "chimes": [
+    {
+     "term": "a celesta note",
+     "z": 1.45,
+     "cosine": 0.19
+    },
+    {
+     "term": "a sustained glass harp tone",
+     "z": 1.24,
+     "cosine": 0.057
+    },
+    {
+     "term": "a glockenspiel run",
+     "z": 0.75,
+     "cosine": 0.125
+    }
+   ],
+   "ambience": [
+    {
+     "term": "a crackling fire",
+     "z": 1.01,
+     "cosine": 0.108
+    },
+    {
+     "term": "a thunderstorm",
+     "z": 0.89,
+     "cosine": 0.092
+    },
+    {
+     "term": "rain on a window",
+     "z": 0.61,
+     "cosine": 0.07
+    }
+   ],
+   "everyday": [
+    {
+     "term": "a cow mooing",
+     "z": 0.92,
+     "cosine": 0.018
+    },
+    {
+     "term": "a thunder clap",
+     "z": 0.86,
+     "cosine": 0.075
+    },
+    {
+     "term": "applause",
+     "z": 0.84,
+     "cosine": 0.039
+    }
+   ],
+   "music_genre": [
+    {
+     "term": "jazz music",
+     "z": 3.07,
+     "cosine": 0.299
+    },
+    {
+     "term": "classical string quartet",
+     "z": 3.06,
+     "cosine": 0.28
+    },
+    {
+     "term": "chiptune video game music",
+     "z": 2.57,
+     "cosine": 0.285
+    }
+   ],
+   "music_mood": [
+    {
+     "term": "triumphant and heroic music",
+     "z": 3.34,
+     "cosine": 0.333
+    },
+    {
+     "term": "playful and quirky music",
+     "z": 3.27,
+     "cosine": 0.376
+    },
+    {
+     "term": "celebratory and joyful music",
+     "z": 2.85,
+     "cosine": 0.288
+    }
+   ],
+   "instruments": [
+    {
+     "term": "brass section",
+     "z": 4.7,
+     "cosine": 0.468
+    },
+    {
+     "term": "a snare roll",
+     "z": 2.68,
+     "cosine": 0.217
+    },
+    {
+     "term": "orchestral percussion",
+     "z": 2.4,
+     "cosine": 0.268
+    }
+   ],
+   "voice": [
+    {
+     "term": "a baby crying",
+     "z": 1.18,
+     "cosine": 0.033
+    },
+    {
+     "term": "a man shouting",
+     "z": 0.37,
+     "cosine": -0.114
+    },
+    {
+     "term": "singing vocals",
+     "z": 0.25,
+     "cosine": -0.016
+    }
+   ],
+   "quality": [
+    {
+     "term": "a boomy sound",
+     "z": 1.06,
+     "cosine": 0.123
+    },
+    {
+     "term": "a long sound",
+     "z": 0.67,
+     "cosine": 0.103
+    },
+    {
+     "term": "a loud sound",
+     "z": 0.48,
+     "cosine": -0.016
+    }
+   ],
+   "production": [
+    {
+     "term": "a professionally mixed and mastered music track",
+     "z": 1.07,
+     "cosine": 0.25
+    },
+    {
+     "term": "a retro video game sound effect",
+     "z": 0.49,
+     "cosine": 0.057
+    },
+    {
+     "term": "a recording made on a phone",
+     "z": 0.17,
+     "cosine": -0.006
+    }
+   ]
+  },
+  "audioset": [
+   {
+    "label": "Music",
+    "p": 0.855
+   },
+   {
+    "label": "Brass instrument",
+    "p": 0.491
+   },
+   {
+    "label": "Trombone",
+    "p": 0.396
+   },
+   {
+    "label": "Musical instrument",
+    "p": 0.315
+   },
+   {
+    "label": "Drum",
+    "p": 0.289
+   }
+  ],
+  "match": {
+   "summary": "round2.mp3: 'upbeat cheerful cartoon game music' -> strong (unvalidated: music / instrument / voice description) (z +4.0; would rank #2 among 322 vocabulary descriptions; cosine 0.42). Forced choice vs your alternatives: 'upbeat cheerful cartoon game music' >99%, 'sound effects without music' <1%, 'ambient noise' <1%, 'speech' <1%. It sounds most like: 'brass section' (z +4.7), 'triumphant and heroic music' (z +3.3), 'playful and quirky music' (z +3.2), 'jazz music' (z +3.0).",
+   "path": "D:/work/CLAUDE/GAME/disaster-reels/art/music/gen\\round2.mp3",
+   "start": null,
+   "end": null,
+   "peak_dbfs": -0.2,
+   "query": "upbeat cheerful cartoon game music",
+   "cosine": 0.423,
+   "z": 4.06,
+   "percentile": 99.7,
+   "rank_in_vocab": 2,
+   "p_vs_alts": 1.0,
+   "verdict": "strong",
+   "validated": false,
+   "alts": [
+    {
+     "query": "sound effects without music",
+     "p": 0.0,
+     "z": -1.27,
+     "cosine": -0.098
+    },
+    {
+     "query": "ambient noise",
+     "p": 0.0,
+     "z": -1.25,
+     "cosine": -0.189
+    },
+    {
+     "query": "speech",
+     "p": 0.0,
+     "z": -0.15,
+     "cosine": -0.112
+    }
+   ],
+   "results": [
+    {
+     "query": "upbeat cheerful cartoon game music",
+     "cosine": 0.423,
+     "z": 4.06,
+     "percentile": 99.7,
+     "rank_in_vocab": 2,
+     "vocab_size": 322,
+     "verdict": "strong",
+     "validated": false,
+     "p_vs_alts": 1.0,
+     "alts": [
+      {
+       "query": "sound effects without music",
+       "p": 0.0,
+       "z": -1.27,
+       "cosine": -0.098
+      },
+      {
+       "query": "ambient noise",
+       "p": 0.0,
+       "z": -1.25,
+       "cosine": -0.189
+      },
+      {
+       "query": "speech",
+       "p": 0.0,
+       "z": -0.15,
+       "cosine": -0.112
+      }
+     ]
+    }
+   ],
+   "closest_vocab": [
+    {
+     "term": "brass section",
+     "category": "instruments",
+     "z": 4.7,
+     "cosine": 0.468
+    },
+    {
+     "term": "triumphant and heroic music",
+     "category": "music_mood",
+     "z": 3.34,
+     "cosine": 0.333
+    },
+    {
+     "term": "playful and quirky music",
+     "category": "music_mood",
+     "z": 3.27,
+     "cosine": 0.376
+    },
+    {
+     "term": "jazz music",
+     "category": "music_genre",
+     "z": 3.07,
+     "cosine": 0.299
+    }
+   ],
+   "verdict_thresholds_z": {
+    "strong": 3.0,
+    "plausible": 2.5,
+    "weak": 2.0
+   },
+   "verdict_evidence": {
+    "strong": {
+     "z": ">= 3",
+     "lr": 1289,
+     "precision_library": 0.98,
+     "precision_even_odds": 1.0,
+     "lr_strict": 51,
+     "precision_library_strict": 0.61,
+     "recall_at_or_above": 0.51
+    },
+    "plausible": {
+     "z": "2.5 - 3",
+     "lr": 21,
+     "precision_library": 0.41,
+     "precision_even_odds": 0.95,
+     "lr_strict": 9.1,
+     "precision_library_strict": 0.22,
+     "recall_at_or_above": 0.63
+    },
+    "weak": {
+     "z": "2 - 2.5",
+     "lr": 12,
+     "precision_library": 0.28,
+     "precision_even_odds": 0.92,
+     "lr_strict": 6.6,
+     "precision_library_strict": 0.17,
+     "recall_at_or_above": 0.76
+    },
+    "no match": {
+     "z": "< 2",
+     "lr": 0.25,
+     "precision_library": 0.008,
+     "precision_even_odds": 0.2,
+     "lr_strict": 0.25,
+     "precision_library_strict": 0.008
+    }
+   }
+  }
+ }
+}

@@ -5,3 +5,7 @@ build/
 .env
 .env.local
 .claude/settings.local.json
+
+# кандидаты звуков/музыки (скачаны для отбора, в игру не вошли)
+art/sfx/cand/
+art/music/cand/

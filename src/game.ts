@@ -21,7 +21,7 @@ import { occludable, setOccluder } from './engine/occlude.ts';
 import { Controller } from './engine/controller.ts';
 import { Physics, type Solid } from './engine/physics.ts';
 import { FpsMeter } from './engine/fps.ts';
-import { sfx } from './engine/sfx.ts';
+import { sfx, type SfxName, type Track } from './engine/sfx.ts';
 import { quality } from './engine/quality.ts';
 import { SKINS } from './game/skins.ts';
 import { Particles } from './engine/particles.ts';
@@ -355,7 +355,7 @@ export function createScene(parent: HTMLElement): Game {
     ctl.vel.x = (dx / l) * kb; ctl.vel.z = (dz / l) * kb; ctl.vel.y = lava.level > -2 ? 4 : 6;
     fx.emit('poof', tmp.copy(ctl.pos).setY(ctl.pos.y + 1.2), 1, [0xff4a4a, 0xffffff]);
     cam.shake(0.3);
-    sfx.play('land', 0.05);
+    sfx.play('hurt', 0.1);
   };
 
   /** «Момент хаоса»: реакция впервые за раунд — замедление, надпись, тряска. Дальше просто считаем. */
@@ -392,7 +392,7 @@ export function createScene(parent: HTMLElement): Game {
       const l = Math.hypot(dx, dz) || 1;
       ctl.vel.x += (dx / l) * 9; ctl.vel.z += (dz / l) * 9;
       if (ctl.grounded) ctl.vel.y = 6;
-      sfx.play('bounce', 0.2, 0.5);
+      sfx.play(m.kind === 'cat' ? 'meow' : m.kind === 'chicken' ? 'cluck' : 'bounce', 0.15, 0.7);
     },
     slip() {
       if (slipT <= 0) { sfx.play('bounce', 0.3, 0.6); ctl.vel.y = Math.max(ctl.vel.y, 5); }
@@ -403,7 +403,8 @@ export function createScene(parent: HTMLElement): Game {
       fx.emit(ice ? 'poof' : 'lava', tmp.set(x, y + 0.5, z), Math.min(2.5, r * 0.6));
       const d = Math.hypot(ctl.pos.x - x, ctl.pos.z - z);
       cam.shake(Math.max(0, 0.45 - d * 0.03) * Math.min(2, r / 2));
-      if (d < 16) sfx.play(ice ? 'land' : 'lava', 0.15);
+      // взрыв слышно издалека, но тише с расстоянием; ледяной — хруст льда
+      if (d < 40) sfx.play(ice ? 'freeze' : 'boom', 0.12, Math.min(1, 1.25 - d / 32) * Math.min(1.2, 0.5 + r * 0.15));
       if (state === 'play' && d < r && Math.abs(ctl.pos.y - y) < 2.6) hurt(causeOf(m), ctl.pos.x - x, ctl.pos.z - z);
       dummiesNear(x, y, z, r * 1.2, false, 1.8);
     },
@@ -435,7 +436,10 @@ export function createScene(parent: HTMLElement): Game {
   let mode: 'menu' | 'round' | 'pause' = 'round';
   let muted = progress.snapshot().muted;
   const applyMute = () => { sfx.setSfxVolume(muted ? 0 : 1); sfx.setMusicVolume(muted ? 0 : 1); };
+  let roundTrack: Track = Math.random() < 0.5 ? 'round1' : 'round2';
+  let roundId = 0;   // «ещё раз» раньше, чем доиграли фанфары, не должен включать музыку меню посреди раунда
   const startRound = () => {
+    roundId++;
     mode = 'round';
     menu.hide();
     menu.setPauseButton(true);
@@ -443,6 +447,10 @@ export function createScene(parent: HTMLElement): Game {
     input.setVisible(true);
     restart();
     ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
+    // раунды чередуют две петли, чтобы музыка не приедалась
+    roundTrack = roundTrack === 'round1' ? 'round2' : 'round1';
+    sfx.setDuck(false);
+    void sfx.music(roundTrack);
     core.gameplayStart();
   };
   const showMain = () => {
@@ -453,6 +461,8 @@ export function createScene(parent: HTMLElement): Game {
     input.setVisible(false);
     menu.showMain(diff, muted);
     core.gameplayStop();
+    sfx.setDuck(false);
+    void sfx.music('menu');
   };
   /** Конец раунда: рекорд по сложности, счётчик забегов, экран итога. */
   const finish = (win: boolean) => {
@@ -461,6 +471,9 @@ export function createScene(parent: HTMLElement): Game {
     progress.patch({ runs: p.runs + 1, best: newBest ? { ...p.best, [diff]: time } : p.best });
     menu.setPauseButton(false);
     core.gameplayStop();
+    if (!win) sfx.play('fail', 0, 1);
+    const id = roundId;
+    setTimeout(() => { if (id === roundId && mode !== 'pause') void sfx.music('menu'); }, 1800);   // после «вау-вау» / фанфар — спокойная музыка меню
     // итог не сразу: полсекунды видно, что произошло (взрыв, конфетти)
     setTimeout(() => {
       if (mode !== 'round') return;
@@ -481,9 +494,22 @@ export function createScene(parent: HTMLElement): Game {
     input.setVisible(false);
     menu.showPause(muted);
     core.gameplayStop();
+    sfx.setDuck(true);
   };
-  menu.onResume = () => { if (mode !== 'pause') return; mode = 'round'; ui.setHud(true); input.setVisible(true); menu.hide(); core.gameplayStart(); };
+  menu.onResume = () => { if (mode !== 'pause') return; mode = 'round'; ui.setHud(true); input.setVisible(true); menu.hide(); core.gameplayStart(); sfx.setDuck(false); };
   menu.onMute = (m) => { muted = m; applyMute(); progress.patch({ muted: m }); };
+
+  /** Голос волны: сначала звук прилагательного (огонь, лёд…), следом — самого существа. */
+  const ADJ_SFX: Partial<Record<AdjId, SfxName>> = { fire: 'fire', ice: 'freeze', bouncy: 'boing', giant: 'thud', fast: 'whoosh' };
+  const NOUN_SFX: Record<NounId, SfxName> = { chicken: 'cluck', cat: 'meow', shark: 'splash', banana: 'boing', meteor: 'whoosh', bomb: 'thud',
+    snowman: 'freeze', slime: 'splash', zombie: 'thud', dino: 'thud', ufo: 'zap', tornado: 'whoosh' };
+  const voice = (r: ReelResult) => {
+    sfx.play('checkpoint', 0, 0.6);
+    const a = ADJ_SFX[r.adj], n = NOUN_SFX[r.noun];
+    if (a && a !== n) setTimeout(() => sfx.play(a, 0.05, 0.9), 120);
+    // великан — ниже голосом, быстрый — выше
+    setTimeout(() => sfx.play(n, 0.05, 1, r.adj === 'giant' ? 0.75 : r.adj === 'fast' ? 1.2 : 1), a ? 420 : 150);
+  };
 
   /** Барабан встал: большая фраза и волна существ. */
   const onReel = (r: ReelResult) => {
@@ -491,7 +517,7 @@ export function createScene(parent: HTMLElement): Game {
     started = true;   // время раунда пошло с первой волной
     ui.announce(phrase(r.n, r.adj, r.noun), ADJ_COLOR[r.adj]);
     reelLog.push(phrase(r.n, r.adj, r.noun));
-    sfx.play('checkpoint', 0);
+    voice(r);
     creatures.start(r);
   };
 
@@ -511,8 +537,10 @@ export function createScene(parent: HTMLElement): Game {
       ui.announce(L(st.ru, st.en), '#ff5a2a');
       lava.rise(st.sec * D().lava, st.top);
       cam.shake(0.25);
+      sfx.play('bubble', 0.05, 0.9);
       // метеоритный дождь до конца раунда: две волны, половина метит в игрока
       // первая волна мягче (по автотесту финал убивал 44% дошедших)
+      if (lavaStep === 0 || lavaStep === 2) setTimeout(() => sfx.play('whoosh', 0.05), 500);
       if (lavaStep === 0) creatures.start({ n: D().meteors[0], adj: 'fire', noun: 'meteor' }, D().aim);
       if (lavaStep === 2) creatures.start({ n: D().meteors[1], adj: 'fire', noun: 'meteor' }, D().aim);
       lavaStep++;
@@ -526,7 +554,8 @@ export function createScene(parent: HTMLElement): Game {
     if (state === 'play' && t >= ROUND) {
       state = 'win';
       reels.hide();
-      sfx.play('finish', 0);
+      sfx.play('tada', 0);
+      sfx.play('cheer', 0.03);
       fx.emit('confetti', tmp.copy(ctl.pos).setY(ctl.pos.y + 2), 2);
       finish(true);
     }
@@ -539,10 +568,10 @@ export function createScene(parent: HTMLElement): Game {
     slipT -= dt;
     ctl.grip = cell === Cell.Ice || slipT > 0 ? 0.08 : 1;
     burnT = cell === Cell.Fire ? burnT + dt : 0;
-    if (burnT > BURN_DEATH) { burnT = 0; hurt(L('Сгорел', 'Burned')); }
+    if (burnT > BURN_DEATH) { burnT = 0; if (hurtT <= 0) sfx.play('fire', 0.1); hurt(L('Сгорел', 'Burned')); }
     // этап 4: ток в луже бьёт как огонь, слизь держит ноги
     shockT = cell === Cell.Shock ? shockT + dt : 0;
-    if (shockT > 0.15) { shockT = 0; hurt(L('Ударило током', 'Zapped')); }
+    if (shockT > 0.15) { shockT = 0; if (hurtT <= 0) sfx.play('zap', 0.1); hurt(L('Ударило током', 'Zapped')); }
     ctl.speedMul = cell === Cell.Slime ? 0.45 : 1;
     // падение — первым: лава в покое стоит под островом (-2,5) и раньше подписывала падение «Лавой»
     if (ctl.pos.y < FALL_Y) die(L('Упал с острова', 'Fell off'));
