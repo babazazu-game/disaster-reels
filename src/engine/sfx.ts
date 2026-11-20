@@ -15,7 +15,9 @@ import { core } from '../core.ts';
 
 const NAMES = ['jump', 'land', 'click', 'denied', 'place', 'remove', 'bounce', 'lava', 'checkpoint', 'coin', 'finish', 'respawn',
   // этап 7: барабан, катастрофы, голоса существ, итог
-  'spin', 'reelstop', 'boom', 'whoosh', 'thud', 'bubble', 'fire', 'freeze', 'zap', 'splash', 'cluck', 'meow', 'boing', 'hurt', 'cheer', 'fail', 'tada'] as const;
+  'spin', 'reelstop', 'boom', 'whoosh', 'thud', 'bubble', 'fire', 'freeze', 'zap', 'splash', 'cluck', 'meow', 'boing', 'hurt', 'cheer', 'fail', 'tada',
+  // новый хаос: пчёлы, лягушки, валуны (Freesound CC0, см. assets/sfx/SOURCES.md)
+  'buzz', 'croak', 'rumble'] as const;
 export type SfxName = typeof NAMES[number];
 // громкости подобраны по замеру LUFS (earshot): громкие записи (взрыв, курица, кот) приглушены, тихий лёд — нет
 const VOLUME: Partial<Record<SfxName, number>> = { land: 0.45, jump: 0.55, click: 0.6, finish: 0.8, coin: 0.5,

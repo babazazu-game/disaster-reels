@@ -14,12 +14,13 @@ import { COUNTS, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './words.ts';
  * Клавиатура: E или Enter.
  */
 
-/** Номер иконки в атласе assets/reel.webp (4 колонки × 5 рядов, рисовал Codex — art/reel/, режет tools/cut_reel_icons.py). */
+/** Номер иконки в атласе assets/reel.webp (4 колонки × 6 рядов, рисовал Codex — art/reel/, режет tools/cut_reel_icons.py). */
 const ICON: Record<AdjId | NounId, number> = {
   chicken: 0, cat: 1, shark: 2, banana: 3, meteor: 4, bomb: 5, snowman: 6, slime: 7, zombie: 14, dino: 15, ufo: 16, tornado: 17,
+  bee: 18, boulder: 19, frog: 20,   // 21 — туча с молнией (гроза), пока не на ленте
   fire: 8, ice: 9, giant: 10, bouncy: 11, fast: 12, plain: 13,
 };
-const iconPos = (id: AdjId | NounId) => `${(ICON[id] % 4) * 33.333}% ${Math.floor(ICON[id] / 4) * 25}%`;
+const iconPos = (id: AdjId | NounId) => `${(ICON[id] % 4) * 33.333}% ${Math.floor(ICON[id] / 4) * 20}%`;   // 6 рядов: шаг 100/(6−1)
 
 const AUTO_STOP = 5;          // через столько без нажатий лента встаёт сама
 const AUTO_GAP = 0.6;         // дальше автостоп идёт с таким шагом
@@ -300,7 +301,7 @@ function injectCss(): void {
 .reel.rolling .reel-track{filter:blur(.7px);will-change:transform}
 .reel-symbol{position:absolute;inset-inline:0;height:${PITCH}%;display:grid;
   grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center}
-.reel i{display:block;width:min(100%,calc(var(--w)*.16));aspect-ratio:1;background:url(./assets/reel.webp?v=${__BUILD__}) 0 0/400% 500% no-repeat}
+.reel i{display:block;width:min(100%,calc(var(--w)*.16));aspect-ratio:1;background:url(./assets/reel.webp?v=${__BUILD__}) 0 0/400% 600% no-repeat}
 /* Тень скрывает обрезку символов у краёв, а блик выгибает окно по центру. */
 .reel::after{content:'';position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(#4e286a65,transparent 34%,#ffffff24 49%,transparent 68%,#4e286a73);

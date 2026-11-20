@@ -24,3 +24,6 @@ ElevenLabs (сгенерированы для этой игры): place, remove,
 | cheer.mp3 | Group of children cheer together_Nightingale Music Productions_12947.mp3 | avajoliec | https://freesound.org/people/avajoliec/sounds/617526 |
 | fail.mp3 | wah wah sad trombone.wav | kirbydx | https://freesound.org/people/kirbydx/sounds/175409 |
 | tada.mp3 | Tada Fanfare F | plasterbrain | https://freesound.org/people/plasterbrain/sounds/397354 |
+| buzz.mp3 | 180526 Bee buzzing away, isolated event, TORONTO.flac (0,2–1,67 с) | TRP | https://freesound.org/people/TRP/sounds/570986 |
+| croak.mp3 | Frog croaking sound effect (0,66–1,11 с) | betterchinese | https://freesound.org/people/betterchinese/sounds/354132 |
+| rumble.mp3 | Stones Falling (1,96–3,76 с) | iwanPlays | https://freesound.org/people/iwanPlays/sounds/567251 |

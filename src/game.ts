@@ -599,7 +599,8 @@ export function createScene(parent: HTMLElement): Game {
   /** Голос волны: сначала звук прилагательного (огонь, лёд…), следом — самого существа. */
   const ADJ_SFX: Partial<Record<AdjId, SfxName>> = { fire: 'fire', ice: 'freeze', bouncy: 'boing', giant: 'thud', fast: 'whoosh' };
   const NOUN_SFX: Record<NounId, SfxName> = { chicken: 'cluck', cat: 'meow', shark: 'splash', banana: 'boing', meteor: 'whoosh', bomb: 'thud',
-    snowman: 'freeze', slime: 'splash', zombie: 'thud', dino: 'thud', ufo: 'zap', tornado: 'whoosh' };
+    snowman: 'freeze', slime: 'splash', zombie: 'thud', dino: 'thud', ufo: 'zap', tornado: 'whoosh',
+    bee: 'buzz', boulder: 'rumble', frog: 'croak' };
   const voice = (r: ReelResult) => {
     sfx.play('checkpoint', 0, 0.6);
     const a = ADJ_SFX[r.adj], n = NOUN_SFX[r.noun];

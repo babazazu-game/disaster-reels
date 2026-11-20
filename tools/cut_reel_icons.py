@@ -1,10 +1,11 @@
-"""Режет листы иконок от Codex в атлас барабана assets/reel.webp (4 колонки x 5 рядов, ячейка 128 px).
+"""Режет листы иконок от Codex в атлас барабана assets/reel.webp (4 колонки x 6 рядов, ячейка 128 px).
 Каждая иконка обрезается по альфе и ставится по центру ячейки.
   art/reel/sheet_raw.png  — 4x4: 8 существ + 6 свойств (ячейки 0..13)
   art/reel/sheet2_raw.png — 2x2: зомби, динозавр, НЛО, торнадо (ячейки 14..17)
-  art/reel/sheet3_raw.png — 2x2: варианты «гигантский»; взят кубик со стрелками (рука с мышцей была непонятна)"""
+  art/reel/sheet3_raw.png — 2x2: варианты «гигантский»; взят кубик со стрелками (рука с мышцей была непонятна)
+  art/reel/sheet4_raw.png — 2x2: пчела, валун, лягушка, гроза (ячейки 18..21)"""
 from PIL import Image
-COLS, ROWS, OUT, PAD = 4, 5, 128, 6
+COLS, ROWS, OUT, PAD = 4, 6, 128, 6
 atlas = Image.new('RGBA', (OUT * COLS, OUT * ROWS), (0, 0, 0, 0))
 
 def cut(path, n, count, first, only=None):
@@ -24,5 +25,6 @@ def cut(path, n, count, first, only=None):
 cut('art/reel/sheet_raw.png', 4, 14, 0)
 cut('art/reel/sheet2_raw.png', 2, 4, 14)
 cut('art/reel/sheet3_raw.png', 2, 4, 10, only=1)
+cut('art/reel/sheet4_raw.png', 2, 4, 18)
 atlas.save('assets/reel.webp', 'WEBP', quality=88, method=6)
 atlas.save('art/reel/atlas_preview.png')

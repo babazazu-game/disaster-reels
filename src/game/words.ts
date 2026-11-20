@@ -13,7 +13,7 @@ import { lang } from '../i18n.ts';
 export const COUNTS = [3, 5, 7, 10] as const;
 
 export type AdjId = 'fire' | 'ice' | 'giant' | 'bouncy' | 'fast' | 'plain';
-export type NounId = 'chicken' | 'cat' | 'shark' | 'banana' | 'meteor' | 'bomb' | 'snowman' | 'slime' | 'zombie' | 'dino' | 'ufo' | 'tornado';
+export type NounId = 'chicken' | 'cat' | 'shark' | 'banana' | 'meteor' | 'bomb' | 'snowman' | 'slime' | 'zombie' | 'dino' | 'ufo' | 'tornado' | 'bee' | 'boulder' | 'frog';
 
 interface Adj { ru: { m: string; f: string; pl: string; gpl: string }; en: string }
 interface Noun { ru: { g: 'm' | 'f'; one: string; few: string; many: string }; en: [string, string] }
@@ -42,6 +42,11 @@ export const NOUNS: Record<NounId, Noun> = {
   // НЛО и торнадо тоже не склоняются
   ufo: { ru: { g: 'm', one: 'НЛО', few: 'НЛО', many: 'НЛО' }, en: ['UFO', 'UFOs'] },
   tornado: { ru: { g: 'm', one: 'торнадо', few: 'торнадо', many: 'торнадо' }, en: ['tornado', 'tornadoes'] },
+  // новый хаос (заказчик: «залез на гору — сижу всю игру»): пчёлы летают на любую высоту, лягушки прыгают на башню,
+  // валуны катятся по прямой через арену
+  bee: { ru: { g: 'f', one: 'пчела', few: 'пчелы', many: 'пчёл' }, en: ['bee', 'bees'] },
+  boulder: { ru: { g: 'm', one: 'валун', few: 'валуна', many: 'валунов' }, en: ['boulder', 'boulders'] },
+  frog: { ru: { g: 'f', one: 'лягушка', few: 'лягушки', many: 'лягушек' }, en: ['frog', 'frogs'] },
 };
 
 export const ADJ_IDS = Object.keys(ADJS) as AdjId[];
