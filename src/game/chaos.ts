@@ -56,6 +56,24 @@ function flameTexture(): THREE.Texture {
   return t;
 }
 
+/** Молния: жёлтый зигзаг с белым ядром и свечением — признак свойства «быстрый». */
+export function boltTexture(): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 128;
+  const g = c.getContext('2d')!;
+  const pts: [number, number][] = [[38, 4], [22, 52], [36, 56], [18, 124], [46, 62], [31, 58], [48, 4]];
+  const zig = () => { g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.closePath(); };
+  g.shadowColor = 'rgba(255,220,40,1)'; g.shadowBlur = 14;
+  g.fillStyle = 'rgba(255,200,20,1)'; zig(); g.fill();
+  g.shadowBlur = 0;
+  g.save(); g.translate(33, 64); g.scale(0.55, 0.85); g.translate(-33, -64);
+  g.fillStyle = 'rgba(255,255,230,1)'; zig(); g.fill();
+  g.restore();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 /** Мягкое тёмное пятно — гарь под огнём. */
 function scorchTexture(): THREE.Texture {
   const c = document.createElement('canvas');
@@ -77,20 +95,22 @@ export class Flames {
   private n = 0;
   private t = 0;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, tex: THREE.Texture = flameTexture(), private max = MAX_FLAMES, additive = false) {
     const a = new THREE.PlaneGeometry(1, 1.5).translate(0, 0.75, 0);
     const b = a.clone().rotateY(Math.PI / 2);
     const geo = mergeGeometries([a, b])!;
     this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({
-      map: flameTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide,   // не аддитивно: на светлой траве аддитив выцветал в белое
-    }), MAX_FLAMES);
+      map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      // пламя не аддитивно: на светлой траве аддитив выцветал в белое; молнии — аддитивно, им так и надо
+      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    }), max);
     this.mesh.count = 0; this.mesh.frustumCulled = false; this.mesh.renderOrder = 2;
     scene.add(this.mesh);
   }
 
   /** Язык пламени в точке; size — высота ~1,5·size м; seed — фаза мерцания. */
   add(x: number, y: number, z: number, size: number, seed: number): void {
-    if (this.n >= MAX_FLAMES || size < 0.05) return;
+    if (this.n >= this.max || size < 0.05) return;
     const f = 1 + Math.sin(this.t * 13 + seed * 7.1) * 0.18 + Math.sin(this.t * 23 + seed * 3.3) * 0.1;
     dummy.position.set(x, y, z);
     dummy.rotation.set(Math.sin(this.t * 5 + seed) * 0.12, seed * 2.4, 0);

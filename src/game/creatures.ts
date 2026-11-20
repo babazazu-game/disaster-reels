@@ -21,7 +21,8 @@ const MAX = 20;
  * Сколько бегающих выходит на самом деле: «10 котов» — обещание на барабане, на арене их 6
  * (живут до конца раунда и копятся) (заказчик: при 10 выжить нереально, ребёнок потеряется). Падающие — до 30 за волну.
  */
-const runners = (n: number) => (n <= 3 ? n : n <= 5 ? 4 : n <= 7 ? 5 : 6);
+const runners = (n: number) => (n <= 3 ? n : n <= 7 ? 4 : 5);   // «10» → 5 бегающих (автотест: к финалу копилось до 19)
+const CHASE = 14;          // дальше этого бегающие бродят сами по себе
 const WARN = 1.3;           // сколько летит падающее (видна метка)
 const EVENT_TIME = 8;       // за столько секунд выходит вся волна
 /** Существа живут до конца раунда (или до лавы): хаос КОПИТСЯ — просьба заказчика. */
@@ -152,7 +153,7 @@ const TINT: Record<AdjId, THREE.Color> = {
 };
 
 /** Скорость бегающих, м/с (у игрока 8). */
-const SPEED: Partial<Record<NounId, number>> = { chicken: 4, cat: 4.6, shark: 3.8, slime: 3, snowman: 2.2, zombie: 2.4, dino: 5 };
+const SPEED: Partial<Record<NounId, number>> = { chicken: 4, cat: 3.8, shark: 3.8, slime: 3, snowman: 2.2, zombie: 2.4, dino: 5 };
 
 const dummy = new THREE.Object3D();
 let beams = 0;
@@ -167,7 +168,7 @@ export class Creatures {
   private waves: Wave[] = [];
   private v = new THREE.Vector3();
 
-  constructor(scene: THREE.Scene, private half: number, private surface: Surface, private fx: Particles, private flames: Flames, private h: CreatureHooks) {
+  constructor(scene: THREE.Scene, private half: number, private surface: Surface, private fx: Particles, private flames: Flames, private bolts: Flames, private h: CreatureHooks) {
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, flatShading: true });
     for (const k of Object.keys(MODELS) as NounId[]) {
       const m = new THREE.InstancedMesh(buildModel(MODELS[k]), mat, MAX);
@@ -287,7 +288,7 @@ export class Creatures {
       let x: number, z: number;
       if (p && Math.random() < aim) { const v = this.h.targetVel(); x = p.x + v.x * 0.7; z = p.z + v.z * 0.7; }
       else { x = (Math.random() * 2 - 1) * H; z = (Math.random() * 2 - 1) * H; }
-      this.aim(m, THREE.MathUtils.clamp(x, -H, H), THREE.MathUtils.clamp(z, -H, H), r.adj === 'fast' ? WARN * 0.6 : WARN);
+      this.aim(m, THREE.MathUtils.clamp(x, -H, H), THREE.MathUtils.clamp(z, -H, H), r.adj === 'fast' ? WARN * 0.8 : WARN);
     } else {
       // бегающее: с неба в 10–15 м от игрока, на свободном месте — чтобы его не надо было искать по острову
       const [x, z] = this.nearPlayer(r.noun === 'ufo' || r.noun === 'tornado' ? 14 : 10, H);
@@ -341,7 +342,7 @@ export class Creatures {
   }
 
   /** Радиус касания существа. */
-  private reach(m: Mob): number { return (m.kind === 'shark' || m.kind === 'dino' ? 0.75 : 0.45) * m.s + 0.25; }
+  private reach(m: Mob): number { return (m.kind === 'shark' ? 0.6 : m.kind === 'dino' ? 0.75 : 0.45) * m.s + 0.25; }
   /** Полуширина тела — чтобы не залезать в ящики. */
   private body(m: Mob): number { return (m.kind === 'shark' ? 0.55 : m.kind === 'dino' ? 0.6 : 0.45) * Math.min(m.s, 1.6); }
   /** Высота ступеньки: гиганты и динозавр перешагивают метровые уступы (а не застревают). */
@@ -395,7 +396,9 @@ export class Creatures {
   }
 
   private run(m: Mob, dt: number): void {
-    const p = this.h.target();
+    // гонятся только вблизи (CHASE): иначе к финалу вся накопленная орда шла за игроком через весь остров
+    const pt = this.h.target();
+    const p = pt && Math.hypot(pt.x - m.x, pt.z - m.z) < CHASE ? pt : null;
     let dx: number, dz: number;
     if (p) { dx = p.x - m.x; dz = p.z - m.z; }
     else { dx = Math.sin(m.seed + m.t * 0.3); dz = Math.cos(m.seed * 1.7 + m.t * 0.3); }
@@ -407,8 +410,8 @@ export class Creatures {
     m.steerT -= dt;
     const ux = dx / len, uz = dz / len;
     const wx = ux * Math.cos(turn) - uz * Math.sin(turn), wz = ux * Math.sin(turn) + uz * Math.cos(turn);
-    let sp = (SPEED[m.kind] ?? 4) * (m.adj === 'fast' ? 1.6 : 1) * (m.adj === 'giant' ? 0.75 : 1);
-    if (m.kind === 'slime' || m.kind === 'shark') sp *= m.y > m.ground + 0.05 ? 1.3 : 0.25;   // перемещаются прыжками
+    let sp = (SPEED[m.kind] ?? 4) * (m.adj === 'fast' ? 1.4 : 1) * (m.adj === 'giant' ? 0.75 : 1);
+    if (m.kind === 'slime' || m.kind === 'shark') sp *= m.y > m.ground + 0.05 ? 1.0 : 0.25;   // перемещаются прыжками
     const nx = m.x + wx * sp * dt, nz = m.z + wz * sp * dt;
     const grounded = m.y <= m.ground + 0.01, b = this.body(m), st = this.step(m);
     let moved = true;
@@ -416,16 +419,19 @@ export class Creatures {
     else if (this.free(nx, m.z, m.y, b, st)) m.x = nx;
     else if (this.free(m.x, nz, m.y, b, st)) m.z = nz;
     else moved = false;
+    // коты (и прыгучие) лезут наверх: игрок на ящике или холме рядом, а прямой путь упирается — прыжок к нему
+    const climber = (m.kind === 'cat' || m.adj === 'bouncy') && m.s < 2;   // гиганты не скачут на ящики
+    if (climber && grounded && p && p.y > m.y + 0.6 && len < 7 && !this.free(nx, nz, m.y, b, st)) m.vy = 12.5;
     if (!moved) {
-      if (grounded && (m.kind === 'cat' || m.adj === 'bouncy')) m.vy = 12.5;   // коты залезают на ящики
+      if (grounded && climber) m.vy = 12.5;
       // остальные обходят: в сторону, а если снова упёрлись — в другую
-      m.steer = m.steerT > 0 ? -m.steer : (m.seed % 2 < 1 ? 1.4 : -1.4);
-      m.steerT = 0.9;
+      m.steer = m.steerT > 0 ? -m.steer : (m.seed % 2 < 1 ? 1.6 : -1.6);
+      m.steerT = 1.2;
     }
     m.yaw = Math.atan2(wx, wz);
     // прыжки: прыгучие — всегда, слайм и акула — короткими скачками
     if (grounded) {
-      if (m.adj === 'bouncy') m.vy = 11;
+      if (m.adj === 'bouncy') m.vy = 10;
       else if (m.kind === 'slime') m.vy = 7;
       else if (m.kind === 'shark') m.vy = 5.5;
     }
@@ -513,6 +519,12 @@ export class Creatures {
         const top = m.kind === 'meteor' ? 0.6 : m.kind === 'ufo' ? 0.3 : m.kind === 'tornado' ? 3 : 0.7;
         this.flames.add(m.x, m.y + top * m.s, m.z, 0.75 * m.s, m.seed);
         if (m.s > 1.5 || m.kind === 'meteor') this.flames.add(m.x + 0.3 * m.s, m.y + top * 0.8 * m.s, m.z - 0.2 * m.s, 0.55 * m.s, m.seed + 1.7);
+      }
+      // быстрые искрят: молнии вспыхивают вокруг тела в случайных местах
+      if (m.adj === 'fast') for (let q = 0; q < 2; q++) {
+        if (Math.random() < 0.25) continue;
+        const a = Math.random() * 6.28, r = 0.55 * m.s;
+        this.bolts.add(m.x + Math.cos(a) * r, m.y + Math.random() * 0.5 * m.s, m.z + Math.sin(a) * r, (0.8 + Math.random() * 0.4) * m.s, Math.random() * 10);
       }
     }
 

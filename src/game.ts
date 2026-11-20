@@ -24,7 +24,7 @@ import { sfx } from './engine/sfx.ts';
 import { quality } from './engine/quality.ts';
 import { SKINS } from './game/skins.ts';
 import { Particles } from './engine/particles.ts';
-import { Surface, Hail, Lava, Flames, Cell, GROUND_Y } from './game/chaos.ts';
+import { Surface, Hail, Lava, Flames, boltTexture, Cell, GROUND_Y } from './game/chaos.ts';
 import { Reels, type ReelResult } from './game/reels.ts';
 import { Creatures } from './game/creatures.ts';
 import { agree, phrase, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './game/words.ts';
@@ -56,9 +56,9 @@ const REELS_AT = [0, 15, 30];       // по игровому времени
  * Раньше было «залез на ящик и стой» — заказчику скучно и легко.
  */
 const LAVA_STEPS: { at: number; top: number; sec: number; ru: string; en: string }[] = [
-  { at: 44, top: 0.45, sec: 4, ru: 'ЛАВА ПОДНИМАЕТСЯ!', en: 'LAVA IS RISING!' },
-  { at: 50, top: 1.5, sec: 3, ru: 'ЛАВА ВЫШЕ!', en: 'LAVA RISES HIGHER!' },
-  { at: 55, top: 2.5, sec: 3, ru: 'НА САМЫЙ ВЕРХ!', en: 'GET TO THE TOP!' },
+  { at: 44, top: 0.45, sec: 5, ru: 'ЛАВА ПОДНИМАЕТСЯ!', en: 'LAVA IS RISING!' },
+  { at: 50, top: 1.5, sec: 4, ru: 'ЛАВА ВЫШЕ!', en: 'LAVA RISES HIGHER!' },
+  { at: 55, top: 2.5, sec: 4, ru: 'НА САМЫЙ ВЕРХ!', en: 'GET TO THE TOP!' },
 ];
 const reelPlan = (i: number): Partial<ReelResult> =>
   // первый барабан — не больше пяти и без самых опасных (НЛО, торнадо, динозавр); дальше — любое из 3/5/7/10
@@ -150,6 +150,9 @@ export function createScene(parent: HTMLElement): Game {
   }
 
   mergeStatic(scene, statics);
+  // невидимые стенки по краю острова: ребёнок не падает в пропасть случайно (высота 40 м — heightAt их не видит)
+  for (const [x0, x1, z0, z1] of [[-HALF - 1, HALF + 1, HALF, HALF + 1], [-HALF - 1, HALF + 1, -HALF - 1, -HALF], [HALF, HALF + 1, -HALF, HALF], [-HALF - 1, -HALF, -HALF, HALF]])
+    physics.add({ box: new THREE.Box3(new THREE.Vector3(x0, -20, z0), new THREE.Vector3(x1, 40, z1)), kind: 'wall' });
 
   /** Верх самой высокой опоры в точке (куда падает метеор). */
   const heightAt = (x: number, z: number): number => {
@@ -186,6 +189,7 @@ export function createScene(parent: HTMLElement): Game {
   /* ───────────────────────────── ХАОС ────────────────────────────── */
   const fx = new Particles(scene);
   const flames = new Flames(scene);
+  const bolts = new Flames(scene, boltTexture(), 160, true);
   const surface = new Surface(scene, HALF, flames);
   const hail = new Hail(scene, HALF);
   const lava = new Lava(scene, HALF);
@@ -197,6 +201,7 @@ export function createScene(parent: HTMLElement): Game {
 
   let t = 0, introT = 0, started = false, state: 'play' | 'dead' | 'win' = 'play', reelNo = 0, lavaStep = 0, burnT = 0, sparkT = 0, slipT = 0;
   let deathCause = '';
+  const reelLog: string[] = [];   // итоги барабанов за раунд — для автопрогона
 
   const killDummy = (i: number) => {
     if (!alive[i]) return;
@@ -236,7 +241,7 @@ export function createScene(parent: HTMLElement): Game {
     return out;
   };
 
-  const creatures = new Creatures(scene, HALF, surface, fx, flames, {
+  const creatures = new Creatures(scene, HALF, surface, fx, flames, bolts, {
     heightAt,
     lavaLevel: () => lava.level,
     target: () => (state === 'play' ? ctl.pos : null),
@@ -267,8 +272,9 @@ export function createScene(parent: HTMLElement): Game {
   });
 
   const restart = () => {
+    reelLog.length = 0;
     t = 0; introT = INTRO; started = false; reelNo = 0; lavaStep = 0; burnT = 0; slipT = 0; state = 'play';
-    surface.reset(); creatures.reset(); lava.reset(); flames.clear(); hail.on = false;
+    surface.reset(); creatures.reset(); lava.reset(); flames.clear(); bolts.clear(); hail.on = false;
     reels.hide();
     dummies.forEach((d, i) => { alive[i] = true; d.root.rotation.x = 0; d.root.position.y = 0; d.root.visible = true; });
     player.root.visible = true;
@@ -286,6 +292,7 @@ export function createScene(parent: HTMLElement): Game {
     if (state !== 'play') return;
     started = true;   // время раунда пошло с первой волной
     ui.announce(phrase(r.n, r.adj, r.noun), ADJ_COLOR[r.adj]);
+    reelLog.push(phrase(r.n, r.adj, r.noun));
     sfx.play('checkpoint', 0);
     creatures.start(r);
   };
@@ -305,7 +312,9 @@ export function createScene(parent: HTMLElement): Game {
       lava.rise(st.sec, st.top);
       cam.shake(0.25);
       // метеоритный дождь до конца раунда: две волны, половина метит в игрока
-      if (lavaStep === 0 || lavaStep === 2) creatures.start({ n: 16, adj: 'fire', noun: 'meteor' }, 0.5);
+      // первая волна мягче (по автотесту финал убивал 44% дошедших)
+      if (lavaStep === 0) creatures.start({ n: 12, adj: 'fire', noun: 'meteor' }, 0.35);
+      if (lavaStep === 2) creatures.start({ n: 16, adj: 'fire', noun: 'meteor' }, 0.5);
       lavaStep++;
     }
     // ледяные существа приносят с собой град; град морозит землю понемногу
@@ -332,8 +341,9 @@ export function createScene(parent: HTMLElement): Game {
     ctl.grip = cell === Cell.Ice || slipT > 0 ? 0.08 : 1;
     burnT = cell === Cell.Fire ? burnT + dt : 0;
     if (burnT > BURN_DEATH) die(L('Сгорел', 'Burned'));
-    if (lava.level > ctl.pos.y + 0.1) die(L('Лава', 'Lava'));
+    // падение — первым: лава в покое стоит под островом (-2,5) и раньше подписывала падение «Лавой»
     if (ctl.pos.y < FALL_Y) die(L('Упал с острова', 'Fell off'));
+    else if (lava.level > -2 && lava.level > ctl.pos.y + 0.1) die(L('Лава', 'Lava'));
   };
 
   const fwd = new THREE.Vector3();
@@ -351,6 +361,7 @@ export function createScene(parent: HTMLElement): Game {
     surface.update(dt);
     creatures.update(dt);
     flames.commit(dt);
+    bolts.commit(dt);
     hail.update(dt);
     lava.update(dt);
     // искры над горящей травой: пара в кадр, не больше — пул частиц общий
@@ -374,7 +385,10 @@ export function createScene(parent: HTMLElement): Game {
   if (import.meta.env.DEV) {
     // Q — следующий уровень качества по кругу: сравнить low/med/high на одном кадре
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
-    Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels });
+    Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels,
+      // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
+      __heightAt: heightAt, __surface: surface,
+      __state: () => ({ t, state, started, deathCause, lava: lava.level, dummies: alive.filter(Boolean).length, reels: reelLog.slice() }) });
   }
 
   let paused = false;
