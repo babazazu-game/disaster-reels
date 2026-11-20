@@ -78,6 +78,26 @@ const ADJ_COLOR: Record<AdjId, string> = {
 };
 /** Стоя в огне дольше этого — сгорел. Короткое касание прощается. */
 const BURN_DEATH = 0.35;
+/**
+ * Реакции этапа 4 — надписи «Момента хаоса» (первый раз за раунд: замедление на долю секунды и крупно).
+ * Цвет — по смыслу: огонь оранжевый, вода/лёд голубой, ток жёлтый, слизь зелёная.
+ */
+const REACT: Record<string, [string, string, string]> = {
+  steam: ['ПАР! ЛЁД ТУШИТ ОГОНЬ', 'STEAM! ICE BEATS FIRE', '#e8f6ff'],
+  melt: ['ЛЁД ТАЕТ — ЛУЖА!', 'ICE MELTS — PUDDLE!', '#9be3ff'],
+  shock: ['ЭЛЕКТРОЛУЖА!', 'SHOCK PUDDLE!', '#fff36b'],
+  slimeFire: ['ГОРЯЩАЯ СЛИЗЬ!', 'BURNING SLIME!', '#ff8a2a'],
+  catchFire: ['ЗАГОРЕЛСЯ!', 'CAUGHT FIRE!', '#ff8a2a'],
+  douse: ['ПОТУХ!', 'FIRE OUT!', '#cfefff'],
+  snowMelt: ['СНЕГОВИК РАСТАЯЛ!', 'SNOWMAN MELTED!', '#9be3ff'],
+  fireTornado: ['ОГНЕННЫЙ СМЕРЧ!', 'FIRE TORNADO!', '#ff6a1a'],
+  iceTornado: ['ЛЕДЯНОЙ СМЕРЧ!', 'ICE TORNADO!', '#9be3ff'],
+  skate: ['КАТОК! ИХ ЗАНОСИТ', 'ICE RINK! THEY SLIDE', '#cfefff'],
+  blast: ['РАЗЛЕТЕЛИСЬ!', 'BLASTED AWAY!', '#ffd23a'],
+  stun: ['УДАРИЛО ТОКОМ!', 'ZAPPED!', '#fff36b'],
+};
+/** Замедление «Момента хаоса»: столько реальных секунд мир идёт со скоростью SLOW_K. Управление не отбирается. */
+const SLOW_T = 0.5, SLOW_K = 0.3;
 
 const C = {
   grass: 0x5cc44a, dirt: 0x9a6a3c, stone: 0xa3a9b3, stoneDark: 0x7d8490,
@@ -242,8 +262,8 @@ export function createScene(parent: HTMLElement): Game {
   /* ───────────────────────────── ХАОС ────────────────────────────── */
   const fx = new Particles(scene);
   const flames = new Flames(scene);
-  const bolts = new Flames(scene, boltTexture(), 160, true);
-  const surface = new Surface(scene, HALF, flames);
+  const bolts = new Flames(scene, boltTexture(), 300, true);
+  const surface = new Surface(scene, HALF, flames, bolts);
   const hail = new Hail(scene, HALF);
   const lava = new Lava(scene, HALF);
   const ui = new RoundUi(parent);
@@ -253,6 +273,8 @@ export function createScene(parent: HTMLElement): Game {
   const alive = dummies.map(() => true);
 
   let t = 0, introT = 0, started = false, state: 'play' | 'dead' | 'win' = 'play', reelNo = 0, lavaStep = 0, burnT = 0, sparkT = 0, slipT = 0;
+  let slowT = 0, shockT = 0;
+  const reacted = new Map<string, number>();   // сколько раз за раунд сработала каждая реакция — для автотеста
   let lavaWarned = false, deathCause = '', hearts = HEARTS, hurtT = 0, hits = 0;
   const reelLog: string[] = [];   // итоги барабанов за раунд — для автопрогона
 
@@ -297,6 +319,21 @@ export function createScene(parent: HTMLElement): Game {
     sfx.play('land', 0.05);
   };
 
+  /** «Момент хаоса»: реакция впервые за раунд — замедление, надпись, тряска. Дальше просто считаем. */
+  const moment = (id: string, x: number, z: number, label?: string) => {
+    const n = reacted.get(id) ?? 0;
+    reacted.set(id, n + 1);
+    if (n > 0 || state !== 'play') return;
+    const r = REACT[id];
+    if (!r) return;
+    slowT = SLOW_T;
+    ui.announce(label ?? L(r[0], r[1]), r[2]);
+    const d = Math.hypot(ctl.pos.x - x, ctl.pos.z - z);
+    cam.shake(d < 20 ? 0.25 : 0.1);
+    sfx.play('checkpoint', 0.15);
+  };
+  surface.onReact = (id, x, z) => moment(id, x, z);
+
   /** «Огненная курица» — причина гибели в согласованной форме. */
   const causeOf = (m: { kind: NounId; adj: AdjId }) => {
     const s = agree(1, m.adj, m.kind).join(' ');
@@ -340,11 +377,12 @@ export function createScene(parent: HTMLElement): Game {
       dummiesNear(x, y, z, r);
     },
     hitDummies: (x, y, z, r, infect) => (r > 0 ? dummiesNear(x, y, z, r, infect) : []),
+    react: (id, x, z, label) => moment(id, x, z, label),
     nudge: (vx, vy, vz) => { if (state === 'play') { ctl.vel.x += vx; ctl.vel.y = Math.min(ctl.vel.y + vy, 9); ctl.vel.z += vz; } },
   });
 
   const restart = () => {
-    reelLog.length = 0; hits = 0; lavaWarned = false;
+    reelLog.length = 0; hits = 0; lavaWarned = false; reacted.clear(); slowT = 0; shockT = 0;
     t = 0; introT = INTRO; started = false; reelNo = 0; lavaStep = 0; burnT = 0; slipT = 0; state = 'play';
     surface.reset(); creatures.reset(); lava.reset(); flames.clear(); bolts.clear(); hail.on = false;
     reels.hide();
@@ -356,7 +394,7 @@ export function createScene(parent: HTMLElement): Game {
     hearts = HEARTS; hurtT = 0; ui.setHearts(hearts, HEARTS);
     player.root.visible = true;
     ctl.respawn();
-    ctl.grip = 1;
+    ctl.grip = 1; ctl.speedMul = 1;
     ui.hideResult();
     ui.announce(L(`ВЫЖИВИ ${ROUND} СЕКУНД!`, `SURVIVE ${ROUND} SECONDS!`), '#fff');
     ui.setTime(ROUND);
@@ -420,6 +458,10 @@ export function createScene(parent: HTMLElement): Game {
     ctl.grip = cell === Cell.Ice || slipT > 0 ? 0.08 : 1;
     burnT = cell === Cell.Fire ? burnT + dt : 0;
     if (burnT > BURN_DEATH) { burnT = 0; hurt(L('Сгорел', 'Burned')); }
+    // этап 4: ток в луже бьёт как огонь, слизь держит ноги
+    shockT = cell === Cell.Shock ? shockT + dt : 0;
+    if (shockT > 0.15) { shockT = 0; hurt(L('Ударило током', 'Zapped')); }
+    ctl.speedMul = cell === Cell.Slime ? 0.45 : 1;
     // падение — первым: лава в покое стоит под островом (-2,5) и раньше подписывала падение «Лавой»
     if (ctl.pos.y < FALL_Y) die(L('Упал с острова', 'Fell off'));
     else if (lava.level > -2 && lava.level > ctl.pos.y + 0.1) die(L('Лава', 'Lava'));
@@ -433,6 +475,8 @@ export function createScene(parent: HTMLElement): Game {
     reels.update(dt);
     // барабан крутится — весь мир стоит (просьба заказчика): можно спокойно выбрать момент
     if (reels.spinning) { ui.update(dt); cam.update(dt, ctl.pos); return; }
+    const realDt = dt;
+    if (slowT > 0) { slowT -= realDt; dt *= SLOW_K; }
     if (state === 'play' || state === 'win') ctl.update(dt, input.state.move, input.state.jump, cam.forward(fwd));
     else cam.yaw += dt * 0.15;   // погиб — камера медленно облетает хаос, кнопка уже доступна
     runScript(dt);
@@ -459,8 +503,8 @@ export function createScene(parent: HTMLElement): Game {
       } else if (lava.level > d.root.position.y - 0.3) d.root.visible = false;   // утонул в лаве
     });
     fx.update(dt);
-    ui.update(dt);
-    cam.update(dt, ctl.pos);
+    ui.update(realDt);
+    cam.update(realDt, ctl.pos);
   };
 
   if (import.meta.env.DEV) {
@@ -469,7 +513,7 @@ export function createScene(parent: HTMLElement): Game {
     Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
       __heightAt: heightAt, __surface: surface, __hill: () => hill,
-      __state: () => ({ t, state, started, deathCause, hearts, hits, lava: lava.level, dummies: alive.filter(Boolean).length, reels: reelLog.slice() }) });
+      __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: alive.filter(Boolean).length, reels: reelLog.slice() }) });
   }
 
   let paused = false;

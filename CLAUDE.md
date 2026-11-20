@@ -107,6 +107,9 @@
 - `bash tools/deploy.sh` — сборка и выкладка на GitHub Pages: https://babazazu-game.github.io/disaster-reels/
 - Картинки и критик — Codex CLI (`tools/codex_image.cjs`, критик — gpt-6.2-sol, low; картинки ставит gpt-5.6-sol). Критик — только
   для текста/планов, визуал судит заказчик.
+- Codex пишет часть кода: `node tools/codex_code.cjs tools/codex_tasks/<задание>.md [модель] [усилие]` (песочница workspace-write,
+  задание — один-два файла, которые больше никто не трогает, без git). Его код всегда проверяем сами: tsc, автотест, глазами.
+- Автотест: `node tools/playtest.cjs [раундов] [--shots] [--worst]` при запущенном dev-сервере.
 - Витрины `tools/store_shots.js` + `store_export.py`, ролики `tools/film.js` + `film_make.py`.
 
 ## Правила

@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AdjId, NounId } from './words.ts';
 import type { ReelResult } from './reels.ts';
-import type { Surface, Flames } from './chaos.ts';
+import { Cell, type Surface, type Flames } from './chaos.ts';
+import { agree } from './words.ts';
 import type { Particles } from '../engine/particles.ts';
 
 /**
@@ -45,6 +46,10 @@ interface Mob {
   t: number; warn: number; tx: number; tz: number; ground: number; from: number;
   bounces: number; tick: number; seed: number; life: number;
   steer: number; steerT: number; hold: number;
+  /** Скорость скольжения по льду и отброс взрывом (этап 4, реакции). */
+  vx: number; vz: number; kx: number; kz: number;
+  /** Оглушён током: стоит и трясётся. */
+  stun: number;
 }
 
 interface Wave { r: ReelResult; left: number; gap: number; next: number; s: number; t: number; aim: number }
@@ -64,6 +69,8 @@ export interface CreatureHooks {
   hitDummies(x: number, y: number, z: number, r: number, infect: boolean): [number, number][];
   /** Добавить игроку скорость: тянет торнадо, поднимает луч НЛО. */
   nudge(vx: number, vy: number, vz: number): void;
+  /** Сработала реакция (этап 4): игра показывает «Момент хаоса» при первом за раунд. label — своя надпись. */
+  react(id: string, x: number, z: number, label?: string): void;
 }
 
 /* ───────── модели: части-коробки и шары с цветом, ~1 м в высоту, «нос» вдоль +Z ───────── */
@@ -239,8 +246,13 @@ export class Creatures {
       m.tick = 0.3;
       const c = this.surface.at(m.x, m.z), a = Math.random() * 6.28, R = 2.5 * m.s;
       const x = m.x + Math.cos(a) * R, z = m.z + Math.sin(a) * R;
-      if (c === 1) this.surface.ignite(x, z, 5);
-      else if (c === 2) this.surface.freezeAt(x, z);
+      if (c === Cell.Fire) this.surface.ignite(x, z, 5);
+      else if (c === Cell.Ice) this.surface.freezeAt(x, z);
+      else if (c === Cell.Wet) this.surface.wetAt(x, z);
+      else if (c === Cell.Slime) this.surface.slimeAt(x, z);
+      // этап 4: смерч втягивает то, по чему идёт, и сам становится огненным/ледяным
+      if (c === Cell.Fire && m.adj !== 'fire') { m.adj = 'fire'; this.h.react('fireTornado', m.x, m.z); }
+      else if (c === Cell.Ice && m.adj !== 'ice') { m.adj = 'ice'; this.h.react('iceTornado', m.x, m.z); }
       this.effect(m, m.x, m.z, false);
       this.fx.emit('dust', this.v.set(m.x, 0.4, m.z), 0.5 * m.s);
     }
@@ -282,7 +294,7 @@ export class Creatures {
     if (this.alive(r.noun) >= MAX) return;
     const m = this.mobs.find((q) => !q.live) ?? (this.mobs.push({} as Mob), this.mobs[this.mobs.length - 1]);
     const H = this.half - 1.5;
-    Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 0, bounces: 0, tick: 0, seed: Math.random() * 100, life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0 });
+    Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 0, bounces: 0, tick: 0, seed: Math.random() * 100, life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0, vx: 0, vz: 0, kx: 0, kz: 0, stun: 0 });
     if (FALLING.includes(r.noun)) {
       // падающее: метка на земле, часть целится туда, куда бежит игрок; одиночные — всегда к игроку, иначе их не увидеть
       const p = this.h.target();
@@ -316,7 +328,7 @@ export class Creatures {
     if (this.alive(r.noun) >= MAX) return;
     const m = this.mobs.find((q) => !q.live) ?? (this.mobs.push({} as Mob), this.mobs[this.mobs.length - 1]);
     Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 4, bounces: 0, tick: 0, seed: Math.random() * 100,
-      life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0, phase: 'run' as Phase, x, z, y: 0, ground: this.h.heightAt(x, z) });
+      life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0, vx: 0, vz: 0, kx: 0, kz: 0, stun: 0, phase: 'run' as Phase, x, z, y: 0, ground: this.h.heightAt(x, z) });
     this.fx.emit('poof', this.v.set(x, 1, z), 0.8, [0x7bd36a, 0x3f8f3a]);
   }
 
@@ -354,6 +366,12 @@ export class Creatures {
   private step(m: Mob): number { return m.kind === 'dino' || m.s > 2 ? 1.1 : 0.45; }
 
   private effect(m: Mob, x: number, z: number, cross: boolean): void {
+    // этап 4: акулы оставляют лужи, слаймы — слизь; «быстрый» (с молниями) пускает ток по луже
+    if (m.adj === 'fast' && this.surface.at(x, z) === Cell.Wet) this.surface.shockAt(x, z);
+    if (m.adj !== 'fire' && m.adj !== 'ice') {
+      if (m.kind === 'shark') { this.surface.wetAt(x, z); return; }
+      if (m.kind === 'slime') { this.surface.slimeAt(x, z); return; }
+    }
     if (m.adj !== 'fire' && m.adj !== 'ice' && m.kind !== 'meteor' && m.kind !== 'snowman') return;
     const ice = m.adj === 'ice' || (m.kind === 'snowman' && m.adj !== 'fire');
     const pts = cross ? [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]] : [[0, 0]];
@@ -367,7 +385,7 @@ export class Creatures {
     const near = this.reach(m) + 0.6 * m.s;
     switch (m.kind) {
       case 'meteor':
-        this.h.boom(m.x, m.ground, m.z, 2.1 * m.s, m);
+        this.explode(m.x, m.ground, m.z, 2.1 * m.s, m);
         if (m.ground < 0.5) this.effect(m, m.x, m.z, true);
         if (m.adj === 'bouncy' && m.bounces < 2) {   // прыгучий метеорит отскакивает и бьёт ещё раз
           m.bounces++;
@@ -377,7 +395,7 @@ export class Creatures {
         } else m.live = false;
         return;
       case 'bomb':
-        this.h.boom(m.x, m.ground, m.z, near, { kind: 'bomb', adj: 'plain' });
+        this.explode(m.x, m.ground, m.z, near, { kind: 'bomb', adj: 'plain' });
         Object.assign(m, { phase: 'fuse' as Phase, t: 0, y: m.ground, warn: m.adj === 'fast' ? 0.8 : 1.6 });
         return;
       case 'banana':
@@ -386,7 +404,7 @@ export class Creatures {
         this.effect(m, m.x, m.z, false);
         return;
       default:   // снеговик: накрыл — гибель, потом медленно ползёт и морозит
-        this.h.boom(m.x, m.ground, m.z, near, m);
+        this.explode(m.x, m.ground, m.z, near, m);
         this.effect(m, m.x, m.z, true);
         Object.assign(m, { phase: 'run' as Phase, t: 0, y: m.ground, life: FOREVER });
     }
@@ -401,6 +419,8 @@ export class Creatures {
   }
 
   private run(m: Mob, dt: number): void {
+    // оглушён током — стоит, трясётся (можно заманить в электролужу)
+    if (m.stun > 0) { m.stun -= dt; m.yaw += Math.sin(m.t * 60) * 0.15; return; }
     // гонятся только вблизи (CHASE): иначе к финалу вся накопленная орда шла за игроком через весь остров
     const pt = this.h.target();
     const p = pt && Math.hypot(pt.x - m.x, pt.z - m.z) < CHASE ? pt : null;
@@ -418,13 +438,19 @@ export class Creatures {
     const wx = ux * Math.cos(turn) - uz * Math.sin(turn), wz = ux * Math.sin(turn) + uz * Math.cos(turn);
     let sp = (SPEED[m.kind] ?? 4) * (m.adj === 'fast' ? 1.4 : 1) * (m.adj === 'giant' ? 0.75 : 1);
     if (m.kind === 'slime' || m.kind === 'shark') sp *= m.y > m.ground + 0.05 ? 1.0 : 0.25;   // перемещаются прыжками
-    const nx = m.x + wx * sp * dt, nz = m.z + wz * sp * dt;
+    const cell = m.y < 0.5 ? this.surface.at(m.x, m.z) : Cell.None;
+    if (cell === Cell.Slime && m.kind !== 'slime') sp *= 0.45;   // вязнут в слизи
+    // на льду — каток: скорость меняется медленно, существо заносит и проносит мимо
+    const k = cell === Cell.Ice && m.kind !== 'snowman' ? Math.min(1, dt * 1.1) : 1;
+    if (k < 1 && Math.hypot(m.vx, m.vz) > 2.5) this.h.react('skate', m.x, m.z);
+    m.vx += (wx * sp * (k < 1 ? 1.3 : 1) - m.vx) * k; m.vz += (wz * sp * (k < 1 ? 1.3 : 1) - m.vz) * k;
+    const nx = m.x + m.vx * dt, nz = m.z + m.vz * dt;
     const grounded = m.y <= m.ground + 0.01, b = this.body(m), st = this.step(m);
     let moved = true;
     if (this.free(nx, nz, m.y, b, st)) { m.x = nx; m.z = nz; }
     else if (this.free(nx, m.z, m.y, b, st)) m.x = nx;
     else if (this.free(m.x, nz, m.y, b, st)) m.z = nz;
-    else moved = false;
+    else { moved = false; m.vx = m.vz = 0; }
     // коты (и прыгучие) лезут наверх: игрок на ящике или холме рядом, а прямой путь упирается — прыжок к нему
     const climber = (m.kind === 'cat' || m.adj === 'bouncy') && m.s < 2;   // гиганты не скачут на ящики
     if (climber && grounded && p && p.y > m.y + 0.6 && len < 7 && !this.free(nx, nz, m.y, b, st)) m.vy = 12.5;
@@ -472,7 +498,7 @@ export class Creatures {
     for (const m of this.mobs) {
       if (!m.live) continue;
       m.t += dt;
-      let tumble = 0, squash = 1, blink = false, warn = -1;
+      let tumble = 0, squash = 1, blink = m.stun > 0 && Math.sin(m.t * 50) > 0, warn = -1;
 
       if (m.phase === 'fall') {
         const k = Math.min(1, m.t / m.warn);
@@ -491,7 +517,7 @@ export class Creatures {
         this.setRing(rings++, m.x, m.ground, m.z, 3.2 * m.s);
         if (m.t >= m.warn) {
           m.live = false;
-          this.h.boom(m.x, m.y, m.z, 3.2 * m.s, m);
+          this.explode(m.x, m.y, m.z, 3.2 * m.s, m);
           if (m.y < 0.5) this.effect(m, m.x, m.z, true);
           continue;
         }
@@ -520,6 +546,13 @@ export class Creatures {
         m.tick -= dt;
         if (m.tick <= 0 && m.y < 0.5) { m.tick = TRAIL; this.effect(m, m.x, m.z, false); if (m.adj === 'fire') this.fx.emit('lava', this.v.set(m.x, m.y + 0.6 * m.s, m.z), 0.3); }
         if (m.y < lava - 0.2) { m.live = false; this.fx.emit('lava', this.v.set(m.x, lava + 0.3, m.z), 0.8); continue; }
+        // отброс взрывом: летит, пока не затухнет
+        if (Math.abs(m.kx) + Math.abs(m.kz) > 0.1) {
+          const qx = m.x + m.kx * dt, qz = m.z + m.kz * dt, b = this.body(m);
+          if (this.free(qx, qz, m.y, b, 1.2)) { m.x = qx; m.z = qz; } else { m.kx = m.kz = 0; }
+          const f = Math.exp(-(m.y > m.ground + 0.05 ? 0.8 : 5) * dt); m.kx *= f; m.kz *= f;
+        }
+        if (this.cellReact(m)) continue;
         this.touch(m);
       }
 
@@ -541,7 +574,7 @@ export class Creatures {
         if (m.s > 1.5 || m.kind === 'meteor') this.flames.add(m.x + 0.3 * m.s, m.y + top * 0.8 * m.s, m.z - 0.2 * m.s, 0.55 * m.s, m.seed + 1.7);
       }
       // быстрые искрят: молнии вспыхивают вокруг тела в случайных местах
-      if (m.adj === 'fast') for (let q = 0; q < 2; q++) {
+      if (m.adj === 'fast' || m.stun > 0) for (let q = 0; q < 2; q++) {
         if (Math.random() < 0.25) continue;
         const a = Math.random() * 6.28, r = 0.55 * m.s;
         this.bolts.add(m.x + Math.cos(a) * r, m.y + Math.random() * 0.5 * m.s, m.z + Math.sin(a) * r, (0.8 + Math.random() * 0.4) * m.s, Math.random() * 10);
@@ -569,6 +602,53 @@ export class Creatures {
     dummy.scale.setScalar(r);
     dummy.updateMatrix();
     this.ring.setMatrixAt(i, dummy.matrix);
+  }
+
+  /** Взрыв: урон (игра) + разлёт существ вокруг. */
+  private explode(x: number, y: number, z: number, r: number, m: { kind: NounId; adj: AdjId }): void {
+    this.h.boom(x, y, z, r, m);
+    let n = 0;
+    for (const q of this.mobs) {
+      if (!q.live || (q.phase !== 'run' && q.phase !== 'lie')) continue;
+      const dx = q.x - x, dz = q.z - z, d = Math.hypot(dx, dz), R = r * 2.2;
+      if (d > R || d < 0.3 || Math.abs(q.y - y) > 3) continue;
+      const f = (1 - d / R) * 12 / Math.max(1, q.s * 0.7);
+      q.kx += (dx / d) * f; q.kz += (dz / d) * f; q.vy = Math.max(q.vy, 5 + f * 0.6); q.stun = 0;
+      n++;
+    }
+    if (n >= 2) this.h.react('blast', x, z);
+  }
+
+  /** Реакции существа с клеткой под ним. true — существо исчезло. */
+  private cellReact(m: Mob): boolean {
+    if (m.y > 0.5 || m.y > m.ground + 0.3 || m.kind === 'meteor') return false;
+    const c = this.surface.at(m.x, m.z);
+    if (c === Cell.Fire) {
+      // снеговик в огне тает: исчезает и оставляет лужу
+      if (m.kind === 'snowman' && m.adj !== 'fire') {
+        m.live = false;
+        for (const [dx, dz] of [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]]) this.surface.wetAt(m.x + dx * m.s * 0.7, m.z + dz * m.s * 0.7);
+        this.fx.emit('poof', this.v.set(m.x, m.y + 1, m.z), 1.2 * m.s, [0xffffff, 0xcfefff]);
+        this.h.react('snowMelt', m.x, m.z);
+        return true;
+      }
+      // обычные, прыгучие и гигантские загораются — теперь жгут землю и ранят (и банан тоже)
+      if (m.adj === 'plain' || m.adj === 'bouncy' || m.adj === 'giant') {
+        m.adj = 'fire';
+        this.fx.emit('lava', this.v.set(m.x, m.y + 0.8 * m.s, m.z), 0.6 * m.s);
+        const w = agree(1, 'fire', m.kind).join(' ').toUpperCase();
+        this.h.react('catchFire', m.x, m.z, w + '!');
+      }
+    } else if ((c === Cell.Wet || c === Cell.Ice) && m.adj === 'fire') {
+      // огненный в луже или на льду гаснет
+      m.adj = 'plain';
+      this.fx.emit('poof', this.v.set(m.x, m.y + 0.8 * m.s, m.z), 0.9 * m.s, [0xffffff, 0xd8e4ee]);
+      this.h.react('douse', m.x, m.z);
+    } else if (c === Cell.Shock && m.adj !== 'fast' && m.stun <= 0 && m.phase === 'run') {
+      m.stun = 1.6;
+      this.h.react('stun', m.x, m.z);
+    }
+    return false;
   }
 
   /** Лежащий банан, который ранит (остальные только подскальзывают). */

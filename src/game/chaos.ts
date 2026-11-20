@@ -8,16 +8,23 @@ import { lavaTexture, iceTexture } from '../engine/textures.ts';
  * ледяной дождь тушит огонь и делает каток; лава заливает низину. История хаоса
  * растёт, а число живых объектов и вызовов отрисовки — нет.
  *
- * Бюджет: огонь и лёд — по одному InstancedMesh (2 вызова на всю арену),
- * град — 1, лава — 1. Существа барабана — в creatures.ts (1 вызов на вид).
+ * Бюджет: пять состояний поверхности — по одному InstancedMesh (до 5 вызовов на арену).
+ * Языки пламени и молнии — в общих буферах с эффектами существ. Град — 1, лава — 1.
+ * Существа барабана — в creatures.ts (1 вызов на вид).
  */
 
-export const enum Cell { None = 0, Fire = 1, Ice = 2 }
+export const enum Cell { None = 0, Fire = 1, Ice = 2, Wet = 3, Shock = 4, Slime = 5 }
+export type ReactionId = 'steam' | 'melt' | 'shock' | 'slimeFire';
 
 /** Шаг сетки, м. Совпадает с размером ящика — клетка читается глазом. */
 const STEP = 2;
 /** Сколько горит клетка, с. */
 const BURN = 7;
+const WET = 12;
+const SHOCK = 1.6;
+const SLIME = 10;
+const MAX_SHOCK_CELLS = 80;
+const MAX_SHOCK_BOLTS = 40;
 /** Состояния действуют только у земли: на ящике и холме огонь и лёд не страшны. */
 export const GROUND_Y = 0.3;
 
@@ -130,32 +137,84 @@ export class Flames {
   clear(): void { this.n = 0; this.mesh.count = 0; }
 }
 
+function puddleTexture(electric: boolean): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, electric ? 'rgba(255,252,183,.97)' : 'rgba(153,226,255,.8)');
+  r.addColorStop(0.78, electric ? 'rgba(83,223,255,.92)' : 'rgba(43,156,221,.75)');
+  r.addColorStop(1, electric ? 'rgba(70,195,255,0)' : 'rgba(43,156,221,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = electric ? 'rgba(255,255,222,.85)' : 'rgba(222,247,255,.55)';
+  g.lineWidth = 2;
+  for (const radius of [16, 29, 43]) {
+    g.beginPath(); g.ellipse(61, 62, radius, radius * 0.8, -0.3, 0, Math.PI * 2); g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function slimeTexture(): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const r = g.createRadialGradient(48, 43, 4, 64, 64, 64);
+  r.addColorStop(0, 'rgba(205,255,98,.98)');
+  r.addColorStop(0.78, 'rgba(77,208,23,.94)');
+  r.addColorStop(1, 'rgba(40,151,10,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  for (const [x, y, radius] of [[43, 44, 13], [80, 54, 9], [63, 84, 12], [91, 83, 6], [36, 74, 7]]) {
+    const bubble = g.createRadialGradient(x - radius * 0.35, y - radius * 0.4, 0, x, y, radius);
+    bubble.addColorStop(0, 'rgba(249,255,210,.98)');
+    bubble.addColorStop(0.4, 'rgba(162,255,69,.75)');
+    bubble.addColorStop(1, 'rgba(33,125,7,.82)');
+    g.fillStyle = bubble;
+    g.beginPath(); g.arc(x, y, radius, 0, Math.PI * 2); g.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export class Surface {
   readonly n: number;
   private state: Uint8Array;
-  private timer: Float32Array;
-  private fire: THREE.InstancedMesh;
-  private ice: THREE.InstancedMesh;
+  private timer: Float64Array;
+  private meshes: THREE.InstancedMesh[];
+  private shocked: number[] = [];
   private dirty = true;
   /** Клетки, которые сейчас горят — для искр (без перебора всей сетки). */
   readonly burning: number[] = [];
+  onReact: ((id: ReactionId, x: number, z: number) => void) | null = null;
 
-  constructor(scene: THREE.Scene, private half: number, private flames: Flames) {
+  constructor(scene: THREE.Scene, private half: number, private flames: Flames, private bolts: Flames) {
     this.n = Math.round((half * 2) / STEP);
     const total = this.n * this.n;
     this.state = new Uint8Array(total);
-    this.timer = new Float32Array(total);
+    this.timer = new Float64Array(total);
     const tile = new THREE.PlaneGeometry(STEP * 0.98, STEP * 0.98).rotateX(-Math.PI / 2);
     // под огнём — обугленное пятно с мягким краем; сам огонь — языки пламени (Flames)
     // пятно крупнее клетки — соседние сливаются; polygonOffset — иначе вдали пятно рвётся о траву (z-fighting)
     const scorch = new THREE.PlaneGeometry(STEP * 1.35, STEP * 1.35).rotateX(-Math.PI / 2);
-    this.fire = new THREE.InstancedMesh(scorch, new THREE.MeshBasicMaterial({ map: scorchTexture(), color: 0x2a160c, transparent: true, opacity: 0.7,
+    const fire = new THREE.InstancedMesh(scorch, new THREE.MeshBasicMaterial({ map: scorchTexture(), color: 0x2a160c, transparent: true, opacity: 0.7,
       depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }), total);
     const it = iceTexture();
-    this.ice = new THREE.InstancedMesh(tile, new THREE.MeshStandardMaterial({ map: it, color: 0xd8f3ff, roughness: 0.08, transparent: true, opacity: 0.92,
+    const ice = new THREE.InstancedMesh(tile, new THREE.MeshStandardMaterial({ map: it, color: 0xd8f3ff, roughness: 0.08, transparent: true, opacity: 0.92,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), total);
-    this.fire.position.y = 0.06; this.ice.position.y = 0.04;
-    for (const m of [this.fire, this.ice]) { m.count = 0; m.frustumCulled = false; m.receiveShadow = true; scene.add(m); }
+    const puddle = new THREE.PlaneGeometry(STEP * 1.15, STEP * 1.15).rotateX(-Math.PI / 2);
+    const layer = (map: THREE.Texture, y: number, emissive = 0) => {
+      // Края соседних луж перекрываются, поэтому прозрачность не должна писать глубину.
+      const mesh = new THREE.InstancedMesh(puddle, new THREE.MeshStandardMaterial({ map, roughness: 0.05, emissive,
+        transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), total);
+      mesh.position.y = y;
+      return mesh;
+    };
+    fire.position.y = 0.06; ice.position.y = 0.04;
+    // Порядок совпадает с Cell, начиная с Fire: None не рисуется.
+    this.meshes = [fire, ice, layer(puddleTexture(false), 0.035), layer(puddleTexture(true), 0.05, 0x173034), layer(slimeTexture(), 0.045)];
+    for (const m of this.meshes) { m.count = 0; m.frustumCulled = false; m.receiveShadow = true; scene.add(m); }
   }
 
   private idx(x: number, z: number): number {
@@ -168,32 +227,108 @@ export class Surface {
 
   at(x: number, z: number): Cell { const k = this.idx(x, z); return k < 0 ? Cell.None : this.state[k] as Cell; }
 
-  /** Поджечь клетку. Лёд огонь НЕ берёт — сначала он должен растаять (этап 4). */
-  ignite(x: number, z: number, time = BURN): void {
-    const k = this.idx(x, z);
-    if (k < 0 || this.state[k] === Cell.Ice) return;
-    if (this.state[k] !== Cell.Fire) this.dirty = true;
-    this.state[k] = Cell.Fire; this.timer[k] = Math.max(this.timer[k], time);
+  private setCell(k: number, state: Cell, time: number): void {
+    if (this.state[k] !== state) this.dirty = true;
+    this.state[k] = state; this.timer[k] = time;
   }
 
-  /** Заморозить клетку. Вернёт true, если при этом потушен огонь (пар — первая «реакция»). */
+  private react(id: ReactionId, k: number): void {
+    if (!this.onReact) return;
+    const center = this.center(k, dummy.position);
+    this.onReact(id, center.x, center.z);
+  }
+
+  /** Огонь тратится на таяние льда и испарение воды, а слизь продлевает горение. */
+  ignite(x: number, z: number, time = BURN): void {
+    const k = this.idx(x, z);
+    if (k < 0) return;
+    switch (this.state[k]) {
+      case Cell.Ice: this.setCell(k, Cell.Wet, WET); this.react('melt', k); break;
+      case Cell.Wet: this.setCell(k, Cell.Wet, WET); this.react('steam', k); break;
+      case Cell.Slime: this.setCell(k, Cell.Fire, time * 2); this.react('slimeFire', k); break;
+      case Cell.Shock: break;
+      default: this.setCell(k, Cell.Fire, Math.max(this.timer[k], time));
+    }
+  }
+
+  /** При тушении огня остаётся лужа, поэтому вызывающий получает true для эффекта пара. */
   freeze(k: number): boolean {
-    const wasFire = this.state[k] === Cell.Fire;
-    this.state[k] = Cell.Ice; this.dirty = true;
-    return wasFire;
+    if (this.state[k] === Cell.Fire) {
+      this.setCell(k, Cell.Wet, WET); this.react('steam', k);
+      return true;
+    }
+    this.setCell(k, Cell.Ice, 0);
+    return false;
   }
 
   /** Заморозить клетку под точкой (x, z). */
   freezeAt(x: number, z: number): boolean { const k = this.idx(x, z); return k >= 0 && this.freeze(k); }
 
-  reset(): void { this.state.fill(Cell.None); this.timer.fill(0); this.dirty = true; }
+  wetAt(x: number, z: number): void {
+    const k = this.idx(x, z);
+    if (k < 0) return;
+    const state = this.state[k];
+    if (state === Cell.Ice) return;
+    if (state === Cell.Shock) { this.setCell(k, Cell.Shock, SHOCK); return; }
+    this.setCell(k, Cell.Wet, WET);
+    if (state === Cell.Fire) this.react('steam', k);
+  }
+
+  shockAt(x: number, z: number): number {
+    const start = this.idx(x, z);
+    if (this.state[start] !== Cell.Wet && this.state[start] !== Cell.Shock) return 0;
+    const cells: number[] = [];
+    const visited = new Set<number>();
+    let changed = false;
+    const enqueue = (k: number) => {
+      const state = this.state[k];
+      if (cells.length >= MAX_SHOCK_CELLS || visited.has(k) || (state !== Cell.Wet && state !== Cell.Shock)) return;
+      cells.push(k); visited.add(k);
+      if (state === Cell.Wet) changed = true;
+      this.setCell(k, Cell.Shock, SHOCK);
+    };
+    enqueue(start);
+    for (let i = 0; i < cells.length && cells.length < MAX_SHOCK_CELLS; i++) {
+      const k = cells[i], col = k % this.n;
+      // Проверяем столбец, чтобы ток не перескакивал с края строки на другой край.
+      if (col > 0) enqueue(k - 1);
+      if (col + 1 < this.n) enqueue(k + 1);
+      enqueue(k - this.n); enqueue(k + this.n);
+    }
+    if (changed) this.react('shock', start);
+    return cells.length;
+  }
+
+  slimeAt(x: number, z: number): void {
+    const k = this.idx(x, z);
+    const state = this.state[k];
+    if (state === Cell.None || state === Cell.Wet || state === Cell.Slime) this.setCell(k, Cell.Slime, SLIME);
+  }
+
+  counts(): { fire: number; ice: number; wet: number; shock: number; slime: number } {
+    const counts = [0, 0, 0, 0, 0, 0];
+    for (const state of this.state) counts[state]++;
+    return { fire: counts[Cell.Fire], ice: counts[Cell.Ice], wet: counts[Cell.Wet], shock: counts[Cell.Shock], slime: counts[Cell.Slime] };
+  }
+
+  reset(): void {
+    this.state.fill(Cell.None); this.timer.fill(0);
+    this.burning.length = 0; this.shocked.length = 0;
+    for (const m of this.meshes) m.count = 0;
+    this.dirty = false;
+  }
 
   update(dt: number): void {
     for (let k = 0; k < this.state.length; k++) {
-      if (this.state[k] !== Cell.Fire) continue;
+      const state = this.state[k];
+      if (state === Cell.None || state === Cell.Ice) continue;
       this.timer[k] -= dt;
-      if (this.timer[k] <= 0) { this.state[k] = Cell.None; this.dirty = true; }
+      if (this.timer[k] <= 0) {
+        if (state === Cell.Shock) this.setCell(k, Cell.Wet, WET);
+        else this.setCell(k, Cell.None, 0);
+      }
     }
+    if (this.dirty) this.rebuild();
     // языки пламени над горящими клетками: по два на клетку, гаснут к концу горения
     for (const k of this.burning) {
       const cx = (k % this.n) * STEP - this.half + STEP / 2, cz = Math.floor(k / this.n) * STEP - this.half + STEP / 2;
@@ -201,11 +336,23 @@ export class Surface {
       this.flames.add(cx - 0.45 + ((k * 37) % 7) / 10, 0.07, cz - 0.3 + ((k * 13) % 5) / 10, 1.15 * fade, k);
       this.flames.add(cx + 0.4 - ((k * 11) % 6) / 10, 0.07, cz + 0.35 - ((k * 29) % 7) / 10, 0.85 * fade, k + 0.5);
     }
-    if (!this.dirty) return;
+    let bolts = Math.min(MAX_SHOCK_BOLTS, this.shocked.length);
+    for (let i = 0; i < this.shocked.length && bolts > 0; i++) {
+      // Выборка без повторов: у каждой оставшейся клетки одинаковый шанс попасть в кадр.
+      const remaining = this.shocked.length - i;
+      if (bolts < remaining && Math.random() * remaining >= bolts) continue;
+      const { x, z } = this.center(this.shocked[i], dummy.position);
+      this.bolts.add(x + (Math.random() - 0.5) * STEP, 0.2 + Math.random() * 0.4,
+        z + (Math.random() - 0.5) * STEP, 0.9 + Math.random() * 0.5, Math.random() * 10);
+      bolts--;
+    }
+  }
+
+  private rebuild(): void {
     this.dirty = false;
     // пересобираем списки экземпляров только при изменении — раз в несколько кадров, не каждый
-    let f = 0, c = 0;
-    this.burning.length = 0;
+    for (const m of this.meshes) m.count = 0;
+    this.burning.length = 0; this.shocked.length = 0;
     for (let k = 0; k < this.state.length; k++) {
       const s = this.state[k];
       if (s === Cell.None) continue;
@@ -213,10 +360,12 @@ export class Surface {
       // dummy общий с градом: без сброса плитки льда наследовали наклон градин (заказчик: «лёд под наклоном»)
       dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(1);
       dummy.updateMatrix();
-      if (s === Cell.Fire) { this.fire.setMatrixAt(f++, dummy.matrix); this.burning.push(k); } else this.ice.setMatrixAt(c++, dummy.matrix);
+      const mesh = this.meshes[s - Cell.Fire];
+      mesh.setMatrixAt(mesh.count++, dummy.matrix);
+      if (s === Cell.Fire) this.burning.push(k);
+      if (s === Cell.Shock) this.shocked.push(k);
     }
-    this.fire.count = f; this.ice.count = c;
-    this.fire.instanceMatrix.needsUpdate = true; this.ice.instanceMatrix.needsUpdate = true;
+    for (const m of this.meshes) if (m.count) m.instanceMatrix.needsUpdate = true;
   }
 }
 

@@ -2,37 +2,78 @@
   "summary": {
     "rounds": 36,
     "survive": {
-      "smart": "0%",
+      "smart": "8%",
       "idle": "0%"
     },
     "avgDeathSec": {
-      "smart": 48.8,
-      "idle": 12.8
+      "smart": 44.5,
+      "idle": 15.6
     },
     "causes": {
-      "Огненный метеорит": 8,
-      "Лава": 8,
-      "Обычный снеговик": 1,
-      "Гигантская акула": 2,
-      "Быстрый динозавр": 1,
-      "Прыгучая курица": 2,
+      "Быстрый слайм": 3,
+      "Быстрая курица": 1,
       "Огненный кот": 1,
-      "Огненный слайм": 1,
-      "Быстрый снеговик": 1,
-      "Ледяная акула": 2,
-      "Обычная акула": 1,
-      "Ледяной зомби": 1,
-      "Ледяной торнадо": 1,
-      "Огненный зомби": 1,
-      "Прыгучий зомби": 1,
+      "Огненный метеорит": 7,
+      "Прыгучая курица": 2,
+      "Лава": 4,
+      "Гигантский слайм": 1,
+      "Гигантский НЛО": 2,
+      "Гигантская акула": 1,
+      "Быстрая акула": 1,
+      "Прыгучий слайм": 1,
+      "Огненная курица": 2,
+      "Обычный НЛО": 1,
+      "Упал с острова": 1,
+      "Огненный банан": 1,
       "Ледяной динозавр": 1,
-      "Гигантский торнадо": 1,
-      "Гигантский НЛО": 1,
-      "Сгорел": 1
+      "Огненная акула": 1,
+      "Гигантский банан": 1,
+      "Быстрый торнадо": 1,
+      "Гигантская курица": 1
     },
-    "avgHits": 2.6,
-    "stuckTotal": 9,
-    "maxMobs": 22,
+    "avgHits": 2.7,
+    "reactions": {
+      "slimeFire": 5,
+      "catchFire": 5,
+      "skate": 56181,
+      "melt": 174,
+      "steam": 19,
+      "blast": 11,
+      "snowMelt": 5,
+      "shock": 7,
+      "fireTornado": 1,
+      "douse": 4
+    },
+    "roundsWithReaction": 19,
+    "worst": {
+      "simAvgMs": 0.398,
+      "simMaxMs": 15,
+      "maxDrawCalls": 40,
+      "maxTriangles": 91360,
+      "mobs": 28,
+      "reacted": {
+        "skate": 13063,
+        "shock": 20,
+        "blast": 9,
+        "melt": 23,
+        "stun": 26,
+        "douse": 5,
+        "steam": 18,
+        "fireTornado": 1,
+        "snowMelt": 1,
+        "iceTornado": 2,
+        "slimeFire": 2
+      },
+      "cells": {
+        "fire": 0,
+        "ice": 459,
+        "wet": 11,
+        "shock": 0,
+        "slime": 0
+      }
+    },
+    "stuckTotal": 12,
+    "maxMobs": 19,
     "simMsPerTick": 0.1,
     "errors": []
   },
@@ -41,121 +82,31 @@
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 58,
-      "cause": "Огненный метеорит",
+      "tDeath": 36.8,
+      "cause": "Быстрый слайм",
       "reels": [
-        "3 ГИГАНТСКИХ СЛАЙМА!",
-        "5 ОГНЕННЫХ КУРИЦ!",
-        "7 ОБЫЧНЫХ БАНАНОВ!"
+        "5 ПРЫГУЧИХ КУРИЦ!",
+        "10 БЫСТРЫХ СЛАЙМОВ!",
+        "7 ОГНЕННЫХ КУРИЦ!"
       ],
-      "maxMobs": 14,
+      "maxMobs": 13,
       "stuck": 0,
       "kinds": {
-        "meteor": 2
+        "chicken": 8,
+        "slime": 5
       },
-      "tickMs": 0.046,
-      "ticks": 3947,
+      "tickMs": 0.059,
+      "ticks": 2784,
       "stopPresses": 9,
       "errors": [],
-      "pos": [
-        18.6,
-        3,
-        -20.9
-      ],
-      "hill": [
-        [
-          9,
-          -16
-        ],
-        [
-          14,
-          -18
-        ],
-        [
-          18,
-          -21
-        ]
-      ],
-      "lava": 2.25,
-      "wallMs": 206
-    },
-    {
-      "hits": 1,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 57.7,
-      "cause": "Лава",
-      "reels": [
-        "5 ОБЫЧНЫХ БОМБ!",
-        "3 ОБЫЧНЫЕ КУРИЦЫ!",
-        "10 ОГНЕННЫХ ДИНОЗАВРОВ!"
-      ],
-      "maxMobs": 9,
-      "stuck": 1,
-      "kinds": {
-        "meteor": 2,
-        "dino": 1
+      "reacted": {
+        "slimeFire": 5,
+        "catchFire": 1
       },
-      "tickMs": 0.05,
-      "ticks": 3954,
-      "stopPresses": 9,
-      "errors": [],
-      "stuckAt": [
-        [
-          "chicken",
-          "plain",
-          21,
-          0,
-          17,
-          1,
-          "steer",
-          0
-        ]
-      ],
       "pos": [
-        15.1,
-        2,
-        -19.6
-      ],
-      "hill": [
-        [
-          9,
-          -16
-        ],
-        [
-          14,
-          -18
-        ],
-        [
-          18,
-          -21
-        ]
-      ],
-      "lava": 2.17,
-      "wallMs": 227
-    },
-    {
-      "hits": 3,
-      "bot": "idle",
-      "survived": false,
-      "tDeath": 4.5,
-      "cause": "Обычный снеговик",
-      "reels": [
-        "3 ОБЫЧНЫХ СНЕГОВИКА!"
-      ],
-      "maxMobs": 3,
-      "stuck": 0,
-      "kinds": {
-        "snowman": 3
-      },
-      "tickMs": 0.03,
-      "ticks": 476,
-      "stopPresses": 3,
-      "errors": [],
-      "pos": [
-        -0.2,
+        -24,
         0,
-        5.2
+        -22.8
       ],
       "hill": [
         [
@@ -172,97 +123,258 @@
         ]
       ],
       "lava": -2.5,
-      "wallMs": 15
+      "wallMs": 200
     },
     {
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 59.1,
+      "tDeath": 30.1,
+      "cause": "Быстрая курица",
+      "reels": [
+        "5 БЫСТРЫХ КУРИЦ!",
+        "10 ГИГАНТСКИХ БАНАНОВ!",
+        "7 ОГНЕННЫХ БАНАНОВ!"
+      ],
+      "maxMobs": 9,
+      "stuck": 0,
+      "kinds": {
+        "chicken": 4,
+        "banana": 5
+      },
+      "tickMs": 0.044,
+      "ticks": 2273,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        24,
+        0,
+        2.6
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 130
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 24.4,
+      "cause": "Огненный кот",
+      "reels": [
+        "5 БЫСТРЫХ БАНАНОВ!",
+        "3 ОГНЕННЫХ КОТА!"
+      ],
+      "maxMobs": 8,
+      "stuck": 0,
+      "kinds": {
+        "banana": 5,
+        "cat": 3
+      },
+      "tickMs": 0.056,
+      "ticks": 1808,
+      "stopPresses": 6,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        0.3,
+        0,
+        5.2
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 116
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 50.6,
       "cause": "Огненный метеорит",
       "reels": [
-        "3 ОБЫЧНЫХ БАНАНА!",
-        "5 БЫСТРЫХ ДИНОЗАВРОВ!",
-        "3 ОБЫЧНЫХ ЗОМБИ!"
+        "5 ГИГАНТСКИХ БОМБ!",
+        "3 ЛЕДЯНЫЕ АКУЛЫ!",
+        "10 ОБЫЧНЫХ СЛАЙМОВ!"
+      ],
+      "maxMobs": 10,
+      "stuck": 0,
+      "kinds": {
+        "meteor": 1
+      },
+      "tickMs": 0.087,
+      "ticks": 3560,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {
+        "skate": 5733,
+        "melt": 11
+      },
+      "pos": [
+        -18.7,
+        3,
+        -22
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": 0.61,
+      "wallMs": 350
+    },
+    {
+      "hits": 2,
+      "bot": "smart",
+      "survived": true,
+      "tDeath": null,
+      "cause": "",
+      "reels": [
+        "5 ОБЫЧНЫХ АКУЛ!",
+        "7 ЛЕДЯНЫХ СЛАЙМОВ!",
+        "3 ЛЕДЯНЫХ ТОРНАДО!"
       ],
       "maxMobs": 12,
       "stuck": 0,
       "kinds": {
-        "meteor": 2
+        "meteor": 2,
+        "tornado": 2
       },
-      "tickMs": 0.034,
-      "ticks": 3999,
+      "tickMs": 0.094,
+      "ticks": 4132,
       "stopPresses": 9,
       "errors": [],
+      "reacted": {
+        "skate": 4716,
+        "melt": 28,
+        "steam": 4
+      },
       "pos": [
-        -22.3,
+        -18.5,
         3,
-        18.1
+        -20.6
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": 2.5,
+      "wallMs": 466
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 8.1,
+      "cause": "Прыгучая курица",
+      "reels": [
+        "3 ПРЫГУЧИЕ КУРИЦЫ!"
+      ],
+      "maxMobs": 3,
+      "stuck": 0,
+      "kinds": {
+        "chicken": 3
+      },
+      "tickMs": 0.049,
+      "ticks": 719,
+      "stopPresses": 3,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        0,
+        0,
+        6
       ],
       "hill": [
         [
           -16,
-          9
+          -9
         ],
         [
           -18,
-          14
+          -14
         ],
         [
           -21,
-          18
+          -18
         ]
       ],
-      "lava": 2.5,
-      "wallMs": 151
+      "lava": -2.5,
+      "wallMs": 53
     },
     {
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 58,
+      "tDeath": 52,
       "cause": "Огненный метеорит",
       "reels": [
-        "3 БЫСТРЫЕ КУРИЦЫ!",
-        "10 ЛЕДЯНЫХ КУРИЦ!",
-        "5 ОГНЕННЫХ КУРИЦ!"
+        "5 ЛЕДЯНЫХ КУРИЦ!",
+        "10 ОБЫЧНЫХ ЗОМБИ!",
+        "10 ГИГАНТСКИХ БАНАНОВ!"
       ],
-      "maxMobs": 14,
-      "stuck": 4,
+      "maxMobs": 15,
+      "stuck": 5,
       "kinds": {
-        "meteor": 2
+        "meteor": 1,
+        "banana": 2
       },
-      "tickMs": 0.088,
-      "ticks": 3958,
+      "tickMs": 0.117,
+      "ticks": 3688,
       "stopPresses": 9,
       "errors": [],
       "stuckAt": [
         [
-          "chicken",
-          "ice",
-          -11.9,
+          "zombie",
+          "plain",
+          16.2,
           0,
-          7.5,
-          1,
-          "-",
-          0
-        ],
-        [
-          "chicken",
-          "ice",
-          -11.3,
-          0,
-          7.5,
-          1,
-          "-",
-          0
-        ],
-        [
-          "chicken",
-          "ice",
           -5.5,
-          0,
-          18.1,
           1,
           "-",
           0
@@ -270,17 +382,102 @@
         [
           "chicken",
           "ice",
-          -9.8,
+          15.4,
           0,
-          7.5,
+          -21.3,
+          1,
+          "-",
+          0
+        ],
+        [
+          "zombie",
+          "plain",
+          16.5,
+          0,
+          -20.5,
+          1,
+          "-",
+          0
+        ],
+        [
+          "zombie",
+          "plain",
+          15.3,
+          0,
+          -20.5,
+          1,
+          "-",
+          0
+        ],
+        [
+          "chicken",
+          "ice",
+          18.7,
+          0,
+          -21,
           1,
           "-",
           0
         ]
       ],
+      "reacted": {
+        "skate": 14935,
+        "blast": 2,
+        "melt": 17,
+        "catchFire": 2
+      },
       "pos": [
-        -17.6,
+        20.5,
         3,
+        -18.9
+      ],
+      "hill": [
+        [
+          16,
+          -9
+        ],
+        [
+          18,
+          -14
+        ],
+        [
+          21,
+          -18
+        ]
+      ],
+      "lava": 0.97,
+      "wallMs": 546
+    },
+    {
+      "hits": 1,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 49,
+      "cause": "Лава",
+      "reels": [
+        "3 ПРЫГУЧИХ КОТА!",
+        "7 БЫСТРЫХ БАНАНОВ!",
+        "7 ЛЕДЯНЫХ СЛАЙМОВ!"
+      ],
+      "maxMobs": 16,
+      "stuck": 0,
+      "kinds": {
+        "cat": 1,
+        "meteor": 2,
+        "slime": 3
+      },
+      "tickMs": 0.077,
+      "ticks": 3483,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {
+        "skate": 1481,
+        "melt": 13,
+        "steam": 1
+      },
+      "pos": [
+        -23.2,
+        0.2,
         19.8
       ],
       "hill": [
@@ -297,76 +494,162 @@
           21
         ]
       ],
-      "lava": 2.25,
-      "wallMs": 366
+      "lava": 0.45,
+      "wallMs": 369
     },
     {
       "hits": 3,
       "bot": "idle",
       "survived": false,
-      "tDeath": 22.7,
+      "tDeath": 9.7,
+      "cause": "Гигантский слайм",
+      "reels": [
+        "3 ГИГАНТСКИХ СЛАЙМА!"
+      ],
+      "maxMobs": 1,
+      "stuck": 0,
+      "kinds": {
+        "slime": 1
+      },
+      "tickMs": 0.036,
+      "ticks": 811,
+      "stopPresses": 3,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        -0.6,
+        0,
+        5
+      ],
+      "hill": [
+        [
+          9,
+          16
+        ],
+        [
+          14,
+          18
+        ],
+        [
+          18,
+          21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 45
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 40.7,
+      "cause": "Гигантский НЛО",
+      "reels": [
+        "5 ГИГАНТСКИХ СЛАЙМОВ!",
+        "10 ГИГАНТСКИХ НЛО!",
+        "3 ОБЫЧНЫЕ АКУЛЫ!"
+      ],
+      "maxMobs": 6,
+      "stuck": 0,
+      "kinds": {
+        "slime": 2,
+        "ufo": 1,
+        "shark": 3
+      },
+      "tickMs": 0.046,
+      "ticks": 2907,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        24,
+        3.6,
+        24
+      ],
+      "hill": [
+        [
+          -16,
+          -9
+        ],
+        [
+          -18,
+          -14
+        ],
+        [
+          -21,
+          -18
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 174
+    },
+    {
+      "hits": 0,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 55.7,
+      "cause": "Лава",
+      "reels": [
+        "3 ОГНЕННЫЕ БОМБЫ!",
+        "5 БЫСТРЫХ НЛО!",
+        "7 ОГНЕННЫХ КУРИЦ!"
+      ],
+      "maxMobs": 9,
+      "stuck": 0,
+      "kinds": {
+        "ufo": 3,
+        "meteor": 2
+      },
+      "tickMs": 0.066,
+      "ticks": 3852,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        12,
+        1.5,
+        -23.5
+      ],
+      "hill": [
+        [
+          9,
+          -16
+        ],
+        [
+          14,
+          -18
+        ],
+        [
+          18,
+          -21
+        ]
+      ],
+      "lava": 1.67,
+      "wallMs": 305
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 7.7,
       "cause": "Гигантская акула",
       "reels": [
-        "5 ГИГАНТСКИХ МЕТЕОРИТОВ!",
-        "7 ГИГАНТСКИХ АКУЛ!"
+        "3 ГИГАНТСКИЕ АКУЛЫ!"
       ],
-      "maxMobs": 2,
+      "maxMobs": 1,
       "stuck": 0,
       "kinds": {
-        "shark": 2
+        "shark": 1
       },
-      "tickMs": 0.019,
-      "ticks": 1755,
-      "stopPresses": 6,
+      "tickMs": 0.049,
+      "ticks": 663,
+      "stopPresses": 3,
       "errors": [],
+      "reacted": {},
       "pos": [
-        -0.1,
+        0.4,
         0,
-        5.1
-      ],
-      "hill": [
-        [
-          9,
-          16
-        ],
-        [
-          14,
-          18
-        ],
-        [
-          18,
-          21
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 35
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 47.2,
-      "cause": "Быстрый динозавр",
-      "reels": [
-        "5 БЫСТРЫХ БОМБ!",
-        "5 БЫСТРЫХ ДИНОЗАВРОВ!",
-        "5 ОБЫЧНЫХ КУРИЦ!"
-      ],
-      "maxMobs": 10,
-      "stuck": 0,
-      "kinds": {
-        "dino": 4,
-        "chicken": 4,
-        "meteor": 2
-      },
-      "tickMs": 0.033,
-      "ticks": 3265,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        -22.1,
-        3,
-        -18.3
+        4.7
       ],
       "hill": [
         [
@@ -382,476 +665,168 @@
           -18
         ]
       ],
-      "lava": -0.61,
-      "wallMs": 117
-    },
-    {
-      "hits": 2,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 54.6,
-      "cause": "Лава",
-      "reels": [
-        "3 ОБЫЧНЫХ БАНАНА!",
-        "7 ПРЫГУЧИХ СЛАЙМОВ!",
-        "5 ОБЫЧНЫХ ТОРНАДО!"
-      ],
-      "maxMobs": 11,
-      "stuck": 0,
-      "kinds": {
-        "slime": 1,
-        "tornado": 2
-      },
-      "tickMs": 0.059,
-      "ticks": 3756,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        15.8,
-        1.4,
-        -24
-      ],
-      "hill": [
-        [
-          9,
-          -16
-        ],
-        [
-          14,
-          -18
-        ],
-        [
-          18,
-          -21
-        ]
-      ],
-      "lava": 1.5,
-      "wallMs": 249
+      "lava": -2.5,
+      "wallMs": 41
     },
     {
       "hits": 3,
-      "bot": "idle",
+      "bot": "smart",
       "survived": false,
-      "tDeath": 6.7,
+      "tDeath": 36.4,
       "cause": "Прыгучая курица",
       "reels": [
-        "3 ПРЫГУЧИЕ КУРИЦЫ!"
+        "3 ПРЫГУЧИЕ КУРИЦЫ!",
+        "3 БЫСТРЫЕ БОМБЫ!",
+        "10 ЛЕДЯНЫХ КОТОВ!"
       ],
-      "maxMobs": 3,
+      "maxMobs": 8,
       "stuck": 0,
       "kinds": {
-        "chicken": 3
+        "chicken": 3,
+        "cat": 5
       },
-      "tickMs": 0.021,
-      "ticks": 639,
-      "stopPresses": 3,
+      "tickMs": 0.074,
+      "ticks": 2683,
+      "stopPresses": 9,
       "errors": [],
+      "reacted": {
+        "skate": 582
+      },
       "pos": [
-        -0.1,
+        -23.8,
         0,
-        5.7
-      ],
-      "hill": [
-        [
-          -9,
-          16
-        ],
-        [
-          -14,
-          18
-        ],
-        [
-          -18,
-          21
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 15
-    },
-    {
-      "hits": 2,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 58.2,
-      "cause": "Лава",
-      "reels": [
-        "5 БЫСТРЫХ ЗОМБИ!",
-        "7 ПРЫГУЧИХ БАНАНОВ!",
-        "7 ПРЫГУЧИХ ТОРНАДО!"
-      ],
-      "maxMobs": 17,
-      "stuck": 1,
-      "kinds": {
-        "meteor": 2,
-        "banana": 1,
-        "tornado": 2
-      },
-      "tickMs": 0.071,
-      "ticks": 3999,
-      "stopPresses": 9,
-      "errors": [],
-      "stuckAt": [
-        [
-          "zombie",
-          "fast",
-          5.5,
-          0,
-          13.5,
-          1,
-          "-",
-          0
-        ]
-      ],
-      "pos": [
-        19.2,
-        2.1,
-        -24.3
-      ],
-      "hill": [
-        [
-          9,
-          -16
-        ],
-        [
-          14,
-          -18
-        ],
-        [
-          18,
-          -21
-        ]
-      ],
-      "lava": 2.29,
-      "wallMs": 307
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 52.6,
-      "cause": "Огненный метеорит",
-      "reels": [
-        "5 ПРЫГУЧИХ СЛАЙМОВ!",
-        "10 ГИГАНТСКИХ МЕТЕОРИТОВ!",
-        "3 ГИГАНТСКИХ НЛО!"
-      ],
-      "maxMobs": 7,
-      "stuck": 0,
-      "kinds": {
-        "ufo": 1
-      },
-      "tickMs": 0.029,
-      "ticks": 3659,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        22.3,
-        3,
-        17.6
+        -24.5
       ],
       "hill": [
         [
           16,
-          9
-        ],
-        [
-          18,
-          14
-        ],
-        [
-          21,
-          18
-        ]
-      ],
-      "lava": 1.14,
-      "wallMs": 113
-    },
-    {
-      "hits": 3,
-      "bot": "idle",
-      "survived": false,
-      "tDeath": 7,
-      "cause": "Огненный кот",
-      "reels": [
-        "3 ОГНЕННЫХ КОТА!"
-      ],
-      "maxMobs": 3,
-      "stuck": 0,
-      "kinds": {
-        "cat": 3
-      },
-      "tickMs": 0.075,
-      "ticks": 609,
-      "stopPresses": 3,
-      "errors": [],
-      "pos": [
-        -0.1,
-        0,
-        5.1
-      ],
-      "hill": [
-        [
-          16,
-          9
-        ],
-        [
-          18,
-          14
-        ],
-        [
-          21,
-          18
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 48
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 25.1,
-      "cause": "Огненный слайм",
-      "reels": [
-        "3 ГИГАНТСКИХ СЛАЙМА!",
-        "7 ОГНЕННЫХ СЛАЙМОВ!"
-      ],
-      "maxMobs": 5,
-      "stuck": 0,
-      "kinds": {
-        "slime": 5
-      },
-      "tickMs": 0.059,
-      "ticks": 1866,
-      "stopPresses": 6,
-      "errors": [],
-      "pos": [
-        17.1,
-        1.7,
-        20.4
-      ],
-      "hill": [
-        [
-          -16,
-          9
-        ],
-        [
-          -18,
-          14
-        ],
-        [
-          -21,
-          18
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 123
-    },
-    {
-      "hits": 1,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 49.5,
-      "cause": "Лава",
-      "reels": [
-        "3 ГИГАНТСКИЕ АКУЛЫ!",
-        "7 ГИГАНТСКИХ ТОРНАДО!",
-        "10 БЫСТРЫХ СНЕГОВИКОВ!"
-      ],
-      "maxMobs": 14,
-      "stuck": 0,
-      "kinds": {
-        "shark": 1,
-        "tornado": 1,
-        "meteor": 2
-      },
-      "tickMs": 0.065,
-      "ticks": 3453,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        -17.2,
-        0.3,
-        -21.5
-      ],
-      "hill": [
-        [
-          -16,
           -9
         ],
         [
-          -18,
+          18,
           -14
         ],
         [
-          -21,
+          21,
           -18
-        ]
-      ],
-      "lava": 0.45,
-      "wallMs": 249
-    },
-    {
-      "hits": 3,
-      "bot": "idle",
-      "survived": false,
-      "tDeath": 4.3,
-      "cause": "Быстрый снеговик",
-      "reels": [
-        "3 БЫСТРЫХ СНЕГОВИКА!"
-      ],
-      "maxMobs": 3,
-      "stuck": 0,
-      "kinds": {
-        "snowman": 3
-      },
-      "tickMs": 0.054,
-      "ticks": 489,
-      "stopPresses": 3,
-      "errors": [],
-      "pos": [
-        0,
-        0,
-        3.9
-      ],
-      "hill": [
-        [
-          -9,
-          -16
-        ],
-        [
-          -14,
-          -18
-        ],
-        [
-          -18,
-          -21
         ]
       ],
       "lava": -2.5,
-      "wallMs": 29
+      "wallMs": 238
     },
     {
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 46.6,
-      "cause": "Огненный метеорит",
+      "tDeath": 36.5,
+      "cause": "Быстрая акула",
       "reels": [
-        "3 ПРЫГУЧИХ СНЕГОВИКА!",
-        "3 ЛЕДЯНЫХ СЛАЙМА!",
-        "5 ЛЕДЯНЫХ ЗОМБИ!"
+        "3 ОБЫЧНЫХ СНЕГОВИКА!",
+        "3 БЫСТРЫХ МЕТЕОРИТА!",
+        "3 БЫСТРЫЕ АКУЛЫ!"
       ],
-      "maxMobs": 12,
-      "stuck": 1,
+      "maxMobs": 5,
+      "stuck": 4,
       "kinds": {
-        "snowman": 3,
-        "slime": 3,
-        "zombie": 4,
-        "meteor": 1
+        "snowman": 2,
+        "shark": 3
       },
-      "tickMs": 0.094,
-      "ticks": 3311,
+      "tickMs": 0.116,
+      "ticks": 2696,
       "stopPresses": 9,
       "errors": [],
       "stuckAt": [
         [
           "snowman",
-          "bouncy",
-          14.1,
-          1.6,
-          -2.7,
+          "plain",
+          -3.3,
+          0,
+          23.3,
+          1,
+          "-",
+          0
+        ],
+        [
+          "snowman",
+          "plain",
+          -3.3,
+          0,
+          22.1,
+          1,
+          "-",
+          0
+        ],
+        [
+          "snowman",
+          "plain",
+          -3.3,
+          0,
+          24.6,
+          1,
+          "-",
+          0
+        ],
+        [
+          "snowman",
+          "plain",
+          -3.3,
+          0,
+          22.2,
           1,
           "-",
           0
         ]
       ],
+      "reacted": {
+        "steam": 2,
+        "snowMelt": 1,
+        "shock": 4
+      },
       "pos": [
-        19.3,
-        3,
-        -19.9
+        -11.2,
+        0,
+        24
       ],
       "hill": [
         [
-          9,
-          -16
-        ],
-        [
-          14,
-          -18
+          16,
+          9
         ],
         [
           18,
-          -21
-        ]
-      ],
-      "lava": -0.96,
-      "wallMs": 336
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 59.7,
-      "cause": "Огненный метеорит",
-      "reels": [
-        "3 ОБЫЧНЫХ СЛАЙМА!",
-        "7 ОБЫЧНЫХ КУРИЦ!",
-        "5 ОГНЕННЫХ ДИНОЗАВРОВ!"
-      ],
-      "maxMobs": 13,
-      "stuck": 0,
-      "kinds": {
-        "meteor": 2
-      },
-      "tickMs": 0.091,
-      "ticks": 4090,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        -19.9,
-        3,
-        -17.5
-      ],
-      "hill": [
-        [
-          -16,
-          -9
+          14
         ],
         [
-          -18,
-          -14
-        ],
-        [
-          -21,
-          -18
+          21,
+          18
         ]
       ],
-      "lava": 2.5,
-      "wallMs": 404
+      "lava": -2.5,
+      "wallMs": 402
     },
     {
       "hits": 3,
       "bot": "idle",
       "survived": false,
-      "tDeath": 6.9,
-      "cause": "Ледяная акула",
+      "tDeath": 9.6,
+      "cause": "Прыгучий слайм",
       "reels": [
-        "5 ЛЕДЯНЫХ АКУЛ!"
+        "5 ПРЫГУЧИХ СЛАЙМОВ!"
       ],
       "maxMobs": 4,
       "stuck": 0,
       "kinds": {
-        "shark": 4
+        "slime": 4
       },
-      "tickMs": 0.072,
-      "ticks": 610,
+      "tickMs": 0.045,
+      "ticks": 801,
       "stopPresses": 3,
       "errors": [],
+      "reacted": {},
       "pos": [
-        0.7,
         0,
-        5.5
+        0,
+        6
       ],
       "hill": [
         [
@@ -874,197 +849,78 @@
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 33.3,
-      "cause": "Гигантская акула",
+      "tDeath": 58.6,
+      "cause": "Огненный метеорит",
       "reels": [
-        "3 ЛЕДЯНЫХ СНЕГОВИКА!",
-        "7 ПРЫГУЧИХ ЗОМБИ!",
-        "5 ГИГАНТСКИХ АКУЛ!"
+        "3 ЛЕДЯНЫХ ЗОМБИ!",
+        "7 ЛЕДЯНЫХ СНЕГОВИКОВ!",
+        "10 ОБЫЧНЫХ ЗОМБИ!"
+      ],
+      "maxMobs": 19,
+      "stuck": 0,
+      "kinds": {
+        "meteor": 2
+      },
+      "tickMs": 0.177,
+      "ticks": 4087,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {
+        "skate": 8826,
+        "blast": 1,
+        "melt": 34
+      },
+      "pos": [
+        -17.2,
+        3,
+        -20
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": 2.4,
+      "wallMs": 821
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 35.5,
+      "cause": "Огненная курица",
+      "reels": [
+        "5 ОГНЕННЫХ КУРИЦ!",
+        "7 ОГНЕННЫХ БОМБ!",
+        "10 ПРЫГУЧИХ ТОРНАДО!"
       ],
       "maxMobs": 9,
       "stuck": 0,
       "kinds": {
-        "snowman": 3,
-        "zombie": 4,
-        "shark": 2
-      },
-      "tickMs": 0.161,
-      "ticks": 2425,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        -24.4,
-        0,
-        19.9
-      ],
-      "hill": [
-        [
-          9,
-          -16
-        ],
-        [
-          14,
-          -18
-        ],
-        [
-          18,
-          -21
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 409
-    },
-    {
-      "hits": 1,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 48.4,
-      "cause": "Лава",
-      "reels": [
-        "3 ПРЫГУЧИХ СЛАЙМА!",
-        "5 ЛЕДЯНЫХ КОТОВ!",
-        "10 ГИГАНТСКИХ СНЕГОВИКОВ!"
-      ],
-      "maxMobs": 13,
-      "stuck": 0,
-      "kinds": {
-        "slime": 3,
-        "cat": 4,
-        "snowman": 4,
-        "meteor": 2
-      },
-      "tickMs": 0.132,
-      "ticks": 3430,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        13.1,
-        0,
-        11.7
-      ],
-      "hill": [
-        [
-          9,
-          -16
-        ],
-        [
-          14,
-          -18
-        ],
-        [
-          18,
-          -21
-        ]
-      ],
-      "lava": 0.12,
-      "wallMs": 471
-    },
-    {
-      "hits": 3,
-      "bot": "idle",
-      "survived": false,
-      "tDeath": 7.4,
-      "cause": "Обычная акула",
-      "reels": [
-        "5 ОБЫЧНЫХ АКУЛ!"
-      ],
-      "maxMobs": 4,
-      "stuck": 0,
-      "kinds": {
-        "shark": 4
-      },
-      "tickMs": 0.05,
-      "ticks": 685,
-      "stopPresses": 3,
-      "errors": [],
-      "pos": [
-        -0.8,
-        0,
-        5.5
-      ],
-      "hill": [
-        [
-          16,
-          -9
-        ],
-        [
-          18,
-          -14
-        ],
-        [
-          21,
-          -18
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 37
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 43,
-      "cause": "Прыгучая курица",
-      "reels": [
-        "5 ПРЫГУЧИХ КУРИЦ!",
-        "10 ОБЫЧНЫХ АКУЛ!",
-        "10 ОГНЕННЫХ НЛО!"
-      ],
-      "maxMobs": 12,
-      "stuck": 0,
-      "kinds": {
         "chicken": 4,
-        "shark": 5,
-        "ufo": 3
+        "tornado": 2
       },
-      "tickMs": 0.069,
-      "ticks": 3027,
+      "tickMs": 0.101,
+      "ticks": 2651,
       "stopPresses": 9,
       "errors": [],
+      "reacted": {
+        "blast": 1,
+        "fireTornado": 1
+      },
       "pos": [
-        -15.2,
-        0,
-        11.5
-      ],
-      "hill": [
-        [
-          16,
-          9
-        ],
-        [
-          18,
-          14
-        ],
-        [
-          21,
-          18
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 227
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 52.6,
-      "cause": "Огненный метеорит",
-      "reels": [
-        "5 ПРЫГУЧИХ СЛАЙМОВ!",
-        "3 ОБЫЧНЫЕ БОМБЫ!",
-        "5 ОБЫЧНЫХ АКУЛ!"
-      ],
-      "maxMobs": 10,
-      "stuck": 0,
-      "kinds": {},
-      "tickMs": 0.088,
-      "ticks": 3647,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        -16,
-        3,
-        22.7
+        -21.2,
+        1.2,
+        -17.1
       ],
       "hill": [
         [
@@ -1080,311 +936,181 @@
           21
         ]
       ],
-      "lava": 1.14,
-      "wallMs": 345
+      "lava": -2.5,
+      "wallMs": 319
     },
     {
       "hits": 3,
       "bot": "idle",
       "survived": false,
-      "tDeath": 9.5,
-      "cause": "Ледяной зомби",
+      "tDeath": 20.5,
+      "cause": "Обычный НЛО",
       "reels": [
-        "3 ЛЕДЯНЫХ ЗОМБИ!"
-      ],
-      "maxMobs": 3,
-      "stuck": 1,
-      "kinds": {
-        "zombie": 3
-      },
-      "tickMs": 0.112,
-      "ticks": 756,
-      "stopPresses": 3,
-      "errors": [],
-      "stuckAt": [
-        [
-          "zombie",
-          "ice",
-          -0.1,
-          0,
-          -2.3,
-          1,
-          "-",
-          0
-        ]
-      ],
-      "pos": [
-        0.6,
-        0,
-        4.8
-      ],
-      "hill": [
-        [
-          9,
-          16
-        ],
-        [
-          14,
-          18
-        ],
-        [
-          18,
-          21
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 88
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 39.8,
-      "cause": "Ледяной торнадо",
-      "reels": [
-        "3 ГИГАНТСКИХ МЕТЕОРИТА!",
-        "7 ЛЕДЯНЫХ ТОРНАДО!",
-        "7 БЫСТРЫХ ЗОМБИ!"
-      ],
-      "maxMobs": 6,
-      "stuck": 0,
-      "kinds": {
-        "tornado": 2,
-        "zombie": 4
-      },
-      "tickMs": 0.116,
-      "ticks": 2830,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        21.6,
-        0,
-        10.1
-      ],
-      "hill": [
-        [
-          16,
-          -9
-        ],
-        [
-          18,
-          -14
-        ],
-        [
-          21,
-          -18
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 371
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 35.7,
-      "cause": "Огненный зомби",
-      "reels": [
-        "3 ОГНЕННЫХ ЗОМБИ!",
-        "10 ОГНЕННЫХ СНЕГОВИКОВ!",
-        "10 ОГНЕННЫХ БАНАНОВ!"
-      ],
-      "maxMobs": 22,
-      "stuck": 1,
-      "kinds": {
-        "zombie": 3,
-        "snowman": 10,
-        "banana": 9
-      },
-      "tickMs": 0.131,
-      "ticks": 2639,
-      "stopPresses": 9,
-      "errors": [],
-      "stuckAt": [
-        [
-          "zombie",
-          "fire",
-          9.5,
-          0,
-          1.8,
-          1,
-          "-",
-          0
-        ]
-      ],
-      "pos": [
-        21.4,
-        1.2,
-        -9.9
-      ],
-      "hill": [
-        [
-          -16,
-          9
-        ],
-        [
-          -18,
-          14
-        ],
-        [
-          -21,
-          18
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 366
-    },
-    {
-      "hits": 3,
-      "bot": "idle",
-      "survived": false,
-      "tDeath": 8.4,
-      "cause": "Прыгучий зомби",
-      "reels": [
-        "3 ПРЫГУЧИХ ЗОМБИ!"
-      ],
-      "maxMobs": 3,
-      "stuck": 0,
-      "kinds": {
-        "zombie": 3
-      },
-      "tickMs": 0.074,
-      "ticks": 736,
-      "stopPresses": 3,
-      "errors": [],
-      "pos": [
-        0.6,
-        0,
-        4.3
-      ],
-      "hill": [
-        [
-          9,
-          16
-        ],
-        [
-          14,
-          18
-        ],
-        [
-          18,
-          21
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 58
-    },
-    {
-      "hits": 1,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 53.1,
-      "cause": "Лава",
-      "reels": [
-        "5 ПРЫГУЧИХ БАНАНОВ!",
-        "10 ПРЫГУЧИХ АКУЛ!",
-        "7 ОБЫЧНЫХ СЛАЙМОВ!"
-      ],
-      "maxMobs": 16,
-      "stuck": 0,
-      "kinds": {
-        "banana": 2,
-        "shark": 1,
-        "slime": 1
-      },
-      "tickMs": 0.087,
-      "ticks": 3646,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        19.5,
-        1,
-        20.9
-      ],
-      "hill": [
-        [
-          16,
-          9
-        ],
-        [
-          18,
-          14
-        ],
-        [
-          21,
-          18
-        ]
-      ],
-      "lava": 1.26,
-      "wallMs": 338
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 20.7,
-      "cause": "Ледяной динозавр",
-      "reels": [
-        "5 ЛЕДЯНЫХ СНЕГОВИКОВ!",
-        "3 ЛЕДЯНЫХ ДИНОЗАВРА!"
-      ],
-      "maxMobs": 8,
-      "stuck": 0,
-      "kinds": {
-        "snowman": 5,
-        "dino": 3
-      },
-      "tickMs": 0.128,
-      "ticks": 1595,
-      "stopPresses": 6,
-      "errors": [],
-      "pos": [
-        24.3,
-        0,
-        25.1
-      ],
-      "hill": [
-        [
-          -16,
-          -9
-        ],
-        [
-          -18,
-          -14
-        ],
-        [
-          -21,
-          -18
-        ]
-      ],
-      "lava": -2.5,
-      "wallMs": 216
-    },
-    {
-      "hits": 3,
-      "bot": "idle",
-      "survived": false,
-      "tDeath": 32.8,
-      "cause": "Гигантский торнадо",
-      "reels": [
-        "3 ГИГАНТСКИЕ БОМБЫ!",
-        "10 ГИГАНТСКИХ ТОРНАДО!",
-        "10 БЫСТРЫХ АКУЛ!"
+        "5 ЛЕДЯНЫХ БОМБ!",
+        "5 ОБЫЧНЫХ НЛО!"
       ],
       "maxMobs": 5,
       "stuck": 0,
       "kinds": {
-        "tornado": 1,
-        "shark": 4
+        "ufo": 3
       },
-      "tickMs": 0.042,
-      "ticks": 2428,
+      "tickMs": 0.087,
+      "ticks": 1583,
+      "stopPresses": 6,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        0,
+        3.6,
+        6.1
+      ],
+      "hill": [
+        [
+          -16,
+          -9
+        ],
+        [
+          -18,
+          -14
+        ],
+        [
+          -21,
+          -18
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 162
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 45.3,
+      "cause": "Огненный метеорит",
+      "reels": [
+        "3 БЫСТРЫХ СНЕГОВИКА!",
+        "7 ОГНЕННЫХ СНЕГОВИКОВ!",
+        "5 ГИГАНТСКИХ СЛАЙМОВ!"
+      ],
+      "maxMobs": 10,
+      "stuck": 1,
+      "kinds": {
+        "slime": 2,
+        "snowman": 6,
+        "meteor": 1
+      },
+      "tickMs": 0.105,
+      "ticks": 3324,
       "stopPresses": 9,
       "errors": [],
+      "stuckAt": [
+        [
+          "snowman",
+          "fire",
+          -10.7,
+          0,
+          -24.5,
+          1,
+          "-",
+          0
+        ]
+      ],
+      "reacted": {
+        "steam": 4,
+        "snowMelt": 4,
+        "shock": 2,
+        "douse": 3,
+        "catchFire": 1
+      },
       "pos": [
-        -0.9,
+        -16.4,
+        3,
+        -20.5
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": -1.73,
+      "wallMs": 398
+    },
+    {
+      "hits": 2,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 19.3,
+      "cause": "Упал с острова",
+      "reels": [
+        "5 ОГНЕННЫХ СЛАЙМОВ!",
+        "5 ОГНЕННЫХ ДИНОЗАВРОВ!"
+      ],
+      "maxMobs": 8,
+      "stuck": 0,
+      "kinds": {
+        "slime": 4,
+        "dino": 4
+      },
+      "tickMs": 0.08,
+      "ticks": 1522,
+      "stopPresses": 6,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        -30.4,
+        -12,
+        24.1
+      ],
+      "hill": [
+        [
+          -16,
+          -9
+        ],
+        [
+          -18,
+          -14
+        ],
+        [
+          -21,
+          -18
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 140
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 21.6,
+      "cause": "Огненный банан",
+      "reels": [
+        "5 БЫСТРЫХ БАНАНОВ!",
+        "10 ОГНЕННЫХ БАНАНОВ!"
+      ],
+      "maxMobs": 15,
+      "stuck": 0,
+      "kinds": {
+        "banana": 15
+      },
+      "tickMs": 0.094,
+      "ticks": 1627,
+      "stopPresses": 6,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        1.2,
         0,
-        4.7
+        5.4
       ],
       "hill": [
         [
@@ -1401,32 +1127,82 @@
         ]
       ],
       "lava": -2.5,
-      "wallMs": 108
+      "wallMs": 181
+    },
+    {
+      "hits": 1,
+      "bot": "smart",
+      "survived": true,
+      "tDeath": null,
+      "cause": "",
+      "reels": [
+        "5 ОГНЕННЫХ МЕТЕОРИТОВ!",
+        "10 БЫСТРЫХ КОТОВ!",
+        "10 ОГНЕННЫХ ЗОМБИ!"
+      ],
+      "maxMobs": 12,
+      "stuck": 0,
+      "kinds": {
+        "meteor": 2
+      },
+      "tickMs": 0.118,
+      "ticks": 4054,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {
+        "blast": 1
+      },
+      "pos": [
+        21.3,
+        3,
+        -18.2
+      ],
+      "hill": [
+        [
+          16,
+          -9
+        ],
+        [
+          18,
+          -14
+        ],
+        [
+          21,
+          -18
+        ]
+      ],
+      "lava": 2.5,
+      "wallMs": 548
     },
     {
       "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 54.4,
-      "cause": "Гигантский НЛО",
+      "tDeath": 48.6,
+      "cause": "Огненный метеорит",
       "reels": [
-        "3 БЫСТРЫХ СЛАЙМА!",
-        "7 ГИГАНТСКИХ НЛО!",
-        "7 ЛЕДЯНЫХ ЗОМБИ!"
+        "3 ЛЕДЯНЫЕ БОМБЫ!",
+        "10 БЫСТРЫХ БОМБ!",
+        "5 ЛЕДЯНЫХ КУРИЦ!"
       ],
-      "maxMobs": 10,
+      "maxMobs": 6,
       "stuck": 0,
       "kinds": {
-        "ufo": 1
+        "meteor": 1
       },
-      "tickMs": 0.078,
-      "ticks": 3726,
+      "tickMs": 0.073,
+      "ticks": 3481,
       "stopPresses": 9,
       "errors": [],
+      "reacted": {
+        "skate": 3022,
+        "melt": 5,
+        "steam": 1
+      },
       "pos": [
-        22.1,
-        6.6,
-        19.2
+        21.5,
+        3,
+        18.7
       ],
       "hill": [
         [
@@ -1442,75 +1218,169 @@
           18
         ]
       ],
-      "lava": 1.5,
-      "wallMs": 314
-    },
-    {
-      "hits": 3,
-      "bot": "smart",
-      "survived": false,
-      "tDeath": 56.3,
-      "cause": "Огненный метеорит",
-      "reels": [
-        "3 ГИГАНТСКИХ БАНАНА!",
-        "5 ЛЕДЯНЫХ АКУЛ!",
-        "10 ПРЫГУЧИХ БОМБ!"
-      ],
-      "maxMobs": 10,
-      "stuck": 0,
-      "kinds": {
-        "meteor": 2
-      },
-      "tickMs": 0.123,
-      "ticks": 3900,
-      "stopPresses": 9,
-      "errors": [],
-      "pos": [
-        -19.2,
-        3,
-        -20.8
-      ],
-      "hill": [
-        [
-          -9,
-          -16
-        ],
-        [
-          -14,
-          -18
-        ],
-        [
-          -18,
-          -21
-        ]
-      ],
-      "lava": 1.82,
-      "wallMs": 509
+      "lava": 0.23,
+      "wallMs": 292
     },
     {
       "hits": 3,
       "bot": "idle",
       "survived": false,
-      "tDeath": 22.1,
-      "cause": "Ледяная акула",
+      "tDeath": 18.4,
+      "cause": "Быстрый слайм",
       "reels": [
-        "3 БЫСТРЫХ БАНАНА!",
-        "10 ЛЕДЯНЫХ АКУЛ!"
+        "3 ЛЕДЯНЫХ БАНАНА!",
+        "10 БЫСТРЫХ СЛАЙМОВ!"
       ],
       "maxMobs": 8,
       "stuck": 0,
       "kinds": {
         "banana": 3,
-        "shark": 5
+        "slime": 5
       },
-      "tickMs": 0.086,
-      "ticks": 1656,
+      "tickMs": 0.148,
+      "ticks": 1494,
       "stopPresses": 6,
       "errors": [],
+      "reacted": {
+        "skate": 52
+      },
       "pos": [
-        -1.1,
+        0.6,
         0,
-        5.5
+        5.9
+      ],
+      "hill": [
+        [
+          16,
+          9
+        ],
+        [
+          18,
+          14
+        ],
+        [
+          21,
+          18
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 239
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 55.4,
+      "cause": "Ледяной динозавр",
+      "reels": [
+        "3 ОГНЕННЫХ МЕТЕОРИТА!",
+        "7 ОБЫЧНЫХ КУРИЦ!",
+        "10 ЛЕДЯНЫХ ДИНОЗАВРОВ!"
+      ],
+      "maxMobs": 10,
+      "stuck": 0,
+      "kinds": {
+        "meteor": 1,
+        "dino": 1
+      },
+      "tickMs": 0.095,
+      "ticks": 3843,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {
+        "skate": 3160,
+        "melt": 5,
+        "steam": 2
+      },
+      "pos": [
+        -19.4,
+        1.9,
+        -24.3
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": 1.59,
+      "wallMs": 414
+    },
+    {
+      "hits": 2,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 51.6,
+      "cause": "Лава",
+      "reels": [
+        "5 ОБЫЧНЫХ БОМБ!",
+        "5 ГИГАНТСКИХ ДИНОЗАВРОВ!",
+        "10 ОБЫЧНЫХ ДИНОЗАВРОВ!"
+      ],
+      "maxMobs": 8,
+      "stuck": 0,
+      "kinds": {
+        "meteor": 2,
+        "dino": 1
+      },
+      "tickMs": 0.061,
+      "ticks": 3583,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        -21.2,
+        0.8,
+        -23.5
+      ],
+      "hill": [
+        [
+          -9,
+          -16
+        ],
+        [
+          -14,
+          -18
+        ],
+        [
+          -18,
+          -21
+        ]
+      ],
+      "lava": 0.88,
+      "wallMs": 265
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 7,
+      "cause": "Огненная курица",
+      "reels": [
+        "5 ОГНЕННЫХ КУРИЦ!"
+      ],
+      "maxMobs": 4,
+      "stuck": 0,
+      "kinds": {
+        "chicken": 4
+      },
+      "tickMs": 0.1,
+      "ticks": 654,
+      "stopPresses": 3,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        -1,
+        0,
+        4.9
       ],
       "hill": [
         [
@@ -1527,33 +1397,40 @@
         ]
       ],
       "lava": -2.5,
-      "wallMs": 148
+      "wallMs": 76
     },
     {
-      "hits": 1,
+      "hits": 2,
       "bot": "smart",
       "survived": false,
       "tDeath": 52.1,
       "cause": "Лава",
       "reels": [
-        "5 ЛЕДЯНЫХ МЕТЕОРИТОВ!",
-        "10 ОГНЕННЫХ НЛО!",
-        "5 ЛЕДЯНЫХ ЗОМБИ!"
+        "3 ПРЫГУЧИЕ КУРИЦЫ!",
+        "3 БЫСТРЫХ СНЕГОВИКА!",
+        "7 ПРЫГУЧИХ АКУЛ!"
       ],
-      "maxMobs": 9,
+      "maxMobs": 12,
       "stuck": 0,
       "kinds": {
-        "ufo": 3,
+        "chicken": 1,
         "meteor": 1
       },
-      "tickMs": 0.103,
-      "ticks": 3632,
+      "tickMs": 0.082,
+      "ticks": 3658,
       "stopPresses": 9,
       "errors": [],
+      "reacted": {
+        "skate": 107,
+        "blast": 2,
+        "melt": 4,
+        "steam": 4,
+        "shock": 1
+      },
       "pos": [
-        20.9,
+        19.9,
         0.8,
-        -21.6
+        -21.3
       ],
       "hill": [
         [
@@ -1570,33 +1447,282 @@
         ]
       ],
       "lava": 1.01,
-      "wallMs": 399
+      "wallMs": 345
     },
     {
-      "hits": 0,
+      "hits": 3,
       "bot": "smart",
       "survived": false,
-      "tDeath": 54.8,
-      "cause": "Лава",
+      "tDeath": 59.6,
+      "cause": "Гигантский НЛО",
       "reels": [
-        "5 ОБЫЧНЫХ МЕТЕОРИТОВ!",
-        "3 ГИГАНТСКИХ ТОРНАДО!",
-        "10 ПРЫГУЧИХ НЛО!"
+        "3 ЛЕДЯНЫХ МЕТЕОРИТА!",
+        "7 ЛЕДЯНЫХ ЗОМБИ!",
+        "3 ГИГАНТСКИХ НЛО!"
       ],
-      "maxMobs": 6,
-      "stuck": 0,
+      "maxMobs": 7,
+      "stuck": 2,
       "kinds": {
-        "tornado": 1,
-        "ufo": 3
+        "meteor": 3,
+        "ufo": 1
       },
-      "tickMs": 0.059,
-      "ticks": 3727,
+      "tickMs": 0.103,
+      "ticks": 4104,
       "stopPresses": 9,
       "errors": [],
+      "stuckAt": [
+        [
+          "zombie",
+          "ice",
+          9.3,
+          0,
+          18.1,
+          1,
+          "steer",
+          0
+        ],
+        [
+          "zombie",
+          "ice",
+          9.4,
+          0,
+          17.7,
+          1,
+          "steer",
+          0
+        ]
+      ],
+      "reacted": {
+        "skate": 3983,
+        "melt": 36,
+        "steam": 1
+      },
       "pos": [
-        -21.9,
-        1.4,
-        -23.3
+        19,
+        6.6,
+        -16.6
+      ],
+      "hill": [
+        [
+          16,
+          -9
+        ],
+        [
+          18,
+          -14
+        ],
+        [
+          21,
+          -18
+        ]
+      ],
+      "lava": 2.5,
+      "wallMs": 479
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 41.3,
+      "cause": "Быстрый слайм",
+      "reels": [
+        "5 ЛЕДЯНЫХ БОМБ!",
+        "7 ОБЫЧНЫХ КУРИЦ!",
+        "7 БЫСТРЫХ СЛАЙМОВ!"
+      ],
+      "maxMobs": 8,
+      "stuck": 0,
+      "kinds": {
+        "chicken": 4,
+        "slime": 4
+      },
+      "tickMs": 0.079,
+      "ticks": 2964,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {
+        "skate": 467
+      },
+      "pos": [
+        -29,
+        0,
+        29
+      ],
+      "hill": [
+        [
+          9,
+          16
+        ],
+        [
+          14,
+          18
+        ],
+        [
+          18,
+          21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 266
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 56.3,
+      "cause": "Огненный метеорит",
+      "reels": [
+        "5 БЫСТРЫХ БАНАНОВ!",
+        "10 ГИГАНТСКИХ КОТОВ!",
+        "3 ЛЕДЯНЫЕ БОМБЫ!"
+      ],
+      "maxMobs": 10,
+      "stuck": 0,
+      "kinds": {
+        "meteor": 2
+      },
+      "tickMs": 0.07,
+      "ticks": 3919,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {
+        "blast": 2,
+        "skate": 1282,
+        "melt": 3
+      },
+      "pos": [
+        -20.2,
+        3,
+        18.8
+      ],
+      "hill": [
+        [
+          -16,
+          9
+        ],
+        [
+          -18,
+          14
+        ],
+        [
+          -21,
+          18
+        ]
+      ],
+      "lava": 1.82,
+      "wallMs": 321
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 31.4,
+      "cause": "Огненная акула",
+      "reels": [
+        "5 ОГНЕННЫХ АКУЛ!",
+        "5 ГИГАНТСКИХ НЛО!",
+        "5 ЛЕДЯНЫХ ЗОМБИ!"
+      ],
+      "maxMobs": 8,
+      "stuck": 0,
+      "kinds": {
+        "shark": 4,
+        "ufo": 1,
+        "zombie": 3
+      },
+      "tickMs": 0.089,
+      "ticks": 2391,
+      "stopPresses": 9,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        23.7,
+        0,
+        24
+      ],
+      "hill": [
+        [
+          9,
+          16
+        ],
+        [
+          14,
+          18
+        ],
+        [
+          18,
+          21
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 243
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 4.5,
+      "cause": "Гигантский банан",
+      "reels": [
+        "3 ГИГАНТСКИХ БАНАНА!"
+      ],
+      "maxMobs": 1,
+      "stuck": 0,
+      "kinds": {
+        "banana": 1
+      },
+      "tickMs": 0.066,
+      "ticks": 456,
+      "stopPresses": 3,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        -0.9,
+        0,
+        5.2
+      ],
+      "hill": [
+        [
+          -16,
+          -9
+        ],
+        [
+          -18,
+          -14
+        ],
+        [
+          -21,
+          -18
+        ]
+      ],
+      "lava": -2.5,
+      "wallMs": 37
+    },
+    {
+      "hits": 3,
+      "bot": "smart",
+      "survived": false,
+      "tDeath": 23.9,
+      "cause": "Быстрый торнадо",
+      "reels": [
+        "3 ГИГАНТСКИХ СЛАЙМА!",
+        "5 БЫСТРЫХ ТОРНАДО!"
+      ],
+      "maxMobs": 3,
+      "stuck": 0,
+      "kinds": {
+        "slime": 1,
+        "tornado": 2
+      },
+      "tickMs": 0.053,
+      "ticks": 1799,
+      "stopPresses": 6,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        -10.4,
+        0,
+        24
       ],
       "hill": [
         [
@@ -1612,32 +1738,38 @@
           -21
         ]
       ],
-      "lava": 1.5,
-      "wallMs": 238
+      "lava": -2.5,
+      "wallMs": 118
     },
     {
       "hits": 3,
-      "bot": "idle",
+      "bot": "smart",
       "survived": false,
-      "tDeath": 21,
-      "cause": "Сгорел",
+      "tDeath": 52.6,
+      "cause": "Огненный метеорит",
       "reels": [
-        "5 БЫСТРЫХ БАНАНОВ!",
-        "5 БЫСТРЫХ МЕТЕОРИТОВ!"
+        "5 ОБЫЧНЫХ СЛАЙМОВ!",
+        "10 ЛЕДЯНЫХ КУРИЦ!",
+        "10 ГИГАНТСКИХ БАНАНОВ!"
       ],
-      "maxMobs": 7,
+      "maxMobs": 15,
       "stuck": 0,
-      "kinds": {
-        "banana": 5
-      },
-      "tickMs": 0.061,
-      "ticks": 1603,
-      "stopPresses": 6,
+      "kinds": {},
+      "tickMs": 0.142,
+      "ticks": 3640,
+      "stopPresses": 9,
       "errors": [],
+      "reacted": {
+        "skate": 7835,
+        "melt": 18,
+        "blast": 2,
+        "catchFire": 1,
+        "douse": 1
+      },
       "pos": [
-        -0.7,
-        0,
-        4.2
+        -18.2,
+        3,
+        19.8
       ],
       "hill": [
         [
@@ -1653,8 +1785,49 @@
           21
         ]
       ],
+      "lava": 1.14,
+      "wallMs": 571
+    },
+    {
+      "hits": 3,
+      "bot": "idle",
+      "survived": false,
+      "tDeath": 14.7,
+      "cause": "Гигантская курица",
+      "reels": [
+        "3 ГИГАНТСКИЕ КУРИЦЫ!"
+      ],
+      "maxMobs": 1,
+      "stuck": 0,
+      "kinds": {
+        "chicken": 1
+      },
+      "tickMs": 0.066,
+      "ticks": 1131,
+      "stopPresses": 3,
+      "errors": [],
+      "reacted": {},
+      "pos": [
+        0.9,
+        0,
+        4.8
+      ],
+      "hill": [
+        [
+          -16,
+          -9
+        ],
+        [
+          -18,
+          -14
+        ],
+        [
+          -21,
+          -18
+        ]
+      ],
       "lava": -2.5,
-      "wallMs": 102
+      "wallMs": 105
     }
   ]
 }

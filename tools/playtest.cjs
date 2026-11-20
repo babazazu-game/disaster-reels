@@ -22,6 +22,7 @@ function loadPlaywright() {
 
 const ROUNDS = Number(process.argv.find((a) => /^\d+$/.test(a)) || 12);
 const SHOTS = process.argv.includes('--shots');
+const WORST = process.argv.includes('--worst');
 const URL = process.env.GAME_URL || 'http://127.0.0.1:5210/?q=0';
 const OUT = path.resolve(__dirname, '../playtest');
 
@@ -114,7 +115,7 @@ const PAGE_LIB = () => {
       log.survived = s.state === 'win';
       if (s.state === 'dead') { log.tDeath = +s.t.toFixed(1); log.cause = s.deathCause; }
       log.reels = s.reels;
-      log.hits = s.hits;
+      log.hits = s.hits; log.reacted = s.reacted;
       { const q = W.__ctl.pos; log.pos = [+q.x.toFixed(1), +q.y.toFixed(1), +q.z.toFixed(1)]; log.hill = HILL; log.lava = +s.lava.toFixed(2); }
       for (const m of W.__creatures.mobs.filter((q) => q.live)) log.kinds[m.kind] = (log.kinds[m.kind] || 0) + 1;
       log.tickMs = +(log.tickMs / Math.max(1, log.ticks)).toFixed(3);
@@ -162,6 +163,30 @@ const PAGE_LIB = () => {
     console.log(`кадр на 50-й секунде: вызовов отрисовки ${calls}`);
   }
 
+  // худший раунд (этап 4): самые тяжёлые сочетания разом — замер времени кадра, вызовов отрисовки и реакций
+  let worst = null;
+  if (WORST) {
+    worst = await page.evaluate(() => {
+      const W = window;
+      W.__god = true; W.__restart();
+      for (let i = 0; i < 400 && !W.__state().started; i++) { if (W.__reels.spinning) W.__reels.press(); W.__tick(1 / 60); }
+      for (const r of [{ n: 10, adj: 'fast', noun: 'tornado' }, { n: 10, adj: 'fire', noun: 'slime' }, { n: 10, adj: 'fast', noun: 'shark' }, { n: 10, adj: 'ice', noun: 'snowman' }, { n: 10, adj: 'giant', noun: 'bomb' }, { n: 10, adj: 'fire', noun: 'meteor' }]) W.__creatures.start(r);
+      let maxTick = 0, sum = 0, n = 0, maxCalls = 0, maxTris = 0;
+      for (let f = 0; f < 60 * 40; f++) {
+        if (W.__reels.spinning) W.__reels.press();
+        const a = performance.now(); W.__tick(1 / 60); const d = performance.now() - a;
+        maxTick = Math.max(maxTick, d); sum += d; n++;
+        if (f % 60 === 0) { W.__renderer.render(W.__scene, W.__cam.camera); maxCalls = Math.max(maxCalls, W.__renderer.info.render.calls); maxTris = Math.max(maxTris, W.__renderer.info.render.triangles); }
+      }
+      const s = W.__state();
+      W.__god = false;
+      return { simAvgMs: +(sum / n).toFixed(3), simMaxMs: +maxTick.toFixed(2), maxDrawCalls: maxCalls, maxTriangles: maxTris, mobs: W.__creatures.mobs.filter((m) => m.live).length, reacted: s.reacted, cells: s.cells };
+    });
+    await page.evaluate(() => window.__pt.draw());
+    await page.screenshot({ path: path.join(OUT, 'shots', 'worst_round.png') });
+    console.log('ХУДШИЙ РАУНД', JSON.stringify(worst));
+  }
+
   const smart = rounds.filter((r) => r.bot === 'smart'), idle = rounds.filter((r) => r.bot === 'idle');
   const rate = (a) => (a.length ? Math.round((100 * a.filter((r) => r.survived).length) / a.length) : 0);
   const causes = {};
@@ -172,6 +197,9 @@ const PAGE_LIB = () => {
     avgDeathSec: { smart: avg(smart.filter((r) => r.tDeath).map((r) => r.tDeath)), idle: avg(idle.filter((r) => r.tDeath).map((r) => r.tDeath)) },
     causes,
     avgHits: avg(rounds.map((r) => r.hits)),
+    reactions: rounds.reduce((acc, r) => { for (const [k, v] of Object.entries(r.reacted || {})) acc[k] = (acc[k] || 0) + v; return acc; }, {}),
+    roundsWithReaction: rounds.filter((r) => Object.keys(r.reacted || {}).length > 0).length,
+    worst,
     stuckTotal: rounds.reduce((a, r) => a + r.stuck, 0),
     maxMobs: Math.max(...rounds.map((r) => r.maxMobs)),
     simMsPerTick: avg(rounds.map((r) => r.tickMs)),
