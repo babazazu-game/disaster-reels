@@ -9,6 +9,8 @@ const noCrossorigin = {
 
 export default defineConfig({
   plugins: [noCrossorigin],
+  // метка сборки: дописывается к ассетам, которые грузятся по строке (атлас барабана)
+  define: { __BUILD__: JSON.stringify(Date.now().toString(36)) },
   resolve: {
     alias: {
       // Каркас подключается ИСХОДНИКАМИ, а не собранным пакетом.
@@ -28,9 +30,10 @@ export default defineConfig({
     assetsInlineLimit: 0,
     rollupOptions: {
       output: {
-        // без хэшей проще сверять содержимое архива перед заливкой
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
+        // хэш в имени — иначе браузер и CDN GitHub Pages отдают старый game.js после выкладки
+        // (заказчик видел старую версию, хотя новая уже лежала на сайте)
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name][extname]',
       },
     },

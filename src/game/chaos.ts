@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { lavaTexture, iceTexture } from '../engine/textures.ts';
 
 /**
@@ -22,6 +23,93 @@ export const GROUND_Y = 0.3;
 
 const dummy = new THREE.Object3D();
 
+/* ─────────────────────────────── ПЛАМЯ ─────────────────────────────── */
+
+const MAX_FLAMES = 700;
+
+/** Язык пламени: капля с жёлтым ядром и красно-рыжим краем, края прозрачные. */
+function flameTexture(): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 128;
+  const g = c.getContext('2d')!;
+  const path = () => {
+    g.beginPath();
+    g.moveTo(32, 4);
+    g.bezierCurveTo(44, 40, 60, 62, 58, 92);
+    g.bezierCurveTo(56, 116, 42, 126, 32, 126);
+    g.bezierCurveTo(22, 126, 8, 116, 6, 92);
+    g.bezierCurveTo(4, 62, 20, 40, 32, 4);
+    g.closePath();
+  };
+  g.filter = 'blur(5px)';
+  const outer = g.createLinearGradient(0, 0, 0, 128);
+  outer.addColorStop(0, 'rgba(230,40,0,0)'); outer.addColorStop(0.3, 'rgba(240,60,0,.9)'); outer.addColorStop(1, 'rgba(255,120,0,1)');
+  g.fillStyle = outer; path(); g.fill();
+  // ядро: жёлто-белое, ниже и уже
+  g.save(); g.translate(32, 128); g.scale(0.55, 0.6); g.translate(-32, -128);
+  const inner = g.createLinearGradient(0, 0, 0, 128);
+  inner.addColorStop(0, 'rgba(255,200,40,0)'); inner.addColorStop(0.45, 'rgba(255,210,40,1)'); inner.addColorStop(1, 'rgba(255,245,170,1)');
+  g.fillStyle = inner; path(); g.fill();
+  g.restore();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Мягкое тёмное пятно — гарь под огнём. */
+function scorchTexture(): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const r = g.createRadialGradient(32, 32, 4, 32, 32, 31);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.6, 'rgba(255,255,255,.75)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
+/**
+ * Пламя одним InstancedMesh: два скрещённых прямоугольника с текстурой языка.
+ * Каждый кадр огонь собирают заново (горящие клетки + огненные существа) и зовут commit().
+ * Мерцание — масштаб по синусу с разной фазой: живо и почти бесплатно.
+ */
+export class Flames {
+  private mesh: THREE.InstancedMesh;
+  private n = 0;
+  private t = 0;
+
+  constructor(scene: THREE.Scene) {
+    const a = new THREE.PlaneGeometry(1, 1.5).translate(0, 0.75, 0);
+    const b = a.clone().rotateY(Math.PI / 2);
+    const geo = mergeGeometries([a, b])!;
+    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({
+      map: flameTexture(), transparent: true, depthWrite: false, side: THREE.DoubleSide,   // не аддитивно: на светлой траве аддитив выцветал в белое
+    }), MAX_FLAMES);
+    this.mesh.count = 0; this.mesh.frustumCulled = false; this.mesh.renderOrder = 2;
+    scene.add(this.mesh);
+  }
+
+  /** Язык пламени в точке; size — высота ~1,5·size м; seed — фаза мерцания. */
+  add(x: number, y: number, z: number, size: number, seed: number): void {
+    if (this.n >= MAX_FLAMES || size < 0.05) return;
+    const f = 1 + Math.sin(this.t * 13 + seed * 7.1) * 0.18 + Math.sin(this.t * 23 + seed * 3.3) * 0.1;
+    dummy.position.set(x, y, z);
+    dummy.rotation.set(Math.sin(this.t * 5 + seed) * 0.12, seed * 2.4, 0);
+    dummy.scale.set(size * (1.1 - (f - 1) * 0.5), size * f, size * (1.1 - (f - 1) * 0.5));
+    dummy.updateMatrix();
+    this.mesh.setMatrixAt(this.n++, dummy.matrix);
+  }
+
+  commit(dt: number): void {
+    this.t += dt;
+    this.mesh.count = this.n;
+    this.mesh.visible = this.n > 0;
+    if (this.n) this.mesh.instanceMatrix.needsUpdate = true;
+    this.n = 0;
+  }
+
+  clear(): void { this.n = 0; this.mesh.count = 0; }
+}
+
 export class Surface {
   readonly n: number;
   private state: Uint8Array;
@@ -32,14 +120,14 @@ export class Surface {
   /** Клетки, которые сейчас горят — для искр (без перебора всей сетки). */
   readonly burning: number[] = [];
 
-  constructor(scene: THREE.Scene, private half: number) {
+  constructor(scene: THREE.Scene, private half: number, private flames: Flames) {
     this.n = Math.round((half * 2) / STEP);
     const total = this.n * this.n;
     this.state = new Uint8Array(total);
     this.timer = new Float32Array(total);
     const tile = new THREE.PlaneGeometry(STEP * 0.98, STEP * 0.98).rotateX(-Math.PI / 2);
-    // огонь — без освещения и чуть прозрачный: «тлеющая» трава видна и в тени
-    this.fire = new THREE.InstancedMesh(tile, new THREE.MeshBasicMaterial({ color: 0xff6a1a, transparent: true, opacity: 0.85, depthWrite: false }), total);
+    // под огнём — обугленное пятно с мягким краем; сам огонь — языки пламени (Flames)
+    this.fire = new THREE.InstancedMesh(tile, new THREE.MeshBasicMaterial({ map: scorchTexture(), color: 0x2a160c, transparent: true, opacity: 0.8, depthWrite: false }), total);
     const it = iceTexture();
     this.ice = new THREE.InstancedMesh(tile, new THREE.MeshStandardMaterial({ map: it, color: 0xd8f3ff, roughness: 0.08, transparent: true, opacity: 0.92 }), total);
     this.fire.position.y = 0.035; this.ice.position.y = 0.03;
@@ -81,6 +169,13 @@ export class Surface {
       if (this.state[k] !== Cell.Fire) continue;
       this.timer[k] -= dt;
       if (this.timer[k] <= 0) { this.state[k] = Cell.None; this.dirty = true; }
+    }
+    // языки пламени над горящими клетками: по два на клетку, гаснут к концу горения
+    for (const k of this.burning) {
+      const cx = (k % this.n) * STEP - this.half + STEP / 2, cz = Math.floor(k / this.n) * STEP - this.half + STEP / 2;
+      const fade = Math.min(1, this.timer[k] / 1.2);
+      this.flames.add(cx - 0.45 + ((k * 37) % 7) / 10, 0.04, cz - 0.3 + ((k * 13) % 5) / 10, 1.15 * fade, k);
+      this.flames.add(cx + 0.4 - ((k * 11) % 6) / 10, 0.04, cz + 0.35 - ((k * 29) % 7) / 10, 0.85 * fade, k + 0.5);
     }
     if (!this.dirty) return;
     this.dirty = false;
@@ -151,6 +246,8 @@ export class Lava {
   private tex: THREE.Texture;
   level = LAVA_LOW;
   private rising = 0;   // секунд до полного подъёма; 0 — стоит
+  private top = LAVA_TOP;
+  private from = LAVA_LOW;
 
   constructor(scene: THREE.Scene, half: number) {
     this.tex = lavaTexture();
@@ -162,14 +259,15 @@ export class Lava {
     scene.add(this.mesh);
   }
 
-  rise(seconds: number): void { this.rising = seconds; this.mesh.visible = true; }
-  reset(): void { this.level = LAVA_LOW; this.rising = 0; this.mesh.visible = false; this.mesh.position.y = LAVA_LOW; }
+  /** Подняться до высоты top за seconds. Финал идёт ступенями: земля → ящики → холм. */
+  rise(seconds: number, top = LAVA_TOP): void { this.rising = seconds; this.top = top; this.from = this.level; this.mesh.visible = true; }
+  reset(): void { this.level = LAVA_LOW; this.rising = 0; this.top = LAVA_TOP; this.mesh.visible = false; this.mesh.position.y = LAVA_LOW; }
 
   update(dt: number): void {
     if (!this.mesh.visible) return;
     if (this.rising > 0) {
-      this.level = Math.min(LAVA_TOP, this.level + ((LAVA_TOP - LAVA_LOW) / this.rising) * dt);
-      if (this.level >= LAVA_TOP) this.rising = 0;
+      this.level = Math.min(this.top, this.level + ((this.top - this.from) / this.rising) * dt);
+      if (this.level >= this.top) this.rising = 0;
     }
     this.mesh.position.y = this.level;
     this.tex.offset.x += dt * 0.03; this.tex.offset.y += dt * 0.02;   // лава «течёт»

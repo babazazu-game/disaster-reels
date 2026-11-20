@@ -9,7 +9,8 @@ import { lang } from '../i18n.ts';
  * Формы русского: one — 1 (им. ед.), few — 2–4 (сущ. род. ед.), many — 5+ (род. мн.).
  */
 
-export const COUNTS = [1, 3, 5, 10, 25, 100] as const;
+/** Числа на ленте. 25 и 100 убраны — заказчик: «ребёнок потеряется»; 7 добавлено. */
+export const COUNTS = [3, 5, 7, 10] as const;
 
 export type AdjId = 'fire' | 'ice' | 'giant' | 'bouncy' | 'fast' | 'plain';
 export type NounId = 'chicken' | 'cat' | 'shark' | 'banana' | 'meteor' | 'bomb' | 'snowman' | 'slime' | 'zombie' | 'dino' | 'ufo' | 'tornado';

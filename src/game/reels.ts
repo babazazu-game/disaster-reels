@@ -179,7 +179,7 @@ function injectCss(): void {
   background:linear-gradient(#e9e2d6,#fffdf8 35%,#fffdf8 65%,#e3dacb);color:#c41f2a;font:900 var(--ru)/1 Rubik,system-ui,sans-serif;
   white-space:nowrap;overflow:hidden;filter:blur(.6px)}
 .reel span{display:inline-block}
-.reel i{display:block;width:calc(var(--w)*.17);height:calc(var(--w)*.17);background:url(./assets/reel.webp) 0 0/400% 500% no-repeat;flex:none}
+.reel i{display:block;width:calc(var(--w)*.17);height:calc(var(--w)*.17);background:url(./assets/reel.webp?v=${__BUILD__}) 0 0/400% 500% no-repeat;flex:none}
 .reel i+span{display:none}   /* только картинка: подписи не нужны (решение заказчика), фраза — крупно после СТОПа */
 .reels-frame .reel:first-child span{font-size:calc(var(--ru)*1.5)}
 .reel.done{filter:none;animation:reelHit .25s ease-out}

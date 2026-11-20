@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { AdjId, NounId } from './words.ts';
 import type { ReelResult } from './reels.ts';
-import type { Surface } from './chaos.ts';
+import type { Surface, Flames } from './chaos.ts';
 import type { Particles } from '../engine/particles.ts';
 
 /**
@@ -18,10 +18,10 @@ import type { Particles } from '../engine/particles.ts';
 
 const MAX = 20;
 /**
- * Сколько бегающих выходит на самом деле: «100 котов» — обещание на барабане, а не 100
- * котов (заказчик: при 10 выжить нереально, ребёнок потеряется). Падающие — до 30 за волну.
+ * Сколько бегающих выходит на самом деле: «10 котов» — обещание на барабане, на арене их 6
+ * (живут до конца раунда и копятся) (заказчик: при 10 выжить нереально, ребёнок потеряется). Падающие — до 30 за волну.
  */
-const runners = (n: number) => (n <= 3 ? n : n <= 5 ? 4 : n <= 10 ? 5 : n <= 25 ? 6 : 8);
+const runners = (n: number) => (n <= 3 ? n : n <= 5 ? 4 : n <= 7 ? 5 : 6);
 const WARN = 1.3;           // сколько летит падающее (видна метка)
 const EVENT_TIME = 8;       // за столько секунд выходит вся волна
 /** Существа живут до конца раунда (или до лавы): хаос КОПИТСЯ — просьба заказчика. */
@@ -46,7 +46,7 @@ interface Mob {
   steer: number; steerT: number; hold: number;
 }
 
-interface Wave { r: ReelResult; left: number; gap: number; next: number; s: number; t: number }
+interface Wave { r: ReelResult; left: number; gap: number; next: number; s: number; t: number; aim: number }
 
 export interface CreatureHooks {
   heightAt(x: number, z: number): number;
@@ -167,7 +167,7 @@ export class Creatures {
   private waves: Wave[] = [];
   private v = new THREE.Vector3();
 
-  constructor(scene: THREE.Scene, private half: number, private surface: Surface, private fx: Particles, private h: CreatureHooks) {
+  constructor(scene: THREE.Scene, private half: number, private surface: Surface, private fx: Particles, private flames: Flames, private h: CreatureHooks) {
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, flatShading: true });
     for (const k of Object.keys(MODELS) as NounId[]) {
       const m = new THREE.InstancedMesh(buildModel(MODELS[k]), mat, MAX);
@@ -258,13 +258,13 @@ export class Creatures {
   /** Есть ли сейчас существа или волны — для «ледяного» атмосферного града и т. п. */
   has(adj: AdjId): boolean { return this.waves.some((w) => w.r.adj === adj) || this.mobs.some((m) => m.live && m.adj === adj); }
 
-  /** Новая волна по итогу барабана. */
-  start(r: ReelResult): void {
+  /** Новая волна по итогу барабана. aim — доля падающих, нацеленных в игрока (финальный дождь — больше). */
+  start(r: ReelResult, aim = 0.25): void {
     const run = RUNNERS.includes(r.noun);
     let n = run ? Math.min(FEW[r.noun] ?? 99, runners(r.n)) : Math.min(30, r.n), s = 1;
     if (r.adj === 'giant') { n = Math.min(run ? 3 : 6, Math.max(1, Math.ceil(n / 3))); s = 2.2; }
     if (r.n === 1) s *= 1.7;               // одиночка — крупнее, чтобы «1» не была скучной
-    this.waves.push({ r, left: n, gap: Math.min(0.7, (run ? 4 : EVENT_TIME) / n), next: 0, s, t: 0 });
+    this.waves.push({ r, left: n, gap: Math.min(0.7, (run ? 4 : EVENT_TIME) / n), next: 0, s, t: 0, aim });
   }
 
   reset(): void {
@@ -276,27 +276,37 @@ export class Creatures {
 
   private alive(kind: NounId): number { let c = 0; for (const m of this.mobs) if (m.live && m.kind === kind) c++; return c; }
 
-  private spawn(r: ReelResult, s: number): void {
+  private spawn(r: ReelResult, s: number, aim: number): void {
     if (this.alive(r.noun) >= MAX) return;
     const m = this.mobs.find((q) => !q.live) ?? (this.mobs.push({} as Mob), this.mobs[this.mobs.length - 1]);
     const H = this.half - 1.5;
     Object.assign(m, { kind: r.noun, adj: r.adj, live: true, s, t: 0, vy: 0, bounces: 0, tick: 0, seed: Math.random() * 100, life: FOREVER, yaw: Math.random() * 6.28, steer: 0, steerT: 0, hold: 0 });
-    const few = (this.waves.find((w) => w.r === r)?.left ?? 9) <= 3;
     if (FALLING.includes(r.noun)) {
       // падающее: метка на земле, часть целится туда, куда бежит игрок; одиночные — всегда к игроку, иначе их не увидеть
       const p = this.h.target();
       let x: number, z: number;
-      if (p && (few || Math.random() < 0.25)) { const v = this.h.targetVel(); x = p.x + v.x * 0.7; z = p.z + v.z * 0.7; }
+      if (p && Math.random() < aim) { const v = this.h.targetVel(); x = p.x + v.x * 0.7; z = p.z + v.z * 0.7; }
       else { x = (Math.random() * 2 - 1) * H; z = (Math.random() * 2 - 1) * H; }
       this.aim(m, THREE.MathUtils.clamp(x, -H, H), THREE.MathUtils.clamp(z, -H, H), r.adj === 'fast' ? WARN * 0.6 : WARN);
     } else {
-      // бегающее: с неба у края острова, без метки — короткий прыжок вниз
-      const e = Math.random() * 4 | 0, u = (Math.random() * 2 - 1) * H;
-      const x = e === 0 ? -H : e === 1 ? H : u, z = e === 2 ? -H : e === 3 ? H : u;
+      // бегающее: с неба в 10–15 м от игрока, на свободном месте — чтобы его не надо было искать по острову
+      const [x, z] = this.nearPlayer(r.noun === 'ufo' || r.noun === 'tornado' ? 14 : 10, H);
       if (r.noun === 'ufo') Object.assign(m, { phase: 'fly' as Phase, x, z, y: 16, ground: 0 });
       else if (r.noun === 'tornado') { Object.assign(m, { phase: 'wind' as Phase, x, z, y: 0, ground: 0 }); this.fx.emit('dust', this.v.set(x, 0.5, z), 1.5); }
       else Object.assign(m, { phase: 'drop' as Phase, x, z, y: 9, ground: this.h.heightAt(x, z) });
     }
+  }
+
+  private nearPlayer(dist: number, H: number): [number, number] {
+    const p = this.h.target();
+    let x = 0, z = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = Math.random() * Math.PI * 2, d = dist + Math.random() * 5;
+      x = THREE.MathUtils.clamp((p?.x ?? 0) + Math.cos(a) * d, -H, H);
+      z = THREE.MathUtils.clamp((p?.z ?? 0) + Math.sin(a) * d, -H, H);
+      if (this.h.heightAt(x, z) === 0 && this.h.heightAt(x + 1, z + 1) === 0 && this.h.heightAt(x - 1, z - 1) === 0) break;
+    }
+    return [x, z];
   }
 
   /** Зомби из укушенного бота: прямо на месте, без падения с неба. */
@@ -424,7 +434,7 @@ export class Creatures {
   update(dt: number): void {
     for (const w of this.waves) {
       w.t += dt; w.next -= dt;
-      while (w.left > 0 && w.next <= 0) { this.spawn(w.r, w.s); w.left--; w.next += w.gap; }
+      while (w.left > 0 && w.next <= 0) { this.spawn(w.r, w.s, w.left <= 3 && w.r.n <= 3 ? 1 : w.aim); w.left--; w.next += w.gap; }
     }
     this.waves = this.waves.filter((w) => w.left > 0 && w.t < EVENT_TIME + 2);
 
@@ -498,6 +508,12 @@ export class Creatures {
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       mesh.setColorAt(i, blink ? flash : tc.copy(TINT[m.adj]));
+      // огненные горят по-настоящему: языки пламени на спине; метеорит — пылает в полёте
+      if (m.adj === 'fire' || m.kind === 'meteor') {
+        const top = m.kind === 'meteor' ? 0.6 : m.kind === 'ufo' ? 0.3 : m.kind === 'tornado' ? 3 : 0.7;
+        this.flames.add(m.x, m.y + top * m.s, m.z, 0.75 * m.s, m.seed);
+        if (m.s > 1.5 || m.kind === 'meteor') this.flames.add(m.x + 0.3 * m.s, m.y + top * 0.8 * m.s, m.z - 0.2 * m.s, 0.55 * m.s, m.seed + 1.7);
+      }
     }
 
     for (const k in this.meshes) {
