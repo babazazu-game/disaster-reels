@@ -39,6 +39,8 @@ export class Controller {
   /** Чего коснулись за последний шаг (стены лавы и т. п.). */
   touched: Solid[] = [];
   readonly spawn = new THREE.Vector3();
+  /** Сцепление с землёй 0..1: на льду ~0.08 — разгон и торможение почти пропадают, персонаж скользит. */
+  grip = 1;
   /** События для звука и эффектов: игра подписывается, контроллер о звуке не знает. */
   onJump?: () => void;
   onLand?: (speed: number) => void;
@@ -71,7 +73,7 @@ export class Controller {
   update(dt: number, move: { x: number; y: number }, jump: boolean, fwd: THREE.Vector3): void {
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     const want = new THREE.Vector3().addScaledVector(fwd, move.y).addScaledVector(right, move.x).multiplyScalar(MOVE.speed);
-    const a = MOVE.accel * (this.grounded ? 1 : MOVE.airControl) * dt;
+    const a = MOVE.accel * (this.grounded ? this.grip : MOVE.airControl) * dt;
     const dvx = want.x - this.vel.x, dvz = want.z - this.vel.z;
     const dl = Math.hypot(dvx, dvz);
     if (dl > 0) { const k = Math.min(1, a / dl); this.vel.x += dvx * k; this.vel.z += dvz * k; }
