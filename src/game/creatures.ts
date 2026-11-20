@@ -58,6 +58,8 @@ interface Wave { r: ReelResult; left: number; gap: number; next: number; s: numb
 
 export interface CreatureHooks {
   heightAt(x: number, z: number): number;
+  /** Куда ударяется падающее сверху: как heightAt, но с кронами деревьев (игрок на дереве — не укрытие от метеора). */
+  impactAt(x: number, z: number): number;
   lavaLevel(): number;
   /** Кого ловить: игрок (если жив). */
   target(): THREE.Vector3 | null;
@@ -314,7 +316,7 @@ export class Creatures {
       const [x, z] = this.nearPlayer(r.noun === 'ufo' || r.noun === 'tornado' ? 14 : 10, H);
       if (r.noun === 'ufo') Object.assign(m, { phase: 'fly' as Phase, x, z, y: 16, ground: 0 });
       else if (r.noun === 'tornado') { Object.assign(m, { phase: 'wind' as Phase, x, z, y: 0, ground: 0 }); this.fx.emit('dust', this.v.set(x, 0.5, z), 1.5); }
-      else Object.assign(m, { phase: 'drop' as Phase, x, z, y: 9, ground: this.h.heightAt(x, z) });
+      else Object.assign(m, { phase: 'drop' as Phase, x, z, y: 9, ground: this.h.impactAt(x, z) });
     }
   }
 
@@ -362,7 +364,7 @@ export class Creatures {
   }
 
   private aim(m: Mob, x: number, z: number, warn: number): void {
-    Object.assign(m, { phase: 'fall' as Phase, tx: x, tz: z, x, z, t: 0, warn, ground: this.h.heightAt(x, z), from: 34 });
+    Object.assign(m, { phase: 'fall' as Phase, tx: x, tz: z, x, z, t: 0, warn, ground: this.h.impactAt(x, z), from: 34 });
   }
 
   /** Радиус касания существа. */

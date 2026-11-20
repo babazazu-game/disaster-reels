@@ -228,8 +228,8 @@ function addSkyClouds(scene: THREE.Scene): void {
 
 /*
  * Блок — скруглённый куб с «игрушечным» пластиком.
- * Сетки-текстуры нет: в роблоксе у Part гладкий пластик, а линии плитки
- * дробили платформы и мешали оценить их размер для прыжка.
+ * Сетки-плитки нет: линии плитки дробили платформы и мешали оценить их размер для прыжка.
+ * Рисунок (трава, камень, доски) — по желанию игры, через mapTex.ts и mergeStatic(…, uvWorld).
  * Clearcoat (лак) пробовали — шейдер почти вдвое дороже, а на глаз блик от
  * карты окружения при roughness 0.32 почти тот же. Материал общий на цвет:
  * одна программа и меньше переключений состояния.
@@ -244,11 +244,33 @@ export function block(size: THREE.Vector3Like, color: number): THREE.Mesh {
     geo = new RoundedBoxGeometry(size.x, size.y, size.z, 2, r);
     geoCache.set(key, geo);
   }
-  let mat = matCache.get(color);
-  if (!mat) { mat = new THREE.MeshStandardMaterial({ color, roughness: 0.32 }); matCache.set(color, mat); }
-  const m = new THREE.Mesh(geo, mat);
+  const m = new THREE.Mesh(geo, blockMaterial(color));
   m.castShadow = m.receiveShadow = true;
   return m;
+}
+
+/** Общий материал блоков этого цвета (на него mapTex.ts надевает текстуру). */
+export function blockMaterial(color: number): THREE.MeshStandardMaterial {
+  let mat = matCache.get(color);
+  if (!mat) { mat = new THREE.MeshStandardMaterial({ color, roughness: 0.32 }); matCache.set(color, mat); }
+  return mat;
+}
+
+/**
+ * UV в мировых метрах по самой «сильной» оси нормали: верх и низ — (x, z), бока — (z, y) или (x, y).
+ * Для текстур карты (mapTex.ts): рисунок одного размера на любом блоке, без растяжения.
+ */
+export function worldUV(g: THREE.BufferGeometry): void {
+  const p = g.attributes.position, n = g.attributes.normal;
+  const uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    if (ay >= ax && ay >= az) { uv[i * 2] = x; uv[i * 2 + 1] = z; }
+    else if (ax >= az) { uv[i * 2] = z; uv[i * 2 + 1] = y; }
+    else { uv[i * 2] = x; uv[i * 2 + 1] = y; }
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
 }
 
 /**
@@ -256,13 +278,15 @@ export function block(size: THREE.Vector3Like, color: number): THREE.Mesh {
  * Трасса — десятки блоков, каждый был отдельным вызовом отрисовки (и ещё одним
  * в проходе теней). Физике меши не нужны — у неё свои Box3, снятые до склейки.
  */
-export function mergeStatic(scene: THREE.Object3D, meshes: THREE.Mesh[]): void {
+export function mergeStatic(scene: THREE.Object3D, meshes: THREE.Mesh[], uvWorld = false): void {
   const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
   for (const m of meshes) {
     // updateWorldMatrix(родители=true): столбик таблички лежит в группе, и без пересчёта
     // родителей бралась её устаревшая (нулевая) матрица — столбик уезжал в центр мира.
     m.updateWorldMatrix(true, false);
     const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
+    // uvWorld: UV в метрах под текстуры карты; userData.ownUV (ящик) — свои UV граней, картинка на всю грань
+    if (uvWorld && !m.userData.ownUV) worldUV(g);
     const mat = m.material as THREE.Material;
     if (!groups.has(mat)) groups.set(mat, []);
     groups.get(mat)!.push(g);

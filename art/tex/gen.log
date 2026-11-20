@@ -1,0 +1,8 @@
+saved D:\work\CLAUDE\GAME\disaster-reels\art\tex\src\grass.png (1746489 bytes)
+(node:42536) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+done grass
+saved D:\work\CLAUDE\GAME\disaster-reels\art\tex\src\dirt.png (1878963 bytes)
+(node:52944) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+done dirt

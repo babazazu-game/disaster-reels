@@ -11,6 +11,8 @@
  *  - DPR и тени — от уровня качества (engine/quality.ts), уровень сам падает при просадке.
  */
 
+import { Storm } from './game/storm';
+import { applyMapTextures } from './engine/mapTex';
 import * as THREE from 'three';
 import { core } from './core.ts';
 import { createWorld, block, CLASSIC, cloudsAlong, mergeStatic } from './engine/world.ts';
@@ -63,10 +65,10 @@ export type Difficulty = 'easy' | 'normal' | 'chaos';
  * Сложность (этап 6): сердечки, сколько существ бегает и как быстро, как быстро встаёт лава,
  * метеоры финала (две волны) и какая их доля метит в игрока. «Обычный» — то, что выверено автотестом.
  */
-const DIFF: Record<Difficulty, { hearts: number; runners: number; speed: number; lava: number; meteors: [number, number]; aim: number }> = {
-  easy: { hearts: 5, runners: 0.6, speed: 0.8, lava: 1.4, meteors: [7, 8], aim: 0.2 },
-  normal: { hearts: HEARTS, runners: 1, speed: 1, lava: 1, meteors: [12, 14], aim: 0.35 },
-  chaos: { hearts: 2, runners: 1.3, speed: 1.15, lava: 0.8, meteors: [16, 18], aim: 0.45 },
+const DIFF: Record<Difficulty, { hearts: number; runners: number; speed: number; lava: number; meteors: [number, number]; aim: number; storm: number }> = {
+  easy: { hearts: 5, runners: 0.6, speed: 0.8, lava: 1.4, meteors: [7, 8], aim: 0.2, storm: 10 },
+  normal: { hearts: HEARTS, runners: 1, speed: 1, lava: 1, meteors: [12, 14], aim: 0.35, storm: 7 },
+  chaos: { hearts: 2, runners: 1.3, speed: 1.15, lava: 0.8, meteors: [16, 18], aim: 0.45, storm: 5 },
 };
 /** Неуязвимость после удара, с — успеть убежать. */
 const INVULN = 1.6;
@@ -114,6 +116,7 @@ const REACT: Record<string, [string, string, string]> = {
   skate: ['КАТОК! ИХ ЗАНОСИТ', 'ICE RINK! THEY SLIDE', '#cfefff'],
   blast: ['РАЗЛЕТЕЛИСЬ!', 'BLASTED AWAY!', '#ffd23a'],
   stun: ['УДАРИЛО ТОКОМ!', 'ZAPPED!', '#fff36b'],
+  storm: ['ГРОЗА! НЕ СТОЙ НА МЕСТЕ', 'STORM! KEEP MOVING', '#fff36b'],
 };
 /** Замедление «Момента хаоса»: столько реальных секунд мир идёт со скоростью SLOW_K. Управление не отбирается. */
 const SLOW_T = 0.5, SLOW_K = 0.3;
@@ -161,7 +164,7 @@ export function createScene(parent: HTMLElement): Game {
       physics.add({ box: new THREE.Box3(lo, hi), kind: 'fence' });
     }
   }
-  mergeStatic(scene, base);
+  mergeStatic(scene, base, true);
 
   // расстановка — новая каждый раунд (просьба заказчика): холмы, плита и башня поворачиваются/зеркалятся,
   // ящики и деревья встают на случайные свободные места
@@ -187,6 +190,7 @@ export function createScene(parent: HTMLElement): Game {
       const m = block({ x: swap ? sz : sx, y: sy, z: swap ? sx : sz }, color);
       m.position.set(px, y + sy / 2, pz);
       layout.add(m);
+      if (color === C.crate) m.userData.ownUV = true;   // ящик: картинка на всю грань, а не мировой рисунок
       if (hard) layoutSolids.push(physics.addMesh(m, hard === 'leaf' ? 'leaf' : undefined));
       parts.push(m);
     };
@@ -235,7 +239,7 @@ export function createScene(parent: HTMLElement): Game {
       for (const [dx, y, dz] of g) put(2, 2, 2, p[0] + (along ? dx : dz) - (g.length > 1 && along ? 1 : 0), y, p[1] + (along ? dz : dx) - (g.length > 1 && !along ? 1 : 0), C.crate, true, true);
     }
     // деревья: ствол твёрдый, крона тоже держит (заказчик: «забрался на дерево — должен остаться»).
-    // Тип 'leaf': для метеоров, существ и ботов крона не земля — под ней по-прежнему можно стоять
+    // Тип 'leaf': для существ и ботов крона не земля — под ней по-прежнему можно стоять; метеор и бомба бьют в верх кроны (impactAt)
     for (let k = 0; k < 5; k++) {
       const p = spot(1.6);
       if (!p) continue;
@@ -243,7 +247,7 @@ export function createScene(parent: HTMLElement): Game {
       put(3.4, 2.4, 3.4, p[0], 3, p[1], C.leaves, 'leaf', true);
       put(2, 1.2, 2, p[0], 5.4, p[1], C.leaves, 'leaf', true);
     }
-    mergeStatic(layout, parts);
+    mergeStatic(layout, parts, true);
     // препятствия перед игроком «просвечивают» (см. occlude.ts)
     for (const c of layout.children) { const m = c as THREE.Mesh; m.material = occludable(m.material as THREE.Material); }
     // манекены — тоже на новые места
@@ -261,6 +265,15 @@ export function createScene(parent: HTMLElement): Game {
     for (const sd of physics.solids) {
       const b = sd.box;
       if (sd.kind !== 'leaf' && x > b.min.x && x < b.max.x && z > b.min.z && z < b.max.z && b.max.y < 30) top = Math.max(top, b.max.y);
+    }
+    return top;
+  };
+  /** То же, но с кронами: метеор и бомба бьют в верх кроны, а не пролетают её насквозь к стволу. */
+  const impactAt = (x: number, z: number): number => {
+    let top = 0;
+    for (const sd of physics.solids) {
+      const b = sd.box;
+      if (x > b.min.x && x < b.max.x && z > b.min.z && z < b.max.z && b.max.y < 30) top = Math.max(top, b.max.y);
     }
     return top;
   };
@@ -388,6 +401,7 @@ export function createScene(parent: HTMLElement): Game {
 
   const creatures = new Creatures(scene, HALF, surface, fx, flames, bolts, {
     heightAt,
+    impactAt,
     lavaLevel: () => lava.level,
     target: () => (state === 'play' ? ctl.pos : null),
     targetVel: () => ctl.vel,
@@ -419,6 +433,23 @@ export function createScene(parent: HTMLElement): Game {
     nudge: (vx, vy, vz) => { if (state === 'play') { ctl.vel.x += vx; ctl.vel.y = Math.min(ctl.vel.y + vy, 9); ctl.vel.z += vz; } },
   });
 
+  // гроза над тем, кто долго стоит на месте (заказчик: «залез на гору — и сижу всю игру»), см. storm.ts
+  const storm = new Storm(scene, {
+    impactAt,
+    gather: (x, z) => { moment('storm', x, z); sfx.play('boom', 0.1, 0.35, 0.55); },   // далёкий гром — тот же взрыв, ниже и тише
+    strike(x, y, z, r) {
+      fx.emit('poof', tmp.set(x, y + 0.4, z), 1.2, [0xfff6a8, 0xffe14d, 0xffffff]);
+      const d = Math.hypot(ctl.pos.x - x, ctl.pos.z - z);
+      cam.shake(Math.max(0.1, 0.5 - d * 0.03));
+      sfx.play('zap', 0.1);
+      sfx.play('boom', 0.1, 0.9);
+      // в крону или в землю под ней: стоишь под деревом — крона прикрыла
+      if (state === 'play' && d < r && ctl.pos.y > y - 0.6 && ctl.pos.y < y + 2.6) hurt(L('Молния', 'Lightning'), ctl.pos.x - x, ctl.pos.z - z);
+      if (y < 0.5) surface.ignite(x, z, 4);   // молния поджигает траву
+      dummiesNear(x, y, z, r, false, 1.4);
+    },
+  });
+
   /* ───────────── ПЕРСОНАЖИ (этап 8) ───────────── */
   const models = new Map<string, CharModel>();
   let skin = 'rookie';
@@ -438,6 +469,7 @@ export function createScene(parent: HTMLElement): Game {
     reelLog.length = 0; hits = 0; lavaWarned = false; reacted.clear(); slowT = 0; shockT = 0;
     t = 0; introT = INTRO; started = false; reelNo = 0; lavaStep = 0; burnT = 0; slipT = 0; state = 'play';
     surface.reset(); creatures.reset(); lava.reset(); flames.clear(); bolts.clear(); hail.on = false;
+    storm.reset(); storm.delay = D().storm;
     reels.hide();
     buildLayout();
     bots.reset(dummySpots);
@@ -663,6 +695,8 @@ export function createScene(parent: HTMLElement): Game {
     else cam.yaw += dt * 0.15;   // погиб — камера медленно облетает хаос, кнопка уже доступна
     runScript(dt);
     if (state === 'play') applySurface(dt);
+    // гроза считает время только идущего раунда (после первого барабана)
+    if (state === 'play' && started) storm.update(dt, ctl.pos);
     // после удара мигаем: видно, что сейчас неуязвим
     if (hurtT > 0) { hurtT -= dt; player.root.visible = state !== 'dead' && (hurtT <= 0 || Math.floor(hurtT * 12) % 2 === 0); }
     surface.update(dt);
@@ -692,7 +726,7 @@ export function createScene(parent: HTMLElement): Game {
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
     Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __bots: bots, __dust: dust, __surface: surface, __hill: () => hill,
+      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __dust: dust, __surface: surface, __hill: () => hill,
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
   }
 
@@ -710,6 +744,12 @@ export function createScene(parent: HTMLElement): Game {
       ctl.respawn();
       onProgress(0.3);
       await sfx.load();
+      onProgress(0.4);
+      // текстуры карты: трава, земля, камень, ящики, кора, листва, заборчик (нет картинки — блок гладкий, как раньше)
+      await applyMapTextures({
+        [C.grass]: 'grass', [C.dirt]: 'dirt', [C.stone]: 'stone', [C.stoneDark]: 'stone', [C.crate]: 'planks',
+        [C.trunk]: 'bark', [C.leaves]: 'leaves', [C.fence]: 'wood', [C.post]: 'wood',
+      }, quality.tier === 0 ? 1 : 4);
       onProgress(0.5);
       // персонажи (этап 8): все модели сразу (18) — соперники каждый раунд в новых обликах, ~1,5 МБ
       await Promise.all(ROSTER.map(async (c) => { try { models.set(c.id, await loadChar(c.id)); } catch { /* нет модели — останется старый аватар */ } }));
