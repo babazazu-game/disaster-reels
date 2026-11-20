@@ -210,6 +210,8 @@ export class Surface {
       const s = this.state[k];
       if (s === Cell.None) continue;
       this.center(k, dummy.position);
+      // dummy общий с градом: без сброса плитки льда наследовали наклон градин (заказчик: «лёд под наклоном»)
+      dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(1);
       dummy.updateMatrix();
       if (s === Cell.Fire) { this.fire.setMatrixAt(f++, dummy.matrix); this.burning.push(k); } else this.ice.setMatrixAt(c++, dummy.matrix);
     }
@@ -249,7 +251,7 @@ export class Hail {
       this.pos[i * 3 + 1] -= dt * 22;
       if (this.pos[i * 3 + 1] < 0) this.respawn(i);
       dummy.position.set(this.pos[i * 3], this.pos[i * 3 + 1], this.pos[i * 3 + 2]);
-      dummy.rotation.set(0, 0, 0.25);
+      dummy.rotation.set(0, 0, 0);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
       this.mesh.setMatrixAt(i, dummy.matrix);

@@ -18,7 +18,7 @@ import { Avatar } from './engine/avatar.ts';
 import { Input } from './engine/input.ts';
 import { FollowCamera } from './engine/camera.ts';
 import { Controller } from './engine/controller.ts';
-import { Physics } from './engine/physics.ts';
+import { Physics, type Solid } from './engine/physics.ts';
 import { FpsMeter } from './engine/fps.ts';
 import { sfx } from './engine/sfx.ts';
 import { quality } from './engine/quality.ts';
@@ -42,6 +42,15 @@ export interface Game {
 const HALF = 30;
 /** Ниже этого — упал с острова. */
 const FALL_Y = -12;
+/** Заборчик по краю: выше ступеньки (0,35), ниже прыжка. */
+const FENCE_H = 1.0;
+/** Старт игрока; вокруг него ящики не ставятся. */
+const SPAWN = { x: 0, z: 5 };
+const DUMMIES = 7;
+/** Сердечек на раунд: касание отнимает одно (ребёнку одно касание = смерть — слишком строго). Лава и падение — сразу. */
+const HEARTS = 3;
+/** Неуязвимость после удара, с — успеть убежать. */
+const INVULN = 1.6;
 /** Длина раунда, с. Время идёт только после первого барабана и стоит, пока ленты крутятся. */
 const ROUND = 60;
 /**
@@ -72,7 +81,7 @@ const BURN_DEATH = 0.35;
 
 const C = {
   grass: 0x5cc44a, dirt: 0x9a6a3c, stone: 0xa3a9b3, stoneDark: 0x7d8490,
-  crate: 0xc4843f, trunk: 0x8a5a33, leaves: 0x3fae4f, flag: 0xe8403a,
+  crate: 0xc4843f, trunk: 0x8a5a33, leaves: 0x3fae4f, flag: 0xe8403a, fence: 0xfff4dc, post: 0xd99a4e,
 };
 
 export function createScene(parent: HTMLElement): Game {
@@ -87,72 +96,119 @@ export function createScene(parent: HTMLElement): Game {
   });
 
   /* ───────────────────────────── АРЕНА ───────────────────────────── */
-  const statics: THREE.Mesh[] = [];
-  /** Твёрдый блок: в физику (коробкой) и в склейку. pos — центр низа блока. */
-  const solid = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number) => {
-    const m = block({ x: sx, y: sy, z: sz }, color);
-    m.position.set(x, y + sy / 2, z);
-    scene.add(m);
-    physics.addMesh(m);
-    statics.push(m);
-    return m;
-  };
-  /** Декор без столкновений (листва над головой, флаг). */
+  // постоянная часть — остров и заборчик — склеивается один раз
+  const base: THREE.Mesh[] = [];
   const deco = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number) => {
     const m = block({ x: sx, y: sy, z: sz }, color);
     m.position.set(x, y + sy / 2, z);
     scene.add(m);
-    statics.push(m);
+    base.push(m);
+    return m;
   };
-
   // остров: трава сверху, земля толстым слоем снизу, под ней камни — «висит в небе»
-  solid(HALF * 2, 2, HALF * 2, 0, -2, 0, C.grass);
+  physics.addMesh(deco(HALF * 2, 2, HALF * 2, 0, -2, 0, C.grass));
   deco(HALF * 2 - 1, 5, HALF * 2 - 1, 0, -7, 0, C.dirt);
   deco(HALF * 2 - 8, 4, HALF * 2 - 8, 0, -11, 0, C.dirt);
   deco(HALF - 4, 4, HALF - 4, 2, -15, -1, C.stoneDark);
-
-  // ступенчатый холм (высоты 1 → 2 → 3 м): забраться повыше — способ спастись от лавы и бегающих
-  solid(16, 1, 14, -16, 0, -13, C.stone);
-  solid(10, 2, 9, -18, 0, -15, C.stone);
-  solid(5, 3, 5, -21, 0, -18, C.stone);
-  // второй, низкий холм напротив: плато 2 м со ступенькой
-  solid(6, 2, 6, -6, 0, 20, C.stone);
-  solid(2, 1, 2, -10, 0, 20, C.stoneDark);
-  // широкая плита 1 м — от лавы спасает, от котов нет
-  solid(8, 1, 6, 14, 0, -2, C.stoneDark);
-
-  // башня с площадкой на 6 м, к ней лесенка из блоков по 1 м
-  solid(5, 6, 5, 20, 0, -20, C.stone);
-  for (let i = 0; i < 5; i++) solid(2, i + 1, 2, 8.5 + i * 2, 0, -19, C.stoneDark);   // 1…5 м, вплотную к башне
-  deco(0.3, 3, 0.3, 21.8, 6, -21.8, C.trunk);
-  deco(1.8, 1.1, 0.2, 22.8, 7.7, -21.8, C.flag);
-
-  // ящики-укрытия: одиночные, пары и «стенки» с ящиком наверху
-  const crates: [number, number, number][] = [
-    [-6, 0, 9], [-4, 0, 9], [-5, 2, 9],
-    [10, 0, 7], [12, 0, 7],
-    [4, 0, -7],
-    [-22, 0, 10], [-22, 0, 12],
-    [21, 0, 15], [19, 0, 17], [21, 2, 15],
-    [0, 0, 22],
-    [-13, 0, 1], [-13, 0, -1],
-    [24, 0, 4], [24, 0, 6], [24, 2, 4],
-    [-24, 0, 24], [15, 0, 26], [17, 0, 26],
-    [-2, 0, -24], [6, 0, -26],
-  ];
-  for (const [x, y, z] of crates) solid(2, 2, 2, x, y, z, C.crate);
-
-  // деревья: ствол твёрдый, крона — декор (под ней можно стоять)
-  for (const [x, z] of [[-25, 24], [26, -6], [-9, -25], [9, 24], [-26, -2]] as const) {
-    solid(1, 3, 1, x, 0, z, C.trunk);
-    deco(3.4, 2.4, 3.4, x, 3, z, C.leaves);
-    deco(2, 1.2, 2, x, 5.4, z, C.leaves);
+  // низкий заборчик по краю: случайно не выбежишь, а перепрыгнуть можно — тогда упал и проиграл (решение заказчика)
+  {
+    const E = HALF - 0.35, len = HALF * 2 - 0.7;
+    for (const side of [0, 1, 2, 3]) {
+      const alongX = side < 2, c = side % 2 ? -E : E;
+      deco(alongX ? len : 0.16, 0.16, alongX ? 0.16 : len, alongX ? 0 : c, 0.32, alongX ? c : 0, C.fence);
+      deco(alongX ? len : 0.16, 0.16, alongX ? 0.16 : len, alongX ? 0 : c, 0.78, alongX ? c : 0, C.fence);
+      for (let k = -HALF + 1; k <= HALF - 1; k += 3) deco(0.3, 1.1, 0.3, alongX ? k : c, 0, alongX ? c : k, C.post);
+      const lo = new THREE.Vector3(alongX ? -HALF : c - 0.25, 0, alongX ? c - 0.25 : -HALF), hi = new THREE.Vector3(alongX ? HALF : c + 0.25, FENCE_H, alongX ? c + 0.25 : HALF);
+      physics.add({ box: new THREE.Box3(lo, hi), kind: 'fence' });
+    }
   }
+  mergeStatic(scene, base);
 
-  mergeStatic(scene, statics);
-  // невидимые стенки по краю острова: ребёнок не падает в пропасть случайно (высота 40 м — heightAt их не видит)
-  for (const [x0, x1, z0, z1] of [[-HALF - 1, HALF + 1, HALF, HALF + 1], [-HALF - 1, HALF + 1, -HALF - 1, -HALF], [HALF, HALF + 1, -HALF, HALF], [-HALF - 1, -HALF, -HALF, HALF]])
-    physics.add({ box: new THREE.Box3(new THREE.Vector3(x0, -20, z0), new THREE.Vector3(x1, 40, z1)), kind: 'wall' });
+  // расстановка — новая каждый раунд (просьба заказчика): холмы, плита и башня поворачиваются/зеркалятся,
+  // ящики и деревья встают на случайные свободные места
+  const layout = new THREE.Group();
+  scene.add(layout);
+  let layoutSolids: Solid[] = [];
+  /** Точки большого холма по возрастанию высоты (1, 2, 3 м) — для бота-тестера. */
+  let hill: [number, number][] = [];
+  const buildLayout = () => {
+    for (const s of layoutSolids) physics.remove(s);
+    layoutSolids = [];
+    for (const c of [...layout.children]) { (c as THREE.Mesh).geometry.dispose(); c.removeFromParent(); }
+    const turns = Math.floor(Math.random() * 4), flip = Math.random() < 0.5;
+    const T = (x: number, z: number): [number, number] => {
+      let a = flip ? -x : x, b = z;
+      for (let i = 0; i < turns; i++) [a, b] = [-b, a];
+      return [a, b];
+    };
+    const parts: THREE.Mesh[] = [];
+    /** Блок в «чертёжных» координатах (до поворота). pos — центр низа. */
+    const put = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number, hard = true, raw = false) => {
+      const [px, pz] = raw ? [x, z] : T(x, z), swap = !raw && turns % 2 === 1;
+      const m = block({ x: swap ? sz : sx, y: sy, z: swap ? sx : sz }, color);
+      m.position.set(px, y + sy / 2, pz);
+      layout.add(m);
+      if (hard) layoutSolids.push(physics.addMesh(m));
+      parts.push(m);
+    };
+    // ступенчатый холм (1 → 2 → 3 м): забраться повыше — спасение от лавы и бегающих
+    put(16, 1, 14, -16, 0, -13, C.stone);
+    put(10, 2, 9, -18, 0, -15, C.stone);
+    put(5, 3, 5, -21, 0, -18, C.stone);
+    hill = ([[-16, -9], [-18, -14], [-21, -18]] as const).map(([x, z]) => T(x, z));
+    // второй, низкий холм: плато 2 м со ступенькой
+    put(6, 2, 6, -6, 0, 20, C.stone);
+    put(2, 1, 2, -10, 0, 20, C.stoneDark);
+    // широкая плита 1 м — от лавы спасает, от котов нет
+    put(8, 1, 6, 14, 0, -2, C.stoneDark);
+    // башня 6 м и лесенка из блоков по 1 м
+    put(5, 6, 5, 20, 0, -20, C.stone);
+    for (let i = 0; i < 5; i++) put(2, i + 1, 2, 8.5 + i * 2, 0, -19, C.stoneDark);
+    put(0.3, 3, 0.3, 21.8, 6, -21.8, C.trunk, false);
+    put(1.8, 1.1, 0.2, 22.8, 7.7, -21.8, C.flag, false);
+
+    /** Свободно ли место радиуса r: не на постройке, с проходом 1,2 м, не у старта игрока. */
+    const free = (x: number, z: number, r: number) => {
+      if (Math.abs(x) > HALF - 3 - r || Math.abs(z) > HALF - 3 - r || Math.hypot(x - SPAWN.x, z - SPAWN.z) < 4 + r) return false;
+      for (const s of layoutSolids) {
+        const b = s.box, g = 1.2;
+        if (x + r > b.min.x - g && x - r < b.max.x + g && z + r > b.min.z - g && z - r < b.max.z + g) return false;
+      }
+      return true;
+    };
+    const spot = (r: number): [number, number] | null => {
+      for (let k = 0; k < 300; k++) {
+        const x = (Math.random() * 2 - 1) * (HALF - 3), z = (Math.random() * 2 - 1) * (HALF - 3);
+        if (free(x, z, r)) return [x, z];
+      }
+      return null;
+    };
+    // ящики: «стенки» с ящиком наверху (на них сухо и при высокой лаве), пары и одиночные
+    const groups: [number, number, number][][] = [
+      ...Array(4).fill([[0, 0, 0], [2, 0, 0], [1, 2, 0]]),
+      ...Array(4).fill([[0, 0, 0], [2, 0, 0]]),
+      ...Array(3).fill([[0, 0, 0]]),
+    ];
+    for (const g of groups) {
+      const p = spot(g.length > 1 ? 2.2 : 1.2);
+      if (!p) continue;
+      const along = Math.random() < 0.5;
+      for (const [dx, y, dz] of g) put(2, 2, 2, p[0] + (along ? dx : dz) - (g.length > 1 && along ? 1 : 0), y, p[1] + (along ? dz : dx) - (g.length > 1 && !along ? 1 : 0), C.crate, true, true);
+    }
+    // деревья: ствол твёрдый, крона — декор (под ней можно стоять)
+    for (let k = 0; k < 5; k++) {
+      const p = spot(1.6);
+      if (!p) continue;
+      put(1, 3, 1, p[0], 0, p[1], C.trunk, true, true);
+      put(3.4, 2.4, 3.4, p[0], 3, p[1], C.leaves, false, true);
+      put(2, 1.2, 2, p[0], 5.4, p[1], C.leaves, false, true);
+    }
+    mergeStatic(layout, parts);
+    // манекены — тоже на новые места
+    dummySpots = [];
+    for (let k = 0; k < DUMMIES; k++) dummySpots.push(spot(0.8) ?? [k * 3 - 9, -3]);
+  };
+  let dummySpots: [number, number][] = [];
 
   /** Верх самой высокой опоры в точке (куда падает метеор). */
   const heightAt = (x: number, z: number): number => {
@@ -171,20 +227,17 @@ export function createScene(parent: HTMLElement): Game {
   scene.add(player.root);
   const ctl = new Controller(player, (p, v, dt) => physics.move(p, v, dt));
   // лицом к −Z, спиной к камере: на старте видно арену, а не лицо персонажа
-  ctl.setSpawn(new THREE.Vector3(0, 0.01, 5), Math.PI);
+  ctl.setSpawn(new THREE.Vector3(SPAWN.x, 0.01, SPAWN.z), Math.PI);
   ctl.onJump = () => sfx.play('jump', 0.08);
   ctl.onLand = (v) => { if (v > 10) sfx.play('land', 0.1); };
 
   // манекены — будущие боты: по ним видно, что персонаж стоит 1 вызов отрисовки
   const dummies: Avatar[] = [];
-  const spots: [number, number][] = [[-8, 3], [7, 12], [-14, -4], [12, -8], [-3, -13], [17, 9], [-18, 19]];
-  spots.forEach(([x, z], i) => {
+  for (let i = 0; i < DUMMIES; i++) {
     const a = new Avatar(SKINS[(i + 1) % SKINS.length].look, true);
-    a.root.position.set(x, 0, z);
-    a.root.rotation.y = Math.atan2(-x, -z);
     scene.add(a.root);
     dummies.push(a);
-  });
+  }
 
   /* ───────────────────────────── ХАОС ────────────────────────────── */
   const fx = new Particles(scene);
@@ -200,7 +253,7 @@ export function createScene(parent: HTMLElement): Game {
   const alive = dummies.map(() => true);
 
   let t = 0, introT = 0, started = false, state: 'play' | 'dead' | 'win' = 'play', reelNo = 0, lavaStep = 0, burnT = 0, sparkT = 0, slipT = 0;
-  let deathCause = '';
+  let lavaWarned = false, deathCause = '', hearts = HEARTS, hurtT = 0, hits = 0;
   const reelLog: string[] = [];   // итоги барабанов за раунд — для автопрогона
 
   const killDummy = (i: number) => {
@@ -216,6 +269,7 @@ export function createScene(parent: HTMLElement): Game {
     if (import.meta.env.DEV && (window as unknown as { __god?: boolean }).__god) return;   // съёмка скриншотов
     state = 'dead';
     deathCause = cause;
+    hearts = 0; hurtT = 0; ui.setHearts(0, HEARTS);
     player.root.visible = false;
     reels.hide();
     fx.emit('poof', tmp.copy(ctl.pos).setY(ctl.pos.y + 1.2), 1.6);
@@ -223,6 +277,24 @@ export function createScene(parent: HTMLElement): Game {
     cam.shake(0.4);
     sfx.play('respawn', 0);
     ui.showResult(L('ТЫ ПОГИБ', 'YOU DIED'), L(`${deathCause} · продержался ${Math.floor(t)} с из ${ROUND}`, `${deathCause} · survived ${Math.floor(t)} of ${ROUND} s`), false);
+  };
+
+  /** Удар: минус сердечко, отброс от источника (dx, dz — от него к игроку) и мигание-неуязвимость. Последнее — гибель. */
+  const hurt = (cause: string, dx = 0, dz = 0) => {
+    if (state !== 'play' || hurtT > 0) return;
+    if (import.meta.env.DEV && (window as unknown as { __god?: boolean }).__god) return;
+    hearts--; hits++;
+    ui.setHearts(hearts, HEARTS);
+    if (hearts <= 0) { die(cause); return; }
+    hurtT = INVULN;
+    let l = Math.hypot(dx, dz);
+    if (l < 1e-3) { const a = Math.random() * 6.28; dx = Math.cos(a); dz = Math.sin(a); l = 1; }
+    // отброс слабый, а при поднятой лаве почти никакой: иначе удар сбрасывал с холма в лаву и сердечки не спасали
+    const kb = lava.level > -2 ? 2.5 : 7;
+    ctl.vel.x = (dx / l) * kb; ctl.vel.z = (dz / l) * kb; ctl.vel.y = lava.level > -2 ? 4 : 6;
+    fx.emit('poof', tmp.copy(ctl.pos).setY(ctl.pos.y + 1.2), 1, [0xff4a4a, 0xffffff]);
+    cam.shake(0.3);
+    sfx.play('land', 0.05);
   };
 
   /** «Огненная курица» — причина гибели в согласованной форме. */
@@ -247,7 +319,7 @@ export function createScene(parent: HTMLElement): Game {
     target: () => (state === 'play' ? ctl.pos : null),
     targetVel: () => ctl.vel,
     touchPlayer(m, kill, dx, dz) {
-      if (kill) { die(causeOf(m)); return; }
+      if (kill) { hurt(causeOf(m), dx, dz); return; }
       // обычная курица не убивает, а отпихивает
       const l = Math.hypot(dx, dz) || 1;
       ctl.vel.x += (dx / l) * 9; ctl.vel.z += (dz / l) * 9;
@@ -264,7 +336,7 @@ export function createScene(parent: HTMLElement): Game {
       const d = Math.hypot(ctl.pos.x - x, ctl.pos.z - z);
       cam.shake(Math.max(0, 0.45 - d * 0.03) * Math.min(2, r / 2));
       if (d < 16) sfx.play(ice ? 'land' : 'lava', 0.15);
-      if (state === 'play' && d < r && Math.abs(ctl.pos.y - y) < 2.6) die(causeOf(m));
+      if (state === 'play' && d < r && Math.abs(ctl.pos.y - y) < 2.6) hurt(causeOf(m), ctl.pos.x - x, ctl.pos.z - z);
       dummiesNear(x, y, z, r);
     },
     hitDummies: (x, y, z, r, infect) => (r > 0 ? dummiesNear(x, y, z, r, infect) : []),
@@ -272,11 +344,16 @@ export function createScene(parent: HTMLElement): Game {
   });
 
   const restart = () => {
-    reelLog.length = 0;
+    reelLog.length = 0; hits = 0; lavaWarned = false;
     t = 0; introT = INTRO; started = false; reelNo = 0; lavaStep = 0; burnT = 0; slipT = 0; state = 'play';
     surface.reset(); creatures.reset(); lava.reset(); flames.clear(); bolts.clear(); hail.on = false;
     reels.hide();
-    dummies.forEach((d, i) => { alive[i] = true; d.root.rotation.x = 0; d.root.position.y = 0; d.root.visible = true; });
+    buildLayout();
+    dummies.forEach((d, i) => {
+      const [x, z] = dummySpots[i];
+      alive[i] = true; d.root.rotation.set(0, Math.atan2(-x, -z), 0); d.root.position.set(x, 0, z); d.root.visible = true;
+    });
+    hearts = HEARTS; hurtT = 0; ui.setHearts(hearts, HEARTS);
     player.root.visible = true;
     ctl.respawn();
     ctl.grip = 1;
@@ -306,6 +383,8 @@ export function createScene(parent: HTMLElement): Game {
     t += dt;
     if (state === 'play') ui.setTime(ROUND - t);
     if (state === 'play' && reelNo < REELS_AT.length && t >= REELS_AT[reelNo]) { reels.spin(onReel, reelPlan(reelNo)); reelNo++; }
+    // заранее предупреждаем: лава не должна заставать врасплох
+    if (!lavaWarned && t >= LAVA_STEPS[0].at - 3) { lavaWarned = true; ui.announce(L('ЛАВА СКОРО! ЗАБИРАЙСЯ ВЫШЕ!', 'LAVA SOON! CLIMB UP!'), '#ffb02a'); sfx.play('checkpoint', 0); }
     while (lavaStep < LAVA_STEPS.length && t >= LAVA_STEPS[lavaStep].at) {
       const st = LAVA_STEPS[lavaStep];
       ui.announce(L(st.ru, st.en), '#ff5a2a');
@@ -314,7 +393,7 @@ export function createScene(parent: HTMLElement): Game {
       // метеоритный дождь до конца раунда: две волны, половина метит в игрока
       // первая волна мягче (по автотесту финал убивал 44% дошедших)
       if (lavaStep === 0) creatures.start({ n: 12, adj: 'fire', noun: 'meteor' }, 0.35);
-      if (lavaStep === 2) creatures.start({ n: 16, adj: 'fire', noun: 'meteor' }, 0.5);
+      if (lavaStep === 2) creatures.start({ n: 14, adj: 'fire', noun: 'meteor' }, 0.35);
       lavaStep++;
     }
     // ледяные существа приносят с собой град; град морозит землю понемногу
@@ -340,7 +419,7 @@ export function createScene(parent: HTMLElement): Game {
     slipT -= dt;
     ctl.grip = cell === Cell.Ice || slipT > 0 ? 0.08 : 1;
     burnT = cell === Cell.Fire ? burnT + dt : 0;
-    if (burnT > BURN_DEATH) die(L('Сгорел', 'Burned'));
+    if (burnT > BURN_DEATH) { burnT = 0; hurt(L('Сгорел', 'Burned')); }
     // падение — первым: лава в покое стоит под островом (-2,5) и раньше подписывала падение «Лавой»
     if (ctl.pos.y < FALL_Y) die(L('Упал с острова', 'Fell off'));
     else if (lava.level > -2 && lava.level > ctl.pos.y + 0.1) die(L('Лава', 'Lava'));
@@ -358,6 +437,8 @@ export function createScene(parent: HTMLElement): Game {
     else cam.yaw += dt * 0.15;   // погиб — камера медленно облетает хаос, кнопка уже доступна
     runScript(dt);
     if (state === 'play') applySurface(dt);
+    // после удара мигаем: видно, что сейчас неуязвим
+    if (hurtT > 0) { hurtT -= dt; player.root.visible = state !== 'dead' && (hurtT <= 0 || Math.floor(hurtT * 12) % 2 === 0); }
     surface.update(dt);
     creatures.update(dt);
     flames.commit(dt);
@@ -387,8 +468,8 @@ export function createScene(parent: HTMLElement): Game {
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
     Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __surface: surface,
-      __state: () => ({ t, state, started, deathCause, lava: lava.level, dummies: alive.filter(Boolean).length, reels: reelLog.slice() }) });
+      __heightAt: heightAt, __surface: surface, __hill: () => hill,
+      __state: () => ({ t, state, started, deathCause, hearts, hits, lava: lava.level, dummies: alive.filter(Boolean).length, reels: reelLog.slice() }) });
   }
 
   let paused = false;

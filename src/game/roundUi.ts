@@ -8,6 +8,8 @@ import { installTap } from '../engine/tap.ts';
  */
 export class RoundUi {
   private timer: HTMLDivElement;
+  private hearts: HTMLDivElement;
+  private heartsN = -1;
   private banner: HTMLDivElement;
   private panel: HTMLDivElement;
   private title: HTMLDivElement;
@@ -19,6 +21,7 @@ export class RoundUi {
     injectCss();
     installTap();
     this.timer = el('rui-timer', parent);
+    this.hearts = el('rui-hearts', parent);
     this.banner = el('rui-banner', parent);
     this.panel = el('rui-panel', parent);
     const card = el('rui-card', this.panel);
@@ -39,6 +42,14 @@ export class RoundUi {
     const s = Math.max(0, Math.ceil(left));
     this.timer.textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     this.timer.classList.toggle('hot', s <= 10);
+  }
+
+  /** Сердечки слева сверху: целые красные, потерянные серые; потеря — встряска. */
+  setHearts(n: number, max: number): void {
+    if (this.hearts.childElementCount !== max) this.hearts.innerHTML = '<i></i>'.repeat(max);
+    Array.from(this.hearts.children).forEach((h, i) => h.classList.toggle('lost', i >= n));
+    if (n < this.heartsN) { this.hearts.classList.remove('hit'); void this.hearts.offsetWidth; this.hearts.classList.add('hit'); }
+    this.heartsN = n;
   }
 
   /** Крупная надпись волны на ~2 с. Управление НЕ отбирается. */
@@ -86,6 +97,13 @@ function injectCss(): void {
   background:#1d3f86;border:calc(.6*var(--u)) solid #fff;color:#fff;font:900 calc(4.6*var(--u))/1 Rubik,system-ui,sans-serif;
   box-shadow:0 calc(.8*var(--u)) 0 rgba(0,0,0,.25);pointer-events:none;white-space:nowrap}
 .rui-timer.hot{background:#d8313a}
+.rui-hearts{position:absolute;top:calc(env(safe-area-inset-top) + 2.2*var(--u));left:calc(env(safe-area-inset-left) + 2.2*var(--u));z-index:6;display:flex;gap:calc(.8*var(--u));pointer-events:none}
+.rui-hearts i{width:calc(6.4*var(--u));height:calc(6.4*var(--u));min-width:26px;min-height:26px;transition:transform .2s,filter .2s;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21.5 3.2 12.9A5.4 5.4 0 0 1 12 6.1a5.4 5.4 0 0 1 8.8 6.8z' fill='%23ff3b4e' stroke='%23fff' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M7.4 8.6a2.4 2.4 0 0 1 2.6-.9' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' fill='none' opacity='.8'/%3E%3C/svg%3E") center/contain no-repeat;
+  filter:drop-shadow(0 calc(.5*var(--u)) 0 rgba(0,0,0,.3))}
+.rui-hearts i.lost{filter:grayscale(1) brightness(.75) opacity(.55);transform:scale(.82)}
+.rui-hearts.hit{animation:ruiHit .4s}
+@keyframes ruiHit{0%,100%{transform:none}25%{transform:translateX(-6px) rotate(-4deg)}50%{transform:translateX(6px) rotate(4deg)}75%{transform:translateX(-3px)}}
 .rui-banner{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%) scale(.6);z-index:6;opacity:0;pointer-events:none;
   max-width:92vw;text-align:center;font:900 calc(8*var(--u))/1.05 Rubik,system-ui,sans-serif;
   -webkit-text-stroke:calc(.5*var(--u)) #1b2a55;paint-order:stroke fill;text-shadow:0 calc(.7*var(--u)) 0 #1b2a55;transition:transform .25s cubic-bezier(.3,1.6,.5,1),opacity .2s}

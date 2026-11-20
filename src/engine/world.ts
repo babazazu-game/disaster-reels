@@ -256,7 +256,7 @@ export function block(size: THREE.Vector3Like, color: number): THREE.Mesh {
  * Трасса — десятки блоков, каждый был отдельным вызовом отрисовки (и ещё одним
  * в проходе теней). Физике меши не нужны — у неё свои Box3, снятые до склейки.
  */
-export function mergeStatic(scene: THREE.Scene, meshes: THREE.Mesh[]): void {
+export function mergeStatic(scene: THREE.Object3D, meshes: THREE.Mesh[]): void {
   const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
   for (const m of meshes) {
     // updateWorldMatrix(родители=true): столбик таблички лежит в группе, и без пересчёта

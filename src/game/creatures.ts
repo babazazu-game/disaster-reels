@@ -158,6 +158,7 @@ const SPEED: Partial<Record<NounId, number>> = { chicken: 4, cat: 3.8, shark: 3.
 const dummy = new THREE.Object3D();
 let beams = 0;
 const flash = new THREE.Color(3, 3, 3);
+const danger = new THREE.Color(1.6, 0.12, 0.08);   // лежащее опасное мигает красным: «не трогай»
 const tc = new THREE.Color();
 
 export class Creatures {
@@ -329,10 +330,14 @@ export class Creatures {
         const b = L[j];
         if (!b.live || b.phase !== 'run') continue;
         const dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz, want = this.body(a) + this.body(b);
-        if (d2 >= want * want || d2 < 1e-6) continue;
-        const d = Math.sqrt(d2), push = (want - d) * 0.5, ux = dx / d, uz = dz / d;
-        if (this.free(a.x - ux * push, a.z - uz * push, a.y, this.body(a), this.step(a))) { a.x -= ux * push; a.z -= uz * push; }
-        if (this.free(b.x + ux * push, b.z + uz * push, b.y, this.body(b), this.step(b))) { b.x += ux * push; b.z += uz * push; }
+        if (d2 >= want * want) continue;
+        // стоят ровно в одной точке — разводим в случайную сторону (раньше такие пары не расталкивались и дрожали вместе)
+        const d = Math.sqrt(d2) || 1e-3, a0 = (i * 2.4 + j) % 6.28, ux = d2 < 1e-6 ? Math.cos(a0) : dx / d, uz = d2 < 1e-6 ? Math.sin(a0) : dz / d;
+        const push = (want - d) * 0.5;
+        const ca = this.free(a.x - ux * push, a.z - uz * push, a.y, this.body(a), this.step(a));
+        const cb = this.free(b.x + ux * push * (ca ? 1 : 2), b.z + uz * push * (ca ? 1 : 2), b.y, this.body(b), this.step(b));
+        if (ca) { a.x -= ux * push * (cb ? 1 : 2); a.z -= uz * push * (cb ? 1 : 2); }
+        if (cb) { b.x += ux * push * (ca ? 1 : 2); b.z += uz * push * (ca ? 1 : 2); }
       }
     }
   }
@@ -401,7 +406,8 @@ export class Creatures {
     const p = pt && Math.hypot(pt.x - m.x, pt.z - m.z) < CHASE ? pt : null;
     let dx: number, dz: number;
     if (p) { dx = p.x - m.x; dz = p.z - m.z; }
-    else { dx = Math.sin(m.seed + m.t * 0.3); dz = Math.cos(m.seed * 1.7 + m.t * 0.3); }
+    // бродят к блуждающей точке внутри острова — а не упираются в забор, двигаясь в одну сторону
+    else { dx = Math.sin(m.seed + m.t * 0.25) * this.half * 0.55 - m.x; dz = Math.cos(m.seed * 1.7 + m.t * 0.2) * this.half * 0.55 - m.z; }
     const len = Math.hypot(dx, dz) || 1;
     // покачивание курса: стая не бежит в одну точку цепочкой
     const wob = Math.sin(m.t * 1.3 + m.seed) * 0.6;
@@ -422,13 +428,25 @@ export class Creatures {
     // коты (и прыгучие) лезут наверх: игрок на ящике или холме рядом, а прямой путь упирается — прыжок к нему
     const climber = (m.kind === 'cat' || m.adj === 'bouncy') && m.s < 2;   // гиганты не скачут на ящики
     if (climber && grounded && p && p.y > m.y + 0.6 && len < 7 && !this.free(nx, nz, m.y, b, st)) m.vy = 12.5;
+    // совсем не может шагнуть дольше 1,5 с (зажат между ящиками или появился вплотную) — переносим на ближайшее свободное место
+    m.hold = moved ? Math.max(0, m.hold - dt) : m.hold + dt;
+    if (m.hold > 1.5 && grounded) {
+      m.hold = 0;
+      search: for (let r = 0.8; r <= 5; r += 0.7) for (let a = 0; a < 12; a++) {
+        const qx = m.x + Math.cos(a * 0.524 + m.seed) * r, qz = m.z + Math.sin(a * 0.524 + m.seed) * r;
+        if (this.free(qx, qz, this.h.heightAt(qx, qz), b, st)) { m.x = qx; m.z = qz; m.ground = m.y = this.h.heightAt(qx, qz); this.fx.emit('poof', this.v.set(qx, m.y + 0.5, qz), 0.5 * m.s); break search; }
+      }
+    }
     if (!moved) {
       if (grounded && climber) m.vy = 12.5;
       // остальные обходят: в сторону, а если снова упёрлись — в другую
-      m.steer = m.steerT > 0 ? -m.steer : (m.seed % 2 < 1 ? 1.6 : -1.6);
-      m.steerT = 1.2;
+      // обходят вдоль стенки в одну сторону, всё круче, а не мечутся влево-вправо (заказчик: «застряли и дрыгаются»)
+      const sg = m.steerT > 0 ? Math.sign(m.steer) : (m.seed % 2 < 1 ? 1 : -1);
+      m.steer = sg * Math.min(2.6, m.steerT > 0 ? Math.abs(m.steer) + 0.5 : 1.6);
+      m.steerT = 1.4;
     }
-    m.yaw = Math.atan2(wx, wz);
+    // разворот плавный и только когда реально идёт — иначе упёршееся тело дёргалось
+    if (moved) { const want = Math.atan2(wx, wz); let dy = want - m.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); m.yaw += dy * Math.min(1, dt * 10); }
     // прыжки: прыгучие — всегда, слайм и акула — короткими скачками
     if (grounded) {
       if (m.adj === 'bouncy') m.vy = 10;
@@ -454,7 +472,7 @@ export class Creatures {
     for (const m of this.mobs) {
       if (!m.live) continue;
       m.t += dt;
-      let tumble = 0, squash = 1, blink = false;
+      let tumble = 0, squash = 1, blink = false, warn = -1;
 
       if (m.phase === 'fall') {
         const k = Math.min(1, m.t / m.warn);
@@ -483,6 +501,8 @@ export class Creatures {
         if (this.tornado(m, dt)) continue;
       } else if (m.phase === 'lie') {
         if (m.adj === 'bouncy' || m.adj === 'fast') this.run(m, dt * 0.6);
+        // опасный банан (огненный, ледяной, гигантский) убивает касанием — заказчик не понял этого: мигает и под ним красный круг
+        if (this.deadly(m)) { warn = 0.5 + 0.5 * Math.sin(m.t * 9 + m.seed); this.setRing(rings++, m.x, m.ground, m.z, (this.reach(m) + 0.5) * (0.9 + 0.15 * warn)); }
         if (m.t > m.life) { m.live = false; this.fx.emit('poof', this.v.set(m.x, m.y + 0.3, m.z), 0.5); continue; }
       } else {
         this.run(m, dt);
@@ -513,7 +533,7 @@ export class Creatures {
       dummy.scale.set(m.s / Math.sqrt(squash), m.s * squash, m.s / Math.sqrt(squash));
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-      mesh.setColorAt(i, blink ? flash : tc.copy(TINT[m.adj]));
+      mesh.setColorAt(i, blink ? flash : warn >= 0 ? tc.copy(TINT[m.adj]).lerp(danger, warn) : tc.copy(TINT[m.adj]));
       // огненные горят по-настоящему: языки пламени на спине; метеорит — пылает в полёте
       if (m.adj === 'fire' || m.kind === 'meteor') {
         const top = m.kind === 'meteor' ? 0.6 : m.kind === 'ufo' ? 0.3 : m.kind === 'tornado' ? 3 : 0.7;
@@ -551,6 +571,9 @@ export class Creatures {
     this.ring.setMatrixAt(i, dummy.matrix);
   }
 
+  /** Лежащий банан, который ранит (остальные только подскальзывают). */
+  private deadly(m: Mob): boolean { return m.kind === 'banana' && (m.adj === 'fire' || m.adj === 'ice' || m.adj === 'giant'); }
+
   /** Касание игрока и манекенов. Обычная курица и обычный банан не убивают. */
   private touch(m: Mob): void {
     const r = this.reach(m);
@@ -562,8 +585,8 @@ export class Creatures {
     const dx = p.x - m.x, dz = p.z - m.z;
     if (dx * dx + dz * dz > r * r || p.y > m.y + 1.3 * m.s || p.y + 1.6 < m.y) return;
     if (m.kind === 'banana') {
-      if (m.adj === 'plain' || m.adj === 'bouncy' || m.adj === 'fast') this.h.slip();
-      else this.h.touchPlayer(m, true, dx, dz);
+      if (this.deadly(m)) this.h.touchPlayer(m, true, dx, dz);
+      else this.h.slip();
       return;
     }
     this.h.touchPlayer(m, !(m.kind === 'chicken' && m.adj === 'plain'), dx, dz);

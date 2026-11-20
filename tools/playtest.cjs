@@ -34,13 +34,13 @@ const PAGE_LIB = () => {
   let jumpT = 0;   // прыжок держим несколько кадров и отпускаем по счётчику (цикл синхронный, таймеры не успеют)
   const jump = () => { key('keydown', 'Space'); jumpT = 4; };
   // безопасные точки на финале: верх большого холма (3 м), ступени к нему, двойные ящики, башня — по высоте
-  const HILL = [[-16, -9], [-18, -14], [-21, -18]];
 
   W.__pt = {
     round(bot) {
       W.__restart();
       const st = W.__state;
-      const log = { bot, survived: false, tDeath: null, cause: '', reels: [], maxMobs: 0, stuck: 0, kinds: {}, tickMs: 0, ticks: 0, stopPresses: 0, errors: [] };
+      const HILL = W.__hill();   // расстановка новая каждый раунд
+      const log = { hits: 0, bot, survived: false, tDeath: null, cause: '', reels: [], maxMobs: 0, stuck: 0, kinds: {}, tickMs: 0, ticks: 0, stopPresses: 0, errors: [] };
       const last = new Map();   // моб → [x, z, t] для поиска застрявших
       let pressAt = -1, frames = 0, jumpCd = 0;
       const t0 = performance.now();
@@ -72,7 +72,7 @@ const PAGE_LIB = () => {
           const H = 24;
           if (p.x > H) fx -= 3; if (p.x < -H) fx += 3; if (p.z > H) fz -= 3; if (p.z < -H) fz += 3;
           // финал: к холму, и не слезать с высоты
-          if (s.t > 42) {
+          if (s.t > 41) {   // как человек: по предупреждению «ЛАВА СКОРО»
             const goal = HILL.reduce((b, c) => (W.__heightAt(c[0], c[1]) > W.__heightAt(b[0], b[1]) && p.y > W.__heightAt(b[0], b[1]) - 0.2 ? c : b), HILL[0]);
             const g = p.y >= 2.9 ? HILL[2] : goal;
             const gx = g[0] - p.x, gz = g[1] - p.z, gl = Math.hypot(gx, gz);
@@ -103,7 +103,7 @@ const PAGE_LIB = () => {
             if (prev && s.t - prev[2] >= 3) {
               const moved = Math.hypot(m.x - prev[0], m.z - prev[1]);
               const far = Math.hypot(W.__ctl.pos.x - m.x, W.__ctl.pos.z - m.z) > 3;
-              if (moved < 0.4 && far) log.stuck++;
+              if (moved < 0.4 && far) { log.stuck++; if ((log.stuckAt = log.stuckAt || []).length < 6) log.stuckAt.push([m.kind, m.adj, +m.x.toFixed(1), +m.y.toFixed(1), +m.z.toFixed(1), +m.s.toFixed(1), m.steerT > 0 ? 'steer' : '-', W.__heightAt(m.x, m.z)]); }
               last.set(m, [m.x, m.z, s.t]);
             } else if (!prev) last.set(m, [m.x, m.z, s.t]);
           }
@@ -114,6 +114,8 @@ const PAGE_LIB = () => {
       log.survived = s.state === 'win';
       if (s.state === 'dead') { log.tDeath = +s.t.toFixed(1); log.cause = s.deathCause; }
       log.reels = s.reels;
+      log.hits = s.hits;
+      { const q = W.__ctl.pos; log.pos = [+q.x.toFixed(1), +q.y.toFixed(1), +q.z.toFixed(1)]; log.hill = HILL; log.lava = +s.lava.toFixed(2); }
       for (const m of W.__creatures.mobs.filter((q) => q.live)) log.kinds[m.kind] = (log.kinds[m.kind] || 0) + 1;
       log.tickMs = +(log.tickMs / Math.max(1, log.ticks)).toFixed(3);
       log.wallMs = Math.round(performance.now() - t0);
@@ -144,7 +146,7 @@ const PAGE_LIB = () => {
     const bot = i % 3 === 2 ? 'idle' : 'smart';
     const r = await page.evaluate((b) => window.__pt.round(b), bot);
     rounds.push(r);
-    console.log(`#${i + 1} ${bot.padEnd(5)} ${r.survived ? 'ВЫЖИЛ ' : `погиб на ${String(r.tDeath).padStart(4)} с: ${r.cause}`.padEnd(40)} | ${r.reels.join(' / ')} | мобов max ${r.maxMobs}, застряли ${r.stuck}`);
+    console.log(`#${i + 1} ${bot.padEnd(5)} ${r.survived ? 'ВЫЖИЛ ' : `погиб на ${String(r.tDeath).padStart(4)} с: ${r.cause}`.padEnd(40)} | ${r.reels.join(' / ')} | ударов ${r.hits}, мобов max ${r.maxMobs}, застряли ${r.stuck}`);
     if (SHOTS && i < 3) {
       const calls = await page.evaluate(() => window.__pt.draw());
       await page.screenshot({ path: path.join(OUT, 'shots', `round${i + 1}_end.png`) });
@@ -169,6 +171,7 @@ const PAGE_LIB = () => {
     survive: { smart: rate(smart) + '%', idle: rate(idle) + '%' },
     avgDeathSec: { smart: avg(smart.filter((r) => r.tDeath).map((r) => r.tDeath)), idle: avg(idle.filter((r) => r.tDeath).map((r) => r.tDeath)) },
     causes,
+    avgHits: avg(rounds.map((r) => r.hits)),
     stuckTotal: rounds.reduce((a, r) => a + r.stuck, 0),
     maxMobs: Math.max(...rounds.map((r) => r.maxMobs)),
     simMsPerTick: avg(rounds.map((r) => r.tickMs)),
