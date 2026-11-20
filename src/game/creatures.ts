@@ -73,6 +73,8 @@ export interface CreatureHooks {
   nudge(vx: number, vy: number, vz: number): void;
   /** Сработала реакция (этап 4): игра показывает «Момент хаоса» при первом за раунд. label — своя надпись. */
   react(id: string, x: number, z: number, label?: string): void;
+  /** Тяжело приземлился (пыль). s — размер существа. */
+  land?(x: number, y: number, z: number, s: number): void;
 }
 
 /* ───────── модели: части-коробки и шары с цветом, ~1 м в высоту, «нос» вдоль +Z ───────── */
@@ -547,7 +549,8 @@ export class Creatures {
         const gh = this.h.heightAt(m.x, m.z);
         m.ground = gh <= m.y + this.step(m) ? gh : m.ground;
         m.vy -= G * dt; m.y += m.vy * dt;
-        if (m.y <= m.ground) { m.y = m.ground; m.vy = 0; }
+        // пыль только от тяжёлых приземлений: мелкие скачки слаймов и акул без неё — их слишком много
+        if (m.y <= m.ground) { if (m.vy < -9) this.h.land?.(m.x, m.ground, m.z, m.s); m.y = m.ground; m.vy = 0; }
         if (m.vy !== 0 || m.kind === 'slime') squash = 1 + Math.sin(m.t * 12) * 0.12;
         // след на земле: огненные поджигают, ледяные морозят
         m.tick -= dt;

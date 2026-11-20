@@ -36,6 +36,8 @@ export interface ArenaBotHooks {
   mobs(): readonly MobView[];
   /** Верхушки твёрдых построек расстановки: куда лезть. */
   spots(): readonly Spot[];
+  /** Пыль от прыжка/приземления бота (scale ~ сила). */
+  puff?(x: number, y: number, z: number, scale: number): void;
   /** Бот погиб — игре для звука/эффекта. */
   died?(x: number, y: number, z: number): void;
 }
@@ -61,12 +63,14 @@ class ArenaBot {
   private spin = new THREE.Vector3();
   private lying = false;
 
-  constructor(scene: THREE.Scene, physics: Physics, i: number, nick: string) {
+  constructor(scene: THREE.Scene, physics: Physics, i: number, nick: string, h: ArenaBotHooks) {
     this.avatar = new Avatar(SKINS[(i + 1) % SKINS.length].look, true);
     scene.add(this.avatar.root);
     this.ctl = new Controller(this.avatar, (p, v, dt) => physics.move(p, v, dt));
     this.tag = nameTag(nick);
     this.avatar.root.add(this.tag);
+    this.ctl.onJump = () => h.puff?.(this.ctl.pos.x, this.ctl.pos.y, this.ctl.pos.z, 0.35);
+    this.ctl.onLand = (v) => { if (v > 7) h.puff?.(this.ctl.pos.x, this.ctl.pos.y, this.ctl.pos.z, Math.min(1, v / 16)); };
   }
 
   reset(x: number, z: number): void {
@@ -231,7 +235,7 @@ export class ArenaBots {
 
   constructor(scene: THREE.Scene, physics: Physics, count: number, private h: ArenaBotHooks) {
     const nicks = [...NICKS].sort(() => Math.random() - 0.5);
-    for (let i = 0; i < count; i++) this.list.push(new ArenaBot(scene, physics, i, nicks[i]));
+    for (let i = 0; i < count; i++) this.list.push(new ArenaBot(scene, physics, i, nicks[i], h));
   }
 
   reset(spawns: [number, number][]): void { this.list.forEach((b, i) => b.reset(...spawns[i % spawns.length])); }

@@ -12,15 +12,17 @@ import * as THREE from 'three';
  */
 const MAX = 256;
 
-export type Burst = 'dust' | 'confetti' | 'coin' | 'wood' | 'lava' | 'poof' | 'trail';
+export type Burst = 'dust' | 'confetti' | 'coin' | 'wood' | 'lava' | 'poof' | 'trail' | 'puff';
 
-const PRESET: Record<Burst, { n: number; colors: number[]; speed: [number, number]; up: [number, number]; size: [number, number]; life: [number, number]; grav: number; spread: number }> = {
+const PRESET: Record<Burst, { n: number; colors: number[]; speed: [number, number]; up: [number, number]; size: [number, number]; life: [number, number]; grav: number; spread: number; ring?: number }> = {
   dust:     { n: 10, colors: [0xffffff, 0xe8e8e8, 0xd6d0c4], speed: [1.5, 3], up: [0.5, 1.5], size: [0.12, 0.22], life: [0.35, 0.6], grav: 4, spread: 1 },
   confetti: { n: 40, colors: [0xe8403a, 0xf7c41c, 0x2fb04a, 0x2a74e8, 0x9b59d0, 0xff6fb5], speed: [2, 6], up: [6, 11], size: [0.12, 0.2], life: [1.2, 1.8], grav: 14, spread: 1 },
   coin:     { n: 10, colors: [0xffd23a, 0xfff3a0, 0xffb800], speed: [1.5, 3.5], up: [2, 4], size: [0.08, 0.14], life: [0.35, 0.55], grav: 6, spread: 1 },
   wood:     { n: 8, colors: [0xc8874a, 0xe0a86a, 0x8a5528], speed: [1, 2.5], up: [1, 2.5], size: [0.1, 0.18], life: [0.3, 0.5], grav: 10, spread: 1 },
   lava:     { n: 16, colors: [0xff5a1f, 0xffc23a, 0x7a1a08], speed: [1.5, 4], up: [3, 7], size: [0.12, 0.22], life: [0.5, 0.9], grav: 12, spread: 1 },
   trail:    { n: 2, colors: [0xffffff], speed: [0.2, 0.6], up: [0.3, 0.9], size: [0.12, 0.2], life: [0.45, 0.7], grav: 0, spread: 1 },
+  // пыль от прыжка/приземления: облачка разбегаются кольцом по земле и тают
+  puff:     { n: 12, colors: [0xffffff, 0xf4f2ec, 0xe6e1d6], speed: [1.6, 3], up: [0.3, 1.1], size: [0.32, 0.58], life: [0.45, 0.8], grav: -0.8, spread: 1, ring: 0.6 },
   poof:     { n: 14, colors: [0xffffff, 0xdfeaff], speed: [1, 2.2], up: [0.5, 2], size: [0.2, 0.35], life: [0.4, 0.7], grav: -1, spread: 1 },
 };
 
@@ -58,7 +60,9 @@ export class Particles {
     for (let k = 0; k < n; k++) {
       const i = this.next; this.next = (this.next + 1) % MAX;
       const ang = Math.random() * Math.PI * 2, sp = R(P.speed);
-      this.p[i * 3] = at.x; this.p[i * 3 + 1] = at.y; this.p[i * 3 + 2] = at.z;
+      // ring — старт кольцом вокруг точки: пыль у ног иначе первые кадры пряталась за ногами персонажа
+      const r0 = P.ring ?? 0;
+      this.p[i * 3] = at.x + Math.cos(ang) * r0; this.p[i * 3 + 1] = at.y; this.p[i * 3 + 2] = at.z + Math.sin(ang) * r0;
       this.v[i * 3] = Math.cos(ang) * sp; this.v[i * 3 + 1] = R(P.up); this.v[i * 3 + 2] = Math.sin(ang) * sp;
       this.life[i] = this.max[i] = R(P.life);
       this.size[i] = R(P.size);

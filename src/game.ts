@@ -253,12 +253,31 @@ export function createScene(parent: HTMLElement): Game {
   const ctl = new Controller(player, (p, v, dt) => physics.move(p, v, dt));
   // лицом к −Z, спиной к камере: на старте видно арену, а не лицо персонажа
   ctl.setSpawn(new THREE.Vector3(SPAWN.x, 0.01, SPAWN.z), Math.PI);
-  ctl.onJump = () => sfx.play('jump', 0.08);
-  ctl.onLand = (v) => { if (v > 10) sfx.play('land', 0.1); };
+  ctl.onJump = () => { sfx.play('jump', 0.08); puff(ctl.pos.x, ctl.pos.y, ctl.pos.z, 0.5, 0); };
+  ctl.onLand = (v) => { if (v > 10) sfx.play('land', 0.1); if (v > 6) puff(ctl.pos.x, ctl.pos.y, ctl.pos.z, Math.min(1.4, v / 13), 0); };
 
 
   /* ───────────────────────────── ХАОС ────────────────────────────── */
   const fx = new Particles(scene);
+  /**
+   * Пыль от прыжков и приземлений — СВОЙ пул частиц (ещё 1 вызов отрисовки): иначе сотни облачков от прыгающих
+   * слаймов вытесняли бы из общего пула взрывы и пар. Бюджет: у игрока всегда полностью; боты — ближе 24 м;
+   * существа — ближе 18 м, только тяжёлые приземления; на слабом уровне качества вдвое меньше, у существ нет вовсе;
+   * за кадр не больше DUST_FRAME частиц от ботов и существ.
+   */
+  const dust = new Particles(scene);
+  const DUST_FRAME = 30;
+  let dustLeft = DUST_FRAME;
+  const puff = (x: number, y: number, z: number, scale: number, who: 0 | 1 | 2) => {
+    const low = quality.tier === 0;
+    if (who === 2 && low) return;
+    if (who > 0) {
+      if (Math.hypot(ctl.pos.x - x, ctl.pos.z - z) > (who === 1 ? 24 : 18) || dustLeft <= 0) return;
+    }
+    const k = scale * (low ? 0.5 : 1);
+    if (who > 0) dustLeft -= Math.round(10 * k);
+    dust.emit('puff', tmp.set(x, y + 0.12, z), k);
+  };
   const flames = new Flames(scene);
   const bolts = new Flames(scene, boltTexture(), 300, true);
   const surface = new Surface(scene, HALF, flames, bolts);
@@ -276,6 +295,7 @@ export function createScene(parent: HTMLElement): Game {
     time: () => t,
     mobs: () => creatures.mobs,
     spots: () => spots,
+    puff: (x, y, z, k) => puff(x, y, z, k, 1),
     died: (x, y, z) => { fx.emit('poof', tmp.set(x, y + 1, z), 0.8); if (Math.hypot(ctl.pos.x - x, ctl.pos.z - z) < 18) sfx.play('respawn', 0.25, 0.5); },
   });
 
@@ -370,6 +390,7 @@ export function createScene(parent: HTMLElement): Game {
     },
     hitDummies: (x, y, z, r, infect) => (r > 0 ? dummiesNear(x, y, z, r, infect) : []),
     react: (id, x, z, label) => moment(id, x, z, label),
+    land: (x, y, z, s) => puff(x, y, z, Math.min(1.2, 0.45 * s), 2),
     nudge: (vx, vy, vz) => { if (state === 'play') { ctl.vel.x += vx; ctl.vel.y = Math.min(ctl.vel.y + vy, 9); ctl.vel.z += vz; } },
   });
 
@@ -487,6 +508,8 @@ export function createScene(parent: HTMLElement): Game {
     }
     bots.update(dt);
     fx.update(dt);
+    dust.update(dt);
+    dustLeft = DUST_FRAME;
     ui.update(realDt);
     cam.update(realDt, ctl.pos);
   };
@@ -496,7 +519,7 @@ export function createScene(parent: HTMLElement): Game {
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 3); });
     Object.assign(window, { __renderer: renderer, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: () => restart(), __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __bots: bots, __surface: surface, __hill: () => hill,
+      __heightAt: heightAt, __bots: bots, __dust: dust, __surface: surface, __hill: () => hill,
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
   }
 
