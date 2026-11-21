@@ -340,19 +340,35 @@ export function createScene(parent: HTMLElement): Game {
         put(0.75, 0.12, 0.75, p[0], 1.05, p[1], C.potRim, false, true);
       }
       // пальмы: изогнутый ствол из колец, на макушке — веер длинных листьев (сквозь листья можно пройти)
+      const rings = 4, LEAN = Array.from({ length: rings }, (_, i) => 0.08 + i * 0.07).reduce((u, v) => u + v, 0);
       for (let k = 0; k < 5; k++) {
-        const p = spot(1.4);
-        if (!p) continue;
-        const a = Math.random() * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
+        // место выбираем сразу вместе с блоком-ступенькой: с земли до листьев (4,1 м) не допрыгнуть, а с блока 2 м —
+        // как раз (пальму без ступеньки не ставим)
+        let p: [number, number] | null = null, a = 0, step: [number, number] | null = null;
+        for (let tries = 0; tries < 12 && !step; tries++) {
+          p = spot(1.4);
+          if (!p) break;
+          a = Math.random() * Math.PI * 2;
+          const ex = p[0] + Math.cos(a) * LEAN, ez = p[1] + Math.sin(a) * LEAN;
+          for (const da of [0, 0.7, -0.7, 1.4, -1.4]) {
+            const bx = ex + Math.cos(a + da) * 3.4, bz = ez + Math.sin(a + da) * 3.4;
+            if (free(bx, bz, 1)) { step = [bx, bz]; break; }
+          }
+        }
+        if (!p || !step) continue;
+        put(2, 2, 2, step[0], 0, step[1], C.ruin, true, true);
+        const dx = Math.cos(a), dz = Math.sin(a);
         let x = p[0], z = p[1];
-        const rings = 5;
         for (let i = 0; i < rings; i++) {
           const w = 0.78 - i * 0.05;
-          put(w, 0.95, w, x, i * 0.95, z, C.palmTrunk, i < 2, true);
+          put(w, 0.95, w, x, i * 0.95, z, C.palmTrunk, true, true);
           const lean = 0.08 + i * 0.07;
           x += dx * lean; z += dz * lean;
         }
         const top = rings * 0.95;
+        // на листья можно встать (заказчик: «пальмы прозрачные, не могу на них встать»): невидимая площадка-крона,
+        // как у деревьев холмов — тип 'leaf', для существ это не земля, метеор бьёт в её верх
+        layoutSolids.push(physics.add({ box: new THREE.Box3(new THREE.Vector3(x - 1.9, top - 0.2, z - 1.9), new THREE.Vector3(x + 1.9, top + 0.35, z + 1.9)), kind: 'leaf' }));
         put(1.1, 0.7, 1.1, x, top - 0.1, z, C.palm, false, true);
         const n = 7, r0 = Math.random() * Math.PI;
         for (let i = 0; i < n; i++) {
@@ -992,7 +1008,7 @@ export function createScene(parent: HTMLElement): Game {
   if (import.meta.env.DEV) {
     // Q — следующий уровень качества по кругу: сравнить low/med/high на одном кадре
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 4); });
-    Object.assign(window, { __renderer: renderer, __THREE: THREE, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels, __stormInfo: () => storm.info(),
+    Object.assign(window, { __renderer: renderer, __THREE: THREE, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels, __physics: physics, __stormInfo: () => storm.info(),
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
       __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __revive: () => revive(), __die: () => die('test'), __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => { state = w ? 'win' : 'dead'; reels.hide(); finish(w); }, chars: () => menu.onCharacters?.(), enc: () => menu.onEncyclopedia?.(), board: () => menu.onLeaderboard?.() }, __dust: dust, __surface: surface, __hill: () => hill, __map: (m: MapId) => menu.onMap?.(m),
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });

@@ -2,7 +2,7 @@ import { installTap } from '../engine/tap.ts';
 import { sfx } from '../engine/sfx.ts';
 // В DOM размеры — CSS-пиксели: fontPx/tapSize из yg-core умножают на плотность экрана (они для canvas),
 // на телефоне с DPR 3 кнопки и шрифт раздувались втрое (заказчик: «пауза громадная, текст не вмещается»).
-import { COUNTS, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './words.ts';
+import { COUNTS, ADJ_IDS, NOUN_IDS, ADJS, type AdjId, type NounId } from './words.ts';
 
 /**
  * Барабан хаоса: три ленты СКОЛЬКО / КАКОЙ / ЧТО и ОДНА большая
@@ -54,6 +54,8 @@ export class Reels {
   private lanes: Lane[] = [];
   private btn: HTMLButtonElement;
   private stopped = 0;
+  /** Язык подписей под значками «какой» (заказчик: «серый кубик — непонятно, что значит»). */
+  private readonly ru: boolean;
   private landed = 0;
   private autoT = 0;
   private onDone: ((r: ReelResult) => void) | null = null;
@@ -66,6 +68,7 @@ export class Reels {
   constructor(parent: HTMLElement, stopLabel: string) {
     injectCss();
     installTap();
+    this.ru = /[а-яё]/i.test(stopLabel);
     this.box = document.createElement('div');
     this.box.className = 'reels';
     this.box.inert = true;
@@ -245,7 +248,11 @@ export class Reels {
       lane.slots.forEach((slot, i) => {
         const symbol = lane.list[wrap(index + 2 - i, lane.list.length)];
         if (typeof symbol === 'number') slot.textContent = String(symbol);
-        else slot.style.backgroundPosition = iconPos(symbol);
+        else {
+          slot.style.backgroundPosition = iconPos(symbol);
+          // подпись под значком свойства: «обычные», «огненные»… — по картинке не всё понятно ребёнку
+          if (symbol in ADJS) { const a = ADJS[symbol as AdjId]; slot.dataset.cap = this.ru ? a.ru.pl : a.en; }
+        }
       });
       lane.painted = index;
     }
@@ -311,6 +318,11 @@ function injectCss(): void {
 .reel-symbol{position:absolute;inset-inline:0;height:${PITCH}%;display:grid;
   grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center}
 .reel i{display:block;width:min(100%,calc(var(--w)*.16));aspect-ratio:1;background:url(./assets/reel.webp?v=${__BUILD__}) 0 0/400% 600% no-repeat}
+/* значок свойства поменьше и чуть выше — подпись под ним остаётся в своей ячейке, на соседей не налезает */
+.reel i[data-cap]{position:relative;width:min(100%,calc(var(--w)*.096));margin-bottom:calc(var(--w)*.03)}
+.reel i[data-cap]::after{content:attr(data-cap);position:absolute;left:50%;top:94%;transform:translateX(-50%);
+  font-size:max(9px,calc(var(--w)*.026));line-height:1;letter-spacing:.01em;text-transform:uppercase;font-style:normal;
+  -webkit-text-stroke:max(2px,calc(var(--w)*.005)) var(--ink);text-shadow:0 .06em #522257}
 /* Тень скрывает обрезку символов у краёв, а блик выгибает окно по центру. */
 .reel::after{content:'';position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(#4e286a65,transparent 34%,#ffffff24 49%,transparent 68%,#4e286a73);
