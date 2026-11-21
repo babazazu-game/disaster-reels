@@ -22,5 +22,20 @@
         }
       ]
     }
+  },
+  "leaderboards": [
+    {
+      "id": "chaos_points",
+      "isMain": true
+    }
+  ],
+  "saas": {
+    "publicToken": "REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN",
+    "leaderboards": {
+      "platforms": [
+        "playgama",
+        "qa_tool"
+      ]
+    }
   }
 }

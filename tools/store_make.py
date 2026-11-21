@@ -1,11 +1,11 @@
-"""Сборка материалов витрины Playgama из кадров tools/store_media.cjs и фонов tools/store_covers.cjs.
+"""Сборка материалов витрины Playgama: ролик и скриншоты из кадров tools/store_media.cjs, обложки — арт Codex (art/store/gen_covers.sh) + логотип.
 
   python tools/store_make.py
 
 Результат (только локально, ничего не загружается) — store/playgama/:
   video_1920x1080.mp4        — ~28 с геймплея: барабан → хаос → лава и финал, музыка игры с затуханием
   screenshots/1..7.jpg       — 1920×1080: меню, барабан, хаос, лава, победа, персонажи, энциклопедия
-  cover_landscape.jpg 1920×1080, cover_portrait.jpg 1080×1920, cover_square.jpg 800×800 — фон из игры + логотип
+  cover_landscape.jpg 1920×1080, cover_portrait.jpg 1080×1920, cover_square.jpg 800×800 — арт Codex + логотип
 """
 import json
 import os
@@ -90,40 +90,35 @@ def screenshots(log):
     print('скриншоты:', d, len(seq))
 
 
-def cover(name, size, logo_w, logo_y, bg_name=None):
-    bg = Image.open(os.path.join(OUT, f'bg_{bg_name or name}.png')).convert('RGB')
+KEY = os.path.join(ROOT, 'art', 'store')
+
+
+def cover(name, size, logo_w, logo_y, anchor_y=0.5):
+    """Обложка: ключевой арт Codex (art/store/key_<name>.png, без текста) + настоящий логотип игры сверху."""
+    bg = Image.open(os.path.join(KEY, f'key_{name}.png')).convert('RGB')
     W, H = size
     k = max(W / bg.width, H / bg.height)
     bg = bg.resize((round(bg.width * k), round(bg.height * k)), Image.LANCZOS)
-    x0, y0 = (bg.width - W) // 2, (bg.height - H) // 2
+    x0, y0 = (bg.width - W) // 2, round((bg.height - H) * anchor_y)
     bg = bg.crop((x0, y0, x0 + W, y0 + H))
-    # мягкое затемнение сверху под логотип — чтобы читался на любом кадре
-    shade = Image.new('L', (W, H), 0)
-    dr = ImageDraw.Draw(shade)
-    for y in range(H):
-        v = max(0, 1 - abs(y - (logo_y + logo_w * 0.33)) / (H * 0.45))
-        dr.line([(0, y), (W, y)], fill=int(110 * v))
-    bg = Image.composite(Image.new('RGB', (W, H), (25, 20, 70)), bg, shade)
     logo = Image.open(LOGO).convert('RGBA')
     lh = round(logo.height * logo_w / logo.width)
     logo = logo.resize((logo_w, lh), Image.LANCZOS)
-    # у логотипа почти прозрачная «подложка» на весь прямоугольник — обнуляем её, иначе свечение рисует светлую рамку
-    r, g, b, a = logo.split()
-    a = a.point(lambda v: 0 if v < 24 else v)
-    logo = Image.merge('RGBA', (r, g, b, a))
-    # свечение на холсте с запасом: иначе размытие обрезается по краю картинки и видна прямая рамка
+    # мягкое белое свечение и тень под логотипом; холст с запасом, чтобы размытие не обрезалось рамкой
     m = logo_w // 12
     alpha = Image.new('L', (logo.width + 2 * m, logo.height + 2 * m), 0)
     alpha.paste(logo.split()[3], (m, m))
-    glow = alpha.filter(ImageFilter.GaussianBlur(logo_w / 40))
-    glow_img = Image.new('RGBA', alpha.size, (255, 255, 255, 0))
-    glow_img.putalpha(glow.point(lambda a: int(a * 0.55)))
+    glow = Image.new('RGBA', alpha.size, (255, 255, 255, 0))
+    glow.putalpha(alpha.filter(ImageFilter.GaussianBlur(logo_w / 40)).point(lambda a: int(a * 0.6)))
+    shadow = Image.new('RGBA', alpha.size, (30, 10, 70, 0))
+    shadow.putalpha(alpha.filter(ImageFilter.GaussianBlur(logo_w / 30)).point(lambda a: int(a * 0.45)))
     pos = ((W - logo_w) // 2, logo_y)
     bg = bg.convert('RGBA')
-    bg.alpha_composite(glow_img, (pos[0] - m, pos[1] - m))
+    bg.alpha_composite(shadow, (pos[0] - m, pos[1] - m + logo_w // 60))
+    bg.alpha_composite(glow, (pos[0] - m, pos[1] - m))
     bg.alpha_composite(logo, pos)
     out = os.path.join(OUT, f'cover_{name}.jpg')
-    bg.convert('RGB').save(out, quality=92)
+    bg.convert('RGB').save(out, quality=93)
     print('обложка:', out, size)
 
 
@@ -133,12 +128,11 @@ def main():
         log = json.load(open(os.path.join(OUT, 'frames.json'), encoding='utf8'))
         video(log)
         screenshots(log)
-    cover('landscape', (1920, 1080), 1000, 60)
-    cover('portrait', (1080, 1920), 960, 220)
-    big = (1200, 1200)
-    cover('square', big, 820, 36, 'landscape')   # свой квадратный кадр вышел из кроны дерева — берём центр широкого
+    cover('landscape', (1920, 1080), 760, 22, anchor_y=0.0)
+    cover('portrait', (1080, 1920), 940, 48)
+    cover('square', (1200, 1200), 700, 14)
     sq = os.path.join(OUT, 'cover_square.jpg')
-    Image.open(sq).resize((800, 800), Image.LANCZOS).save(sq, quality=92)
+    Image.open(sq).resize((800, 800), Image.LANCZOS).save(sq, quality=93)
 
 
 if __name__ == '__main__':

@@ -33,6 +33,7 @@ import { Surface, Hail, Lava, Flames, boltTexture, Cell, GROUND_Y } from './game
 import { Reels, type ReelResult } from './game/reels.ts';
 import { Tutorial } from './game/tutorial.ts';
 import { Encyclopedia } from './game/encyclopedia.ts';
+import { Leaderboard, demoRows } from './game/leaderboard.ts';
 import { Creatures } from './game/creatures.ts';
 import { agree, phrase, ADJ_IDS, NOUN_IDS, type AdjId, type NounId } from './game/words.ts';
 import { RoundUi } from './game/roundUi.ts';
@@ -359,6 +360,23 @@ export function createScene(parent: HTMLElement): Game {
   const menu = new Menu(parent, L);
   const chars = new Characters(parent, L);
   const enc = new Encyclopedia(parent, L);
+  /* ── Таблица рекордов: очки = монеты за все раунды; id таблицы — как в playgama-bridge-config.json и в консоли Playgama ── */
+  const BOARD = 'chaos_points';
+  const boardMe = () => ({ score: progress.snapshot().score ?? 0, name: (/^guest(\s|$)/i.test(core.leaderboards.player.name) ? '' : core.leaderboards.player.name) || L('Игрок', 'Player') });
+  const board = new Leaderboard(parent, L, {
+    demo: !core.leaderboards.available && core.leaderboards.demo,
+    me: boardMe,
+    load: async () => {
+      if (!core.leaderboards.available) return demoRows(boardMe());
+      const myId = core.leaderboards.player.id;
+      const rows = await core.leaderboards.fetchTop(BOARD, 50);
+      return rows.map((e) => ({ rank: e.rank, name: e.player.publicName, score: e.score, photo: e.player.getAvatarSrc('small'), me: Boolean(myId) && e.player.uniqueID === myId }));
+    },
+  });
+  const boardOn = () => core.leaderboards.available || core.leaderboards.demo;
+  const submitScore = (score: number) => {
+    if (score > 0 && core.leaderboards.available) core.leaderboards.submit(BOARD, score).catch((e) => console.warn('[leaderboard]', e));
+  };
   const tmp = new THREE.Vector3();
   // боты (этап 5): бегают, прячутся и гибнут смешно; барабан не крутят
   const bots: ArenaBots = new ArenaBots(scene, physics, DUMMIES, {
@@ -566,7 +584,9 @@ export function createScene(parent: HTMLElement): Game {
     lastCoins = coins;
     if (!revived) roundsPlayed++;
     tutorial.stop();
-    progress.patch({ tutorial: true, runs: p.runs + (revived ? 0 : 1), best: newBest ? { ...p.best, [diff]: time } : p.best, coins: p.coins + coins });
+    const score = (p.score ?? 0) + coins;
+    progress.patch({ tutorial: true, runs: p.runs + (revived ? 0 : 1), best: newBest ? { ...p.best, [diff]: time } : p.best, coins: p.coins + coins, score });
+    submitScore(score);   // после итога раунда — не чаще (Bridge: «после значимого результата»)
     menu.setPauseButton(false);
     core.gameplayStop();
     if (!win) sfx.play('fail', 0, 1);
@@ -657,6 +677,10 @@ export function createScene(parent: HTMLElement): Game {
     showMain();
   };
   menu.onEncyclopedia = () => { enc.show(progress.snapshot().seen ?? []); };
+  menu.setLeaderboard(boardOn());
+  core.onCapabilitiesChange(() => menu.setLeaderboard(boardOn()));
+  menu.onLeaderboard = () => { board.show(); };
+  board.onClose = () => { board.hide(); menu.showMain(diff, muted, progress.snapshot().coins, skin); };
   enc.onClose = () => { enc.hide(); menu.showMain(diff, muted, progress.snapshot().coins, skin); };
   chars.onClose = () => { chars.hide(); menu.showMain(diff, muted, progress.snapshot().coins, skin); };
   chars.onSelect = (id) => { if (charState().owned.includes(id)) pick(id); };
@@ -839,7 +863,7 @@ export function createScene(parent: HTMLElement): Game {
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 4); });
     Object.assign(window, { __renderer: renderer, __THREE: THREE, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels,
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __revive: () => revive(), __die: () => die('test'), __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => { state = w ? 'win' : 'dead'; reels.hide(); finish(w); }, chars: () => menu.onCharacters?.(), enc: () => menu.onEncyclopedia?.() }, __dust: dust, __surface: surface, __hill: () => hill,
+      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __revive: () => revive(), __die: () => die('test'), __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => { state = w ? 'win' : 'dead'; reels.hide(); finish(w); }, chars: () => menu.onCharacters?.(), enc: () => menu.onEncyclopedia?.(), board: () => menu.onLeaderboard?.() }, __dust: dust, __surface: surface, __hill: () => hill,
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
   }
 

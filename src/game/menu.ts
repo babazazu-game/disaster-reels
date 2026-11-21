@@ -46,6 +46,7 @@ const ICONS = {
   check: '<path d="m5 12 4.5 4.5L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
   hills: '<path fill="#9fe36a" d="M1 20 8 9l4 5 3-4 8 10Z"/><path fill="#fff" d="m8 9 2 3H6Z"/>',
   pyramid: '<path fill="#ffd77a" d="M12 4 22 20H2Z"/><path d="M5.5 15h13M8 11h8" stroke="#c99e58" stroke-width="1.6"/>',
+  trophy: '<path fill="#ffd23a" d="M7 3h10v6a5 5 0 0 1-10 0Z"/><path d="M7 5H4.5a3 3 0 0 0 3 4.5M17 5h2.5a3 3 0 0 1-3 4.5" fill="none" stroke="#ffd23a" stroke-width="2"/><path fill="#ffd23a" d="M10.5 13.5h3v3.5h-3zM7.5 18h9l.8 3H6.7Z"/><path d="M10 6.5h4" stroke="#fff6c2" stroke-width="1.6" stroke-linecap="round"/>',
   book: '<path fill="currentColor" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5a1.5 1.5 0 0 0 0 3H20v1H6.5A2.5 2.5 0 0 1 4 19.5Z"/><path d="M12 6.5v3m0 2.6v.4" stroke="#1580e8" stroke-width="2.4" stroke-linecap="round"/>',
 };
 
@@ -58,6 +59,8 @@ export class Menu {
   onMute?: (muted: boolean) => void;
   onCharacters?: () => void;
   onEncyclopedia?: () => void;
+  onLeaderboard?: () => void;
+  private boardButton!: HTMLButtonElement;
   onMap?: (m: 'hills' | 'pyramid') => void;
   private map: 'hills' | 'pyramid' = 'hills';
   private mapButton!: HTMLButtonElement;
@@ -140,6 +143,11 @@ export class Menu {
     const book = button(tools, 'mnu-blue mnu-characters mnu-book', '', () => this.onEncyclopedia?.());
     book.append(icon('book'));
     book.setAttribute('aria-label', L('Энциклопедия хаоса', 'Chaos encyclopedia'));
+    // таблица рекордов: видна, только если площадка её поддерживает (setLeaderboard)
+    this.boardButton = button(tools, 'mnu-blue mnu-characters mnu-book mnu-board', '', () => this.onLeaderboard?.());
+    this.boardButton.append(icon('trophy'));
+    this.boardButton.setAttribute('aria-label', L('Рекорды', 'Leaderboard'));
+    this.boardButton.hidden = true;
     this.soundButton(tools);
 
     const result = this.panel('mnu-card mnu-result');
@@ -323,6 +331,9 @@ export class Menu {
   }
 
   /** Карта на кнопке; tip — показать подпись с названием на пару секунд. */
+  /** Кнопка рекордов — только там, где площадка даёт таблицу (Playgama 2.4). */
+  setLeaderboard(on: boolean): void { this.boardButton.hidden = !on; }
+
   setMap(m: 'hills' | 'pyramid', tip = false): void {
     this.map = m;
     const name = m === 'hills' ? this.L('Холмы', 'Hills') : this.L('Пирамида', 'Pyramid');
@@ -648,10 +659,15 @@ function injectCss(): void {
 .mnu-characters .mnu-art { width:78%; }
 .mnu-map svg { width:70%; height:auto; filter:drop-shadow(0 2px 0 #14204a); }
 .mnu-tools { position:relative; }
+/* 5 круглых кнопок в ряд: на узком вертикальном телефоне ужимаем, чтобы последняя не уходила за край */
+@media (orientation:portrait) { .mnu-tools { gap:min(clamp(12px,calc(2.6 * var(--u)),22px),2.6vw); }
+  .mnu-tools > .mnu-characters,.mnu-tools > .mnu-sound { width:min(clamp(var(--tap),calc(9 * var(--u)),74px),15.5vw); height:min(clamp(var(--tap),calc(9 * var(--u)),74px),15.5vw); } }
 .mnu-map-tip { position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; padding:.25em .8em; border-radius:999px; white-space:nowrap;
   background:#2a1250; color:#fff; -webkit-text-stroke:0; text-shadow:none; font-size:clamp(14px,calc(2.6 * var(--u)),20px);
   opacity:0; transition:opacity .2s; pointer-events:none; }
 .mnu-map-tip.show { opacity:1; }
+.mnu-board svg { width:66%; }
+.mnu-board[hidden] { display:none; }
 .mnu-book svg { width:58%; height:auto; color:#fff; filter:drop-shadow(0 2px 0 #14204a); }
 .mnu-main-wallet {
   position:absolute; top:calc(env(safe-area-inset-top) + 10px); left:calc(env(safe-area-inset-left) + 12px);

@@ -14,8 +14,14 @@ export class PlatformCore {
   const core=this;
   this.ads={get rewardedAvailable(){return core.initialized&&Boolean(window.bridge.advertisement.isRewardedSupported)},get interstitialAvailable(){return core.initialized&&Boolean(window.bridge.advertisement.isInterstitialSupported)},rewarded:()=>core.showAd(true),interstitial:()=>core.showAd(false),showBanner:async()=>{}};
   this.capabilities={get rewardedAds(){return core.ads.rewardedAvailable},get leaderboards(){return core.boardAvailable},get cloudSave(){return core.initialized}};
-  this.leaderboards={get available(){return core.boardAvailable},submit:async(name:string,score:number)=>{if(core.boardAvailable)await window.bridge.leaderboards.setScore(name,score)},fetchTop:async(name:string,count=10):Promise<LeaderboardEntry[]>=>{
-   if(!core.boardAvailable)return [];const entries=await window.bridge.leaderboards.getEntries(name);return entries.slice(0,count).map((e:any)=>({rank:e.rank,score:e.score,player:{publicName:e.name||'Player',uniqueID:e.id,getAvatarSrc:()=>e.photo||''}}));
+  // Таблица рекордов Bridge. Свою таблицу рисуем только при type 'in_game' (на playgama.com это SaaS-лидерборд из
+  // playgama-bridge-config.json); при 'not_available' кнопку прячем — Playgama 2.4 отклоняет таблицу там, где площадка её
+  // не поддерживает. demo: вне площадок (локально, GitHub Pages — платформа 'mock') игра рисует пример, чтобы проверить вид.
+  this.leaderboards={get available(){return core.boardAvailable},get demo(){return core.initialized&&window.bridge.platform.id==='mock'},
+   get player(){const p=core.initialized?window.bridge.player:null;return {id:p?.id?String(p.id):'',name:p?.name?String(p.name):'',photo:p?.photos?.[0]?String(p.photos[0]):'',authorized:Boolean(p?.isAuthorized)}},
+   submit:async(name:string,score:number)=>{if(!core.boardAvailable)return;core.lastLeaderboardStatus='sending';try{await window.bridge.leaderboards.setScore(name,Math.max(0,Math.floor(score)));core.lastLeaderboardStatus='ok'}catch(e){core.lastLeaderboardStatus='error';throw e}},
+   fetchTop:async(name:string,count=50):Promise<LeaderboardEntry[]>=>{
+   if(!core.boardAvailable)return [];const entries=await window.bridge.leaderboards.getEntries(name);return (entries??[]).slice(0,count).map((e:any)=>({rank:Number(e.rank),score:Number(e.score),player:{publicName:e.name||'',uniqueID:e.id!=null?String(e.id):undefined,getAvatarSrc:()=>e.photo||''}}));
   },playerScore:async(_name:string):Promise<number|null>=>null};
   this.ready=this.initialize();
  }
@@ -49,5 +55,9 @@ export class PlatformCore {
   });
  }
  loadingReady(){if(this.initialized)window.bridge.platform.sendMessage('game_ready')}
- gameplayStart(){} gameplayStop(){}
+ // Bridge: сообщать площадке, когда идёт сама игра (раунд), а когда меню/пауза/итог. Дубли не шлём.
+ private playing=false;
+ private message(name:string){try{const r=window.bridge.platform.sendMessage(name);Promise.resolve(r).catch(()=>undefined)}catch{/* площадка не знает сообщение — не страшно */}}
+ gameplayStart(){if(!this.initialized||this.playing)return;this.playing=true;this.message('gameplay_started')}
+ gameplayStop(){if(!this.initialized||!this.playing)return;this.playing=false;this.message('gameplay_stopped')}
 }

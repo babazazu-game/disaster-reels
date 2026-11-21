@@ -30,7 +30,7 @@ const WORDS = ['Shadow', 'Ninja', 'Pixel', 'Blox', 'Turbo', 'Lucky', 'Crazy', 'S
   'Dragon', 'Rocket', 'Storm', 'Frosty', 'Sunny', 'Zombie', 'Kitty', 'Banana', 'Taco', 'Noob', 'Boss', 'Legend', 'Cheese', 'Mango'];
 const pickOf = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 const num = () => pickOf(['', String(Math.floor(Math.random() * 99) + 1), String(2008 + Math.floor(Math.random() * 11)), '777', '228', '1337', '_' + (Math.floor(Math.random() * 9) + 1)]);
-function makeNick(): string {
+export function makeNick(): string {
   const n = pickOf(NAMES), w = pickOf(WORDS);
   const v = Math.random();
   const nick = v < 0.12 ? pickOf(NICKS)
