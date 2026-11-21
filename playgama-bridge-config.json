@@ -1,0 +1,33 @@
+{
+  "advertisement": {
+    "rewarded": {
+      "placements": [
+        {
+          "id": "bonus"
+        }
+      ]
+    },
+    "interstitial": {
+      "placements": [
+        {
+          "id": "outpost"
+        }
+      ]
+    }
+  },
+  "leaderboards": [
+    {
+      "id": "chaos_points",
+      "isMain": true
+    }
+  ],
+  "saas": {
+    "publicToken": "cmwpzckss17bijx0idrme6uhc",
+    "leaderboards": {
+      "platforms": [
+        "playgama",
+        "qa_tool"
+      ]
+    }
+  }
+}
