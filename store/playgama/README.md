@@ -19,7 +19,7 @@
 Сырые кадры `frames/` в git не попадают.
 
 ## Перед загрузкой на Playgama
-- В `public/playgama-bridge-config.json` стоит заглушка `REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN`: вписать токен игры из консоли.
+- Игра в консоли: id `cmwpzckss17bijx0idrme6uhc`; его же публичный токен вписан в `saas.publicToken` (блок `platforms` не нужен).
 - Места рекламы: награда `bonus`, межстраничная `outpost`.
-- Таблица рекордов: в консоли (Bridge SaaS → Leaderboards) создать таблицу с id `chaos_points`; токен со страницы SaaS вписать в `saas.publicToken`.
+- Таблица рекордов `chaos_points` создана в консоли (Bridge SaaS → Leaderboards).
 - На модерацию отправляет только человек в консоли.

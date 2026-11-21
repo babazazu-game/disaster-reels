@@ -14,7 +14,9 @@ function loadPlaywright() {
 }
 const OUT = path.resolve(__dirname, '../store/playgama');
 const FRAMES = path.join(OUT, 'frames'), SHOTS = path.join(OUT, 'shots');
-fs.rmSync(FRAMES, { recursive: true, force: true });
+// --shots-only: только снимки меню/персонажей/энциклопедии, кадры раунда не трогаем
+const SHOTS_ONLY = process.argv.includes('--shots-only');
+if (!SHOTS_ONLY) fs.rmSync(FRAMES, { recursive: true, force: true });
 fs.mkdirSync(FRAMES, { recursive: true }); fs.mkdirSync(SHOTS, { recursive: true });
 const MAP = (process.argv.find((a) => a.startsWith('--map=')) || '--map=hills').split('=')[1];
 const SECONDS = Number((process.argv.find((a) => a.startsWith("--seconds=")) || "--seconds=85").split("=")[1]), FPS = 30;
@@ -42,10 +44,17 @@ const SECONDS = Number((process.argv.find((a) => a.startsWith("--seconds=")) || 
   await page.evaluate(() => window.__ui.chars());
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(SHOTS, 'characters.jpg'), type: 'jpeg', quality: 92 });
+  // энциклопедия «бывалого игрока»: все существа и свойства уже встречались (с нового профиля там одни «???»)
+  await page.evaluate(async () => {
+    const { progress } = await import('/src/progress.ts');
+    const { ADJ_IDS, NOUN_IDS } = await import('/src/game/words.ts');
+    progress.patch({ seen: [...NOUN_IDS, ...ADJ_IDS] });
+  });
   await page.evaluate(() => { document.querySelector('.chr-overlay:not(.enc-overlay) .chr-back')?.click(); window.__ui.enc(); });
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(SHOTS, 'encyclopedia.jpg'), type: 'jpeg', quality: 92 });
   await page.evaluate(() => document.querySelector('.enc-overlay .chr-back')?.click());
+  if (SHOTS_ONLY) { await browser.close(); console.log('снимки готовы:', SHOTS); return; }
 
   // раунд: свой цикл игры стоп, время двигаем сами
   await page.evaluate(() => {

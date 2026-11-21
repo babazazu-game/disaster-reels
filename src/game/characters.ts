@@ -99,7 +99,9 @@ export class Characters {
     element('span', card, 'chr-name').textContent = name;
     const badge = element('span', card, owned ? 'chr-check' : 'chr-lock');
     badge.setAttribute('aria-hidden', 'true');
-    badge.textContent = owned ? '✓' : '🔒';
+    // замок — свой рисунок (SVG), не эмодзи: Playgama 4.3.2 — эмодзи вместо иконок нельзя
+    if (owned) badge.textContent = '✓';
+    else badge.innerHTML = '<svg viewBox="0 0 24 24" width="62%" height="62%"><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="#4f3471" stroke-width="3" stroke-linecap="round"/><rect x="4" y="10" width="16" height="12" rx="3" fill="#ffc83d" stroke="#4f3471" stroke-width="2.2"/><circle cx="12" cy="16" r="2" fill="#4f3471"/></svg>';
 
     if (!owned) {
       const actions = element('div', card, 'chr-actions');

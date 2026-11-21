@@ -78,8 +78,8 @@ def screenshots(log):
     seq = [
         os.path.join(shots, 'menu.jpg'),
         frame(max(0, first_go - 40)),            # барабан
-        at(18.0),                                # хаос
-        at(33.0),
+        at(35.0),                                # хаос: кот гонится у пирамиды (на 18 с камера была в листьях пальмы)
+        at(38.5),                                # «ГРОЗА! НЕ СТОЙ НА МЕСТЕ»
         at(53.0),                                # лава
         frame(wins[min(len(wins) - 1, 40)]) if wins else at(58.0),
         os.path.join(shots, 'characters.jpg'),

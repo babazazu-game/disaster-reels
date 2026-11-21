@@ -1,12 +1,4 @@
 {
-  "platforms": {
-    "playgama": {
-      "publicToken": "REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN"
-    },
-    "playgama_sandbox": {
-      "publicToken": "REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN"
-    }
-  },
   "advertisement": {
     "rewarded": {
       "placements": [
@@ -30,7 +22,7 @@
     }
   ],
   "saas": {
-    "publicToken": "REPLACE_WITH_PLAYGAMA_PUBLIC_TOKEN",
+    "publicToken": "cmwpzckss17bijx0idrme6uhc",
     "leaderboards": {
       "platforms": [
         "playgama",
