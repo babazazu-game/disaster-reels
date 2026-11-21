@@ -29,9 +29,9 @@ type Screen = 'main' | 'result' | 'pause';
 type Localize = (ru: string, en: string) => string;
 
 const MODES = {
-  easy: { name: ['Лёгкий', 'Easy'], hint: ['5 сердечек, всё медленнее', '5 hearts, slower chaos'] },
-  normal: { name: ['Обычный', 'Normal'], hint: ['4 сердечка', '4 hearts'] },
-  chaos: { name: ['Хаос', 'Chaos'], hint: ['3 сердечка, всё быстрее!', '3 hearts, faster chaos!'] },
+  easy: { name: ['Лёгкий', 'Easy'], hint: ['4 сердечка, всё медленнее', '4 hearts, slower chaos'] },
+  normal: { name: ['Обычный', 'Normal'], hint: ['3 сердечка', '3 hearts'] },
+  chaos: { name: ['Хаос', 'Chaos'], hint: ['2 сердечка, всё быстрее!', '2 hearts, faster chaos!'] },
 } as const;
 const DIFFICULTIES = ['easy', 'normal', 'chaos'] as const;
 

@@ -17,7 +17,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 SRC, OUT = ROOT / 'art/tex/src', ROOT / 'assets/tex'
 SIZE, SEAM_MAX = 512, 1.6
-NO_TILE = {'planks', 'wood'}   # wood: доска ровно по краю — «шов» ложный, сглаживание двоило линию
+NO_TILE = {'planks', 'wood', 'sandstone'}   # sandstone: кладка и так стыкуется, сглаживание рвёт швы; wood: доска ровно по краю — «шов» ложный, сглаживание двоило линию
 
 
 def seam_ratio(a: np.ndarray) -> float:

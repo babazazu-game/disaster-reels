@@ -10,3 +10,9 @@ gen planks "wooden crate face: square frame of four planks around the edge and a
 gen bark "tree bark, vertical rough grooves and ridges, warm brown #8a5a33, soft cartoon style"
 gen leaves "dense tree foliage made of many overlapping rounded cartoon leaves, fresh green #3fae4f with lighter highlights on leaf tips"
 gen wood "light painted wooden plank surface, horizontal grain lines, cream white #fff4dc, soft"
+# Пустыня (карта «Пирамида»): песок вместо травы, песчаник вместо камня, пальмы, кактусы
+gen sand "fine desert sand with soft wind ripple lines and a few tiny pebbles, warm golden beige #e6c47c, very gentle"
+gen sandstone "sandstone building blocks of an ancient pyramid, large rectangular blocks laid in rows with soft worn edges and thin darker joints, warm ochre #d9b06a"
+gen palmbark "palm tree trunk bark, horizontal overlapping rough rings and diamond scale pattern, warm tan brown #a87a4a"
+gen palmleaf "palm frond foliage, long narrow pointed green leaflets in parallel diagonal rows, bright tropical green #5bbf3c with yellow-green highlights"
+gen cactus "cactus skin, vertical ribs with small white spine dots in rows, fresh cactus green #4fa64a"

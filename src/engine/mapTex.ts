@@ -14,11 +14,11 @@ import { occludable } from './occlude';
  * остаётся прежней (тёмный камень — та же текстура камня, только темнее), а текстура добавляет рисунок.
  * Нет картинки (сеть, старый кэш) — блок остаётся гладким цветным, как раньше: игра от текстур не зависит.
  */
-export const TEX_NAMES = ['grass', 'dirt', 'stone', 'planks', 'bark', 'leaves', 'wood'] as const;
+export const TEX_NAMES = ['grass', 'dirt', 'stone', 'planks', 'bark', 'leaves', 'wood', 'sand', 'sandstone', 'palmbark', 'palmleaf', 'cactus'] as const;
 export type TexName = typeof TEX_NAMES[number];
 
 /** Метров на один повтор рисунка. planks — 1: у ящиков UV граней 0..1, одна грань = одна картинка. */
-const TILE: Record<TexName, number> = { grass: 4, dirt: 3, stone: 2.5, planks: 1, bark: 1.5, leaves: 2, wood: 1.2 };
+const TILE: Record<TexName, number> = { grass: 4, dirt: 3, stone: 2.5, planks: 1, bark: 1.5, leaves: 2, wood: 1.2, sand: 5, sandstone: 3, palmbark: 1.2, palmleaf: 1.6, cactus: 1.2 };
 
 interface Loaded { tex: THREE.Texture; mean: THREE.Color }
 

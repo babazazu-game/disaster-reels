@@ -23,7 +23,7 @@ const MAX = 20;
  * (живут до конца раунда и копятся) (заказчик: при 10 выжить нереально, ребёнок потеряется). Падающие — до 30 за волну.
  */
 const runners = (n: number) => (n <= 3 ? n : n <= 7 ? 4 : 5);   // «10» → 5 бегающих (автотест: к финалу копилось до 19)
-const CHASE = 11;          // дальше этого бегающие бродят сами по себе (было 14 — заказчик: «слишком за мной бегают»)
+const CHASE = 11;          // базовый радиус погони; по сложности — level.chase (заказчик 20.11: «слишком бегают», 21.11: «где-то в сторонке»)
 /**
  * Увлечённость: каждое существо гонится не всё время, а ~2/3 своего цикла (~12 с), остальное бродит само.
  * Фаза от seed — стая отвлекается вразнобой, и от погони есть передышки на любой сложности.
@@ -85,6 +85,8 @@ export interface CreatureHooks {
   /** Кого ловить: игрок (если жив). */
   target(): THREE.Vector3 | null;
   targetVel(): THREE.Vector3;
+  /** Игрок отсиживается на возвышении (падающее чаще целит в него). */
+  perched?(): boolean;
   /** Коснулся игрока: kill — гибель, иначе толчок. */
   touchPlayer(m: { kind: NounId; adj: AdjId }, kill: boolean, dx: number, dz: number): void;
   slip(): void;
@@ -471,7 +473,8 @@ export class Creatures {
 
   /** Новая волна по итогу барабана. aim — доля падающих, нацеленных в игрока (финальный дождь — больше). */
   /** Сложность (ставит игра перед раундом): доля бегающих и множитель их скорости. */
-  readonly level = { runners: 1, speed: 1 };
+  /** roam: насколько круг блуждания тянется к игроку (0 — по всему острову, 1 — вокруг игрока). */
+  readonly level = { runners: 1, speed: 1, chase: CHASE, roam: 0.65 };
 
   start(r: ReelResult, aim = 0.25): void {
     const run = RUNNERS.includes(r.noun);
@@ -501,7 +504,7 @@ export class Creatures {
       // падающее: метка на земле, часть целится туда, куда бежит игрок; одиночные — всегда к игроку, иначе их не увидеть
       const p = this.h.target();
       let x: number, z: number;
-      if (p && Math.random() < aim) { const v = this.h.targetVel(); x = p.x + v.x * 0.7; z = p.z + v.z * 0.7; }
+      if (p && Math.random() < (this.h.perched?.() ? Math.max(aim, 0.7) : aim)) { const v = this.h.targetVel(); x = p.x + v.x * 0.7; z = p.z + v.z * 0.7; }
       else { x = (Math.random() * 2 - 1) * H; z = (Math.random() * 2 - 1) * H; }
       this.aim(m, THREE.MathUtils.clamp(x, -H, H), THREE.MathUtils.clamp(z, -H, H), r.adj === 'fast' ? WARN * 0.8 : WARN);
     } else {
@@ -635,11 +638,15 @@ export class Creatures {
     }
     // гонятся только вблизи (CHASE): иначе к финалу вся накопленная орда шла за игроком через весь остров
     const pt = this.h.target();
-    const p = pt && keen(m) && Math.hypot(pt.x - m.x, pt.z - m.z) < CHASE ? pt : null;
+    const p = pt && keen(m) && Math.hypot(pt.x - m.x, pt.z - m.z) < this.level.chase ? pt : null;
     let dx: number, dz: number;
     if (p) { dx = p.x - m.x; dz = p.z - m.z; }
-    // бродят к блуждающей точке внутри острова — а не упираются в забор, двигаясь в одну сторону
-    else { dx = Math.sin(m.seed + m.t * 0.25) * this.half * 0.55 - m.x; dz = Math.cos(m.seed * 1.7 + m.t * 0.2) * this.half * 0.55 - m.z; }
+    // бродят к блуждающей точке, но в той части острова, где игрок (центр круга — ближе к нему): иначе стая
+    // уходила «куда-то в сторонку» и раунд казался пустым (заказчик 21.11)
+    else {
+      const cx = pt ? pt.x * this.level.roam : 0, cz = pt ? pt.z * this.level.roam : 0, R = this.half * 0.38;
+      dx = cx + Math.sin(m.seed + m.t * 0.25) * R - m.x; dz = cz + Math.cos(m.seed * 1.7 + m.t * 0.2) * R - m.z;
+    }
     const len = Math.hypot(dx, dz) || 1;
     // покачивание курса: стая не бежит в одну точку цепочкой
     const wob = Math.sin(m.t * 1.3 + m.seed) * 0.6;

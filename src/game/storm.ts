@@ -20,10 +20,15 @@ export interface StormHooks {
   gather(x: number, z: number): void;
   /** Удар молнии в точку (x, y, z) радиусом r. */
   strike(x: number, y: number, z: number, r: number): void;
+  /** Игрок сидит на возвышении (башня, вершина холма) и лава не поднимается — «насест». */
+  perched?(): boolean;
 }
 
 /** Радиус «лагеря», м: переминаться внутри него — всё ещё отсиживаться. */
 const CAMP_R = 3.5;
+/** На насесте (башня с флажком, вершина холма) лагерь — вся площадка, туча быстрее, удар шире: стоять там и
+ *  переминаться — больше не способ пройти раунд (заказчик 21.11: «гора с флажком — имба»). */
+const PERCH_CAMP_R = 7, PERCH_DELAY = 0.55, PERCH_R = 3.1, PERCH_REPEAT = 2;
 /** Повторная туча над тем же местом, с. */
 const REPEAT = 3.5;
 /** Фазы, с. */
@@ -85,6 +90,9 @@ export class Storm {
     scene.add(this.bolt);
   }
 
+  /** Для автотеста: фаза и место тучи. */
+  info(): { phase: Phase; x: number; z: number } { return { phase: this.phase, x: this.pos.x, z: this.pos.z }; }
+
   /** Новый раунд: всё убрать, счёт с нуля. */
   reset(): void {
     this.phase = 'idle';
@@ -97,8 +105,9 @@ export class Storm {
   update(dt: number, p: THREE.Vector3): void {
     this.t += dt;
     if (this.phase === 'idle') {
-      if (Math.hypot(p.x - this.anchor.x, p.z - this.anchor.z) > CAMP_R) { this.anchor.copy(p); this.campT = 0; }
-      else if ((this.campT += dt) >= this.delay) this.begin(p);
+      const perch = this.h.perched?.() ?? false;
+      if (Math.hypot(p.x - this.anchor.x, p.z - this.anchor.z) > (perch ? PERCH_CAMP_R : CAMP_R)) { this.anchor.copy(p); this.campT = 0; }
+      else if ((this.campT += dt) >= this.delay * (perch ? PERCH_DELAY : 1)) this.begin(p, perch);
       return;
     }
     if (this.phase === 'gather') {
@@ -125,7 +134,7 @@ export class Storm {
         this.cloud.visible = this.ring.visible = this.bolt.visible = false;
         this.phase = 'idle';
         // остался рядом — следующая туча придёт быстрее; ушёл — idle сам сбросит счёт
-        this.campT = Math.max(0, this.delay - REPEAT);
+        this.campT = Math.max(0, this.delay * (this.perch ? PERCH_DELAY : 1) - (this.perch ? PERCH_REPEAT : REPEAT));
       }
     }
     this.cloud.position.set(this.pos.x, this.ground + CLOUD_H + Math.sin(this.t * 2) * 0.15, this.pos.z);
@@ -133,7 +142,10 @@ export class Storm {
     this.ring.position.set(this.pos.x, this.ground + 0.06, this.pos.z);
   }
 
-  private begin(p: THREE.Vector3): void {
+  private perch = false;
+  private begin(p: THREE.Vector3, perch = false): void {
+    this.perch = perch;
+    this.ring.scale.setScalar(perch ? PERCH_R / STORM_R : 1);
     this.phase = 'gather';
     this.t = 0;
     this.pos.copy(p);
@@ -159,6 +171,6 @@ export class Storm {
       seg.scale.set(0.16, 0.16, a.distanceTo(b) + 0.1);
     });
     this.bolt.visible = true;
-    this.h.strike(this.pos.x, this.ground, this.pos.z, STORM_R);
+    this.h.strike(this.pos.x, this.ground, this.pos.z, this.perch ? PERCH_R : STORM_R);
   }
 }

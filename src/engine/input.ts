@@ -66,7 +66,11 @@ export class Input {
       this.state.look.y += e.clientY - this.lookLast.y;
       this.lookLast = { x: e.clientX, y: e.clientY };
     });
-    el.addEventListener('wheel', (e) => { e.preventDefault(); this.state.zoom += Math.sign(e.deltaY); }, { passive: false });
+    // колёсико над окнами (рекорды, персонажи, энциклопедия, меню) — прокрутка окна, а не зум камеры
+    el.addEventListener('wheel', (e) => {
+      if ((e.target as Element | null)?.closest?.('.chr-overlay,.mnu-overlay')) return;
+      e.preventDefault(); this.state.zoom += Math.sign(e.deltaY);
+    }, { passive: false });
 
     // Тач-слой: DOM поверх холста.
     this.ui = document.createElement('div');

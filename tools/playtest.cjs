@@ -23,6 +23,11 @@ function loadPlaywright() {
 const ROUNDS = Number(process.argv.find((a) => /^\d+$/.test(a)) || 12);
 const SHOTS = process.argv.includes('--shots');
 const WORST = process.argv.includes('--worst');
+// --diff=easy|normal|chaos; --bots=smart,idle,tower — по кругу (tower: сидит на башне с флажком и переминается, как игрок 21.11)
+const DIFF = (process.argv.find((a) => a.startsWith('--diff=')) || '').split('=')[1] || '';
+// --map=hills|pyramid — какую карту гонять (по умолчанию та, что сохранена)
+const MAP = (process.argv.find((a) => a.startsWith('--map=')) || '').split('=')[1] || '';
+const BOTS = ((process.argv.find((a) => a.startsWith('--bots=')) || '').split('=')[1] || 'smart,smart,idle').split(',');
 const URL = process.env.GAME_URL || 'http://127.0.0.1:5210/?q=0';
 const OUT = path.resolve(__dirname, '../playtest');
 
@@ -37,24 +42,54 @@ const PAGE_LIB = () => {
   // безопасные точки на финале: верх большого холма (3 м), ступени к нему, двойные ящики, башня — по высоте
 
   W.__pt = {
-    round(bot) {
-      W.__restart();
+    round(bot, diff, map) {
+      if (map) W.__map(map);
+      W.__restart(diff || undefined);
       const st = W.__state;
       const HILL = W.__hill();   // расстановка новая каждый раунд
       const log = { hits: 0, bot, survived: false, tDeath: null, cause: '', reels: [], maxMobs: 0, stuck: 0, kinds: {}, tickMs: 0, ticks: 0, stopPresses: 0, errors: [] };
       const last = new Map();   // моб → [x, z, t] для поиска застрявших
-      let pressAt = -1, frames = 0, jumpCd = 0;
+      let pressAt = -1, frames = 0, jumpCd = 0, towerGoal = null, towerT = 0, tower = null;
+      if (bot === 'tower') {
+        // самая высокая точка арены (башня 6 м): центр её верхушки; сразу ставим туда — человек забегает за пару секунд
+        let best = -1, pts = [];
+        for (let x = -24; x <= 24; x += 0.5) for (let z = -24; z <= 24; z += 0.5) {
+          const h = W.__heightAt(x, z);
+          if (h > best + 0.05) { best = h; pts = [[x, z]]; } else if (Math.abs(h - best) <= 0.05) pts.push([x, z]);
+        }
+        tower = { x: pts.reduce((a, q) => a + q[0], 0) / pts.length, z: pts.reduce((a, q) => a + q[1], 0) / pts.length, h: best };
+        const v = W.__ctl.pos.clone().set(tower.x, best + 0.3, tower.z);
+        W.__ctl.setSpawn(v); W.__ctl.respawn();
+        log.tower = [+tower.x.toFixed(1), +best.toFixed(1), +tower.z.toFixed(1)];
+      }
       const t0 = performance.now();
       for (let guard = 0; guard < 60 * 140; guard++) {
         const s = st();
         if (s.state !== 'play') break;
         frames++;
+        if (log.hitsBy41 == null && s.t > 41) log.hitsBy41 = s.hits;
         // барабан: жмём СТОП с человеческой задержкой
         if (W.__reels.spinning) {
           if (pressAt < 0) pressAt = frames + 30 + Math.floor(Math.random() * 60);
           if (frames >= pressAt) { W.__reels.press(); log.stopPresses++; pressAt = frames + 20 + Math.floor(Math.random() * 30); }
         } else pressAt = -1;
-        if (bot === 'smart') {
+        if (bot === 'tower' && s.t <= 41) {
+          // переминается по верхушке: новая точка в ±1,6 м каждые 1,2 с; от метки падения и тучи — отходит, не слезая
+          const p = W.__ctl.pos;
+          if ((towerT -= 1 / 60) <= 0) { towerT = 1.2; towerGoal = [tower.x + (Math.random() * 2 - 1) * 1.6, tower.z + (Math.random() * 2 - 1) * 1.6]; }
+          let fx = towerGoal[0] - p.x, fz = towerGoal[1] - p.z;
+          for (const m of W.__creatures.mobs.filter((q) => q.live && q.phase === 'fall')) {
+            const dx = p.x - m.tx, dz = p.z - m.tz, d2 = dx * dx + dz * dz;
+            if (d2 < 9 && d2 > 1e-4) { fx += dx / d2 * 2; fz += dz / d2 * 2; }
+          }
+          const st = W.__stormInfo?.();
+          if (st && st.phase !== 'idle') { const dx = p.x - st.x, dz = p.z - st.z, d = Math.hypot(dx, dz) || 1; fx += dx / d * 2; fz += dz / d * 2; }
+          // не слезать: дальше 2,2 м от центра — назад
+          const cx = tower.x - p.x, cz = tower.z - p.z, cd = Math.hypot(cx, cz);
+          if (cd > 2.2) { fx += cx / cd * 3; fz += cz / cd * 3; }
+          const len = Math.hypot(fx, fz);
+          if (len > 0.3) { W.__cam.yaw = Math.atan2(-fx / len, -fz / len); hold(true); } else hold(false);
+        } else if (bot === 'smart' || bot === 'tower') {
           const p = W.__ctl.pos;
           let fx = 0, fz = 0;
           const mobs = W.__creatures.mobs.filter((m) => m.live);
@@ -145,8 +180,8 @@ const PAGE_LIB = () => {
 
   const rounds = [];
   for (let i = 0; i < ROUNDS; i++) {
-    const bot = i % 3 === 2 ? 'idle' : 'smart';
-    const r = await page.evaluate((b) => window.__pt.round(b), bot);
+    const bot = BOTS[i % BOTS.length];
+    const r = await page.evaluate(([b, d, m]) => window.__pt.round(b, d, m), [bot, DIFF, MAP]);
     rounds.push(r);
     console.log(`#${i + 1} ${bot.padEnd(5)} ${r.survived ? 'ВЫЖИЛ ' : `погиб на ${String(r.tDeath).padStart(4)} с: ${r.cause}`.padEnd(40)} | ${r.reels.join(' / ')} | ударов ${r.hits}, ботов живо ${r.bots}, мобов max ${r.maxMobs}, застряли ${r.stuck}`);
     if (SHOTS && i < 3) {
@@ -188,13 +223,14 @@ const PAGE_LIB = () => {
     console.log('ХУДШИЙ РАУНД', JSON.stringify(worst));
   }
 
-  const smart = rounds.filter((r) => r.bot === 'smart'), idle = rounds.filter((r) => r.bot === 'idle');
+  const smart = rounds.filter((r) => r.bot === 'smart'), idle = rounds.filter((r) => r.bot === 'idle'), towerR = rounds.filter((r) => r.bot === 'tower');
   const rate = (a) => (a.length ? Math.round((100 * a.filter((r) => r.survived).length) / a.length) : 0);
   const causes = {};
   for (const r of rounds) if (r.cause) causes[r.cause] = (causes[r.cause] || 0) + 1;
   const summary = {
     rounds: rounds.length,
-    survive: { smart: rate(smart) + '%', idle: rate(idle) + '%' },
+    survive: { smart: rate(smart) + '%', idle: rate(idle) + '%', tower: towerR.length ? rate(towerR) + '%' : '-' },
+    towerHitsBy41: towerR.map((r) => r.hitsBy41),
     avgDeathSec: { smart: avg(smart.filter((r) => r.tDeath).map((r) => r.tDeath)), idle: avg(idle.filter((r) => r.tDeath).map((r) => r.tDeath)) },
     causes,
     avgHits: avg(rounds.map((r) => r.hits)),

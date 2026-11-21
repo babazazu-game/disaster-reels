@@ -17,6 +17,7 @@ const SECS = Number(process.argv.find((a) => /^\d+$/.test(a)) || 25);
 const Q = arg('q', '');
 const [W, H] = arg('size', '1280x720').split('x').map(Number);
 const DIFF = arg('diff', 'chaos');
+const MAP = arg('map', '');   // --map=pyramid: замер на второй карте
 const MOBILE = process.argv.includes('--mobile');
 const QS = [Q ? `q=${Q}` : '', arg('qs', '')].filter(Boolean).join('&');   // --qs=aa=0&tex=0 — переключатели замеров
 
@@ -44,10 +45,12 @@ const QS = [Q ? `q=${Q}` : '', arg('qs', '')].filter(Boolean).join('&');   // --
   page.on('pageerror', (e) => console.log('ОШИБКА', e.message));
   await page.goto(`http://127.0.0.1:5210/${QS ? `?${QS}` : ''}`);
   await page.waitForFunction(() => typeof window.__restart === 'function' && document.getElementById('splash')?.classList.contains('done'), null, { timeout: 60000 });
+  if (MAP) await page.evaluate((m) => { window.__mapWant = m; }, MAP);
   await page.waitForTimeout(1500);
   const gpu = await page.evaluate(() => { const gl = window.__renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : '?'; });
   console.log('GPU:', gpu);
   await page.evaluate((d) => {
+    if (window.__mapWant) window.__map(window.__mapWant);
     window.__restart(d);
     const s = { frames: 0, worst: 0, last: performance.now(), long: 0 };
     window.__fps = s;

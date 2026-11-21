@@ -68,10 +68,11 @@ export type Difficulty = 'easy' | 'normal' | 'chaos';
  * Сложность (этап 6): сердечки, сколько существ бегает и как быстро, как быстро встаёт лава,
  * метеоры финала (две волны) и какая их доля метит в игрока. «Обычный» — то, что выверено автотестом.
  */
-const DIFF: Record<Difficulty, { hearts: number; runners: number; speed: number; lava: number; meteors: [number, number]; aim: number; storm: number }> = {
-  easy: { hearts: 5, runners: 0.6, speed: 0.8, lava: 1.4, meteors: [7, 8], aim: 0.2, storm: 10 },
-  normal: { hearts: 4, runners: 1, speed: 1, lava: 1, meteors: [8, 9], aim: 0.22, storm: 9 },   // автотест 20.11: бот 0 из 11 — ослабили
-  chaos: { hearts: 3, runners: 1.3, speed: 1.15, lava: 0.85, meteors: [12, 13], aim: 0.32, storm: 7 },
+const DIFF: Record<Difficulty, { hearts: number; runners: number; speed: number; lava: number; meteors: [number, number]; aim: number; storm: number; chase: number; roam: number }> = {
+  easy: { hearts: 4, runners: 0.6, speed: 0.8, lava: 1.4, meteors: [7, 8], aim: 0.2, storm: 10, chase: 10, roam: 0.2 },
+  // заказчик 21.11 на «Обычном»: «легко, живности где-то в сторонке, их мало» — погоня с 14 м, бегающих больше
+  normal: { hearts: 3, runners: 1.25, speed: 1, lava: 1, meteors: [8, 9], aim: 0.28, storm: 8, chase: 14, roam: 0.65 },
+  chaos: { hearts: 2, runners: 1.5, speed: 1.15, lava: 0.85, meteors: [12, 13], aim: 0.36, storm: 6, chase: 17, roam: 0.8 },
 };
 /** Неуязвимость после удара, с — успеть убежать. */
 const INVULN = 1.6;
@@ -127,8 +128,12 @@ const SLOW_T = 0.5, SLOW_K = 0.3;
 const C = {
   grass: 0x5cc44a, dirt: 0x9a6a3c, stone: 0xa3a9b3, stoneDark: 0x7d8490,
   crate: 0xc4843f, trunk: 0x8a5a33, leaves: 0x3fae4f, flag: 0xe8403a, fence: 0xfff4dc, post: 0xd99a4e,
-  sand: 0xe6c47c, sandDark: 0xc99e58,   // вторая карта «Пирамида» — песчаник (текстура камня с тёплым оттенком)
+  // вторая карта «Пирамида» — пустыня: песок, песчаник, пальмы, кактусы (свои текстуры Codex, см. art/tex/gen.sh)
+  sand: 0xe6c47c, sandRock: 0xc99a58, pyr: 0xe0b56e, pyrDark: 0xc7944f, ruin: 0xd6ad6c, adobe: 0xe8c58a,
+  palmTrunk: 0xa87a4a, palm: 0x5bbf3c, cactus: 0x4fa64a, pot: 0xc8643c, potRim: 0xe08a52, cloth: 0x2f7fd8,
 };
+/** Небо карт: холмы — голубое, пустыня — тёплая дымка у горизонта. */
+const SKY: Record<'hills' | 'pyramid', [number, number]> = { hills: [0x2f86f0, 0xdcecff], pyramid: [0x3f8fe0, 0xffe0ad] };
 export type MapId = 'hills' | 'pyramid';
 
 export function createScene(parent: HTMLElement): Game {
@@ -143,33 +148,67 @@ export function createScene(parent: HTMLElement): Game {
   });
 
   /* ───────────────────────────── АРЕНА ───────────────────────────── */
-  // постоянная часть — остров и заборчик — склеивается один раз
-  const base: THREE.Mesh[] = [];
-  const deco = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number) => {
-    const m = block({ x: sx, y: sy, z: sz }, color);
-    m.position.set(x, y + sy / 2, z);
-    scene.add(m);
-    base.push(m);
-    return m;
-  };
-  // остров: трава сверху, земля толстым слоем снизу, под ней камни — «висит в небе»
-  physics.addMesh(deco(HALF * 2, 2, HALF * 2, 0, -2, 0, C.grass));
-  deco(HALF * 2 - 1, 5, HALF * 2 - 1, 0, -7, 0, C.dirt);
-  deco(HALF * 2 - 8, 4, HALF * 2 - 8, 0, -11, 0, C.dirt);
-  deco(HALF - 4, 4, HALF - 4, 2, -15, -1, C.stoneDark);
-  // низкий заборчик по краю: случайно не выбежишь, а перепрыгнуть можно — тогда упал и проиграл (решение заказчика)
+  // постоянная часть — остров и заборчик. Два вида (трава / песок) склеены заранее, показываем тот, что у карты.
+  // Физика у них общая: плита земли и невидимые стенки забора одинаковые.
+  physics.add({ box: new THREE.Box3(new THREE.Vector3(-HALF, -2, -HALF), new THREE.Vector3(HALF, 0, HALF)) });
   {
-    const E = HALF - 0.35, len = HALF * 2 - 0.7;
+    const E = HALF - 0.35;
     for (const side of [0, 1, 2, 3]) {
       const alongX = side < 2, c = side % 2 ? -E : E;
-      deco(alongX ? len : 0.16, 0.16, alongX ? 0.16 : len, alongX ? 0 : c, 0.32, alongX ? c : 0, C.fence);
-      deco(alongX ? len : 0.16, 0.16, alongX ? 0.16 : len, alongX ? 0 : c, 0.78, alongX ? c : 0, C.fence);
-      for (let k = -HALF + 1; k <= HALF - 1; k += 3) deco(0.3, 1.1, 0.3, alongX ? k : c, 0, alongX ? c : k, C.post);
       const lo = new THREE.Vector3(alongX ? -HALF : c - 0.25, 0, alongX ? c - 0.25 : -HALF), hi = new THREE.Vector3(alongX ? HALF : c + 0.25, FENCE_H, alongX ? c + 0.25 : HALF);
       physics.add({ box: new THREE.Box3(lo, hi), kind: 'fence' });
     }
   }
-  mergeStatic(scene, base, true);
+  const island = (desert: boolean): THREE.Group => {
+    const g = new THREE.Group();
+    scene.add(g);
+    const ms: THREE.Mesh[] = [];
+    const deco = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number) => {
+      const m = block({ x: sx, y: sy, z: sz }, color);
+      m.position.set(x, y + sy / 2, z);
+      g.add(m);
+      ms.push(m);
+    };
+    // остров «висит в небе»: сверху трава (песок), под ней земля (песчаник), внизу камни
+    deco(HALF * 2, 2, HALF * 2, 0, -2, 0, desert ? C.sand : C.grass);
+    deco(HALF * 2 - 1, 5, HALF * 2 - 1, 0, -7, 0, desert ? C.sandRock : C.dirt);
+    deco(HALF * 2 - 8, 4, HALF * 2 - 8, 0, -11, 0, desert ? C.sandRock : C.dirt);
+    deco(HALF - 4, 4, HALF - 4, 2, -15, -1, C.stoneDark);
+    // низкий заборчик по краю: случайно не выбежишь, а перепрыгнуть можно — тогда упал и проиграл (решение заказчика).
+    // В пустыне вместо деревянного — низкая глиняная стенка со столбиками-тумбами
+    const E = HALF - 0.35, len = HALF * 2 - 0.7;
+    for (const side of [0, 1, 2, 3]) {
+      const alongX = side < 2, c = side % 2 ? -E : E;
+      if (desert) {
+        deco(alongX ? len : 0.4, 0.6, alongX ? 0.4 : len, alongX ? 0 : c, 0, alongX ? c : 0, C.adobe);
+        for (let k = -HALF + 1; k <= HALF - 1; k += 6) {
+          deco(0.7, 1.05, 0.7, alongX ? k : c, 0, alongX ? c : k, C.sandRock);
+          deco(0.9, 0.2, 0.9, alongX ? k : c, 1.05, alongX ? c : k, C.adobe);
+        }
+      } else {
+        deco(alongX ? len : 0.16, 0.16, alongX ? 0.16 : len, alongX ? 0 : c, 0.32, alongX ? c : 0, C.fence);
+        deco(alongX ? len : 0.16, 0.16, alongX ? 0.16 : len, alongX ? 0 : c, 0.78, alongX ? c : 0, C.fence);
+        for (let k = -HALF + 1; k <= HALF - 1; k += 3) deco(0.3, 1.1, 0.3, alongX ? k : c, 0, alongX ? c : k, C.post);
+      }
+    }
+    if (desert) {
+      // окружение пустыни: вдали из облаков встают большие пирамиды и песчаные островки с пальмами (только картинка)
+      const far: [number, number, number, number][] = [[-95, -120, 34, 0.55], [70, -135, 46, 0.2], [150, -40, 30, -0.3], [-150, 30, 38, 0.9]];
+      for (const [x, z, w, y0] of far) {
+        const step = w / 5, base = -24 + y0;
+        for (let i = 0; i < 5; i++) deco(w - i * step, step * 0.9, w - i * step, x, base + i * step * 0.9 + 18, z, i === 4 ? C.pyrDark : C.pyr);
+      }
+      for (const [x, z] of [[-60, 85], [95, 70]]) {
+        deco(14, 3, 14, x, -4, z, C.sand);
+        deco(11, 6, 11, x, -10, z, C.sandRock);
+        for (let i = 0; i < 4; i++) deco(0.8, 1, 0.8, x + i * 0.25, -1 + i, z, C.palmTrunk);
+        deco(4, 0.4, 4, x + 1, 3, z, C.palm);
+      }
+    }
+    mergeStatic(g, ms, true);
+    return g;
+  };
+  const islands = { hills: island(false), pyramid: island(true) };
 
   // расстановка — новая каждый раунд (просьба заказчика): холмы, плита и башня поворачиваются/зеркалятся,
   // ящики и деревья встают на случайные свободные места
@@ -200,23 +239,36 @@ export function createScene(parent: HTMLElement): Game {
       if (hard) layoutSolids.push(physics.addMesh(m, hard === 'leaf' ? 'leaf' : undefined));
       parts.push(m);
     };
+    /** Украшение под углом (листья пальмы): без физики, сквозь него можно пройти. ry — поворот, tilt — наклон вниз. */
+    const leaf = (sx: number, sy: number, sz: number, x: number, y: number, z: number, color: number, ry: number, tilt: number) => {
+      const m = block({ x: sx, y: sy, z: sz }, color);
+      m.rotation.order = 'YZX';
+      m.rotation.set(0, ry, -tilt);
+      m.position.set(x, y, z);
+      layout.add(m);
+      parts.push(m);
+    };
+    const desert = map === 'pyramid';
+    islands.hills.visible = !desert;
+    islands.pyramid.visible = desert;
+    world.setSky(...SKY[map]);
     if (map === 'pyramid') {
       // ВТОРАЯ КАРТА «Пирамида» (Stage 9): ступенчатая пирамида 1→2→3→4 м — самое высокое место арены,
       // но на вершине тесно; две площадки 2 м с ступенькой, низкие стенки-укрытия посередине, башня с лесенкой
       put(16, 1, 16, 0, 0, -12, C.sand);
       put(12, 2, 12, 0, 0, -12, C.sand);
       put(8, 3, 8, 0, 0, -12, C.sand);
-      put(4, 4, 4, 0, 0, -12, C.sandDark);
+      put(4, 4, 4, 0, 0, -12, C.pyrDark);
       hill = ([[0, -5], [0, -7], [0, -9], [0, -12]] as const).map(([x, z]) => T(x, z));
       for (const sx of [-1, 1]) {
         put(5, 2, 5, 20 * sx, 0, 18, C.sand);
-        put(2, 1, 2, 20 * sx, 0, 14.5, C.sandDark);
-        put(9, 1, 1, 13 * sx, 0, 3, C.sandDark);   // стенка 1 м: от котов не спасёт, от метеора — укрытие сбоку
+        put(2, 1, 2, 20 * sx, 0, 14.5, C.pyrDark);
+        put(9, 1, 1, 13 * sx, 0, 3, C.pyrDark);   // стенка 1 м: от котов не спасёт, от метеора — укрытие сбоку
       }
       put(5, 6, 5, 20, 0, -20, C.sand);
-      for (let i = 0; i < 5; i++) put(2, i + 1, 2, 20, 0, -8.5 - i * 2, C.sandDark);
-      put(0.3, 3, 0.3, 21.8, 6, -21.8, C.trunk, false);
-      put(1.8, 1.1, 0.2, 22.8, 7.7, -21.8, C.flag, false);
+      for (let i = 0; i < 5; i++) put(2, i + 1, 2, 20, 0, -8.5 - i * 2, C.pyrDark);
+      put(0.3, 3, 0.3, 21.8, 6, -21.8, C.palmTrunk, false);
+      put(1.8, 1.1, 0.2, 22.8, 7.7, -21.8, C.cloth, false);   // синий вымпел вместо красного флажка холмов
     } else {
       // ступенчатый холм (1 → 2 → 3 м): забраться повыше — спасение от лавы и бегающих
       put(16, 1, 14, -16, 0, -13, C.stone);
@@ -250,26 +302,101 @@ export function createScene(parent: HTMLElement): Game {
       }
       return null;
     };
-    // ящики: «стенки» с ящиком наверху (на них сухо и при высокой лаве), пары и одиночные
-    const groups: [number, number, number][][] = [
-      ...Array(4).fill([[0, 0, 0], [2, 0, 0], [1, 2, 0]]),
-      ...Array(4).fill([[0, 0, 0], [2, 0, 0]]),
-      ...Array(3).fill([[0, 0, 0]]),
-    ];
-    for (const g of groups) {
-      const p = spot(g.length > 1 ? 2.2 : 1.2);
-      if (!p) continue;
-      const along = Math.random() < 0.5;
-      for (const [dx, y, dz] of g) put(2, 2, 2, p[0] + (along ? dx : dz) - (g.length > 1 && along ? 1 : 0), y, p[1] + (along ? dz : dx) - (g.length > 1 && !along ? 1 : 0), C.crate, true, true);
-    }
-    // деревья: ствол твёрдый, крона тоже держит (заказчик: «забрался на дерево — должен остаться»).
-    // Тип 'leaf': для существ и ботов крона не земля — под ней по-прежнему можно стоять; метеор и бомба бьют в верх кроны (impactAt)
-    for (let k = 0; k < 5; k++) {
-      const p = spot(1.6);
-      if (!p) continue;
-      put(1, 3, 1, p[0], 0, p[1], C.trunk, true, true);
-      put(3.4, 2.4, 3.4, p[0], 3, p[1], C.leaves, 'leaf', true);
-      put(2, 1.2, 2, p[0], 5.4, p[1], C.leaves, 'leaf', true);
+    if (desert) {
+      // ПУСТЫНЯ: вместо ящиков — обломки песчаника и колонны, амфоры; вместо деревьев — пальмы и кактусы, пара обелисков
+      const groups: [number, number, number][][] = [
+        ...Array(3).fill([[0, 0, 0], [2, 0, 0], [1, 2, 0]]),
+        ...Array(3).fill([[0, 0, 0], [2, 0, 0]]),
+      ];
+      for (const g of groups) {
+        const p = spot(2.2);
+        if (!p) continue;
+        const along = Math.random() < 0.5;
+        for (const [dx, y, dz] of g) put(2, 2, 2, p[0] + (along ? dx - 1 : dz), y, p[1] + (along ? dz : dx - 1), C.ruin, true, true);
+      }
+      // колонны: база, ствол (обломан на разной высоте), у целой — капитель
+      for (let k = 0; k < 3; k++) {
+        const p = spot(1.1);
+        if (!p) continue;
+        const h = k === 0 ? 3.2 : 1.4 + Math.random() * 0.8;
+        put(1.7, 0.4, 1.7, p[0], 0, p[1], C.pyrDark, true, true);
+        put(1.1, h, 1.1, p[0], 0.4, p[1], C.ruin, true, true);
+        if (k === 0) put(1.6, 0.35, 1.6, p[0], 0.4 + h, p[1], C.pyrDark, true, true);
+      }
+      // обелиски 5,6 м — не залезть, но за ними можно спрятаться от метеора
+      for (let k = 0; k < 2; k++) {
+        const p = spot(1);
+        if (!p) continue;
+        put(1.5, 0.5, 1.5, p[0], 0, p[1], C.pyrDark, true, true);
+        put(1.1, 4.4, 1.1, p[0], 0.5, p[1], C.pyr, true, true);
+        put(0.7, 0.7, 0.7, p[0], 4.9, p[1], C.cloth, true, true);
+      }
+      // амфоры — невысокие, через них перепрыгнуть
+      for (let k = 0; k < 5; k++) {
+        const p = spot(0.7);
+        if (!p) continue;
+        put(0.9, 0.75, 0.9, p[0], 0, p[1], C.pot, true, true);
+        put(0.55, 0.3, 0.55, p[0], 0.75, p[1], C.pot, false, true);
+        put(0.75, 0.12, 0.75, p[0], 1.05, p[1], C.potRim, false, true);
+      }
+      // пальмы: изогнутый ствол из колец, на макушке — веер длинных листьев (сквозь листья можно пройти)
+      for (let k = 0; k < 5; k++) {
+        const p = spot(1.4);
+        if (!p) continue;
+        const a = Math.random() * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
+        let x = p[0], z = p[1];
+        const rings = 5;
+        for (let i = 0; i < rings; i++) {
+          const w = 0.78 - i * 0.05;
+          put(w, 0.95, w, x, i * 0.95, z, C.palmTrunk, i < 2, true);
+          const lean = 0.08 + i * 0.07;
+          x += dx * lean; z += dz * lean;
+        }
+        const top = rings * 0.95;
+        put(1.1, 0.7, 1.1, x, top - 0.1, z, C.palm, false, true);
+        const n = 7, r0 = Math.random() * Math.PI;
+        for (let i = 0; i < n; i++) {
+          const ry = r0 + (i / n) * Math.PI * 2, L = 3.1, tilt = 0.32 + (i % 2) * 0.16;
+          const cx = x + Math.cos(ry) * L * 0.46, cz = z - Math.sin(ry) * L * 0.46;
+          leaf(L, 0.16, 0.95, cx, top + 0.35 - Math.sin(tilt) * L * 0.46, cz, C.palm, ry, tilt);
+        }
+        // кокосы
+        for (let i = 0; i < 3; i++) { const b = r0 + i * 2.1; put(0.36, 0.36, 0.36, x + Math.cos(b) * 0.45, top - 0.35, z + Math.sin(b) * 0.45, C.trunk, false, true); }
+      }
+      // кактусы: ствол и «руки», колючие — на них не залезть, но обойти и спрятаться можно
+      for (let k = 0; k < 5; k++) {
+        const p = spot(1);
+        if (!p) continue;
+        const h = 1.9 + Math.random() * 0.8, side = Math.random() < 0.5;
+        put(0.85, h, 0.85, p[0], 0, p[1], C.cactus, true, true);
+        for (const s of [-1, 1]) {
+          const ay = 0.7 + (s > 0 ? 0.2 : 0.55), ox = side ? s * 0.7 : 0, oz = side ? 0 : s * 0.7;
+          put(side ? 0.6 : 0.45, 0.42, side ? 0.45 : 0.6, p[0] + ox * 0.75, ay, p[1] + oz * 0.75, C.cactus, false, true);
+          put(0.45, 0.85, 0.45, p[0] + ox * 1.2, ay, p[1] + oz * 1.2, C.cactus, false, true);
+        }
+      }
+    } else {
+      // ящики: «стенки» с ящиком наверху (на них сухо и при высокой лаве), пары и одиночные
+      const groups: [number, number, number][][] = [
+        ...Array(4).fill([[0, 0, 0], [2, 0, 0], [1, 2, 0]]),
+        ...Array(4).fill([[0, 0, 0], [2, 0, 0]]),
+        ...Array(3).fill([[0, 0, 0]]),
+      ];
+      for (const g of groups) {
+        const p = spot(g.length > 1 ? 2.2 : 1.2);
+        if (!p) continue;
+        const along = Math.random() < 0.5;
+        for (const [dx, y, dz] of g) put(2, 2, 2, p[0] + (along ? dx : dz) - (g.length > 1 && along ? 1 : 0), y, p[1] + (along ? dz : dx) - (g.length > 1 && !along ? 1 : 0), C.crate, true, true);
+      }
+      // деревья: ствол твёрдый, крона тоже держит (заказчик: «забрался на дерево — должен остаться»).
+      // Тип 'leaf': для существ и ботов крона не земля — под ней по-прежнему можно стоять; метеор и бомба бьют в верх кроны (impactAt)
+      for (let k = 0; k < 5; k++) {
+        const p = spot(1.6);
+        if (!p) continue;
+        put(1, 3, 1, p[0], 0, p[1], C.trunk, true, true);
+        put(3.4, 2.4, 3.4, p[0], 3, p[1], C.leaves, 'leaf', true);
+        put(2, 1.2, 2, p[0], 5.4, p[1], C.leaves, 'leaf', true);
+      }
     }
     mergeStatic(layout, parts, true);
     // препятствия перед игроком «просвечивают» (см. occlude.ts)
@@ -278,7 +405,7 @@ export function createScene(parent: HTMLElement): Game {
     dummySpots = [];
     for (let k = 0; k < DUMMIES; k++) dummySpots.push(spot(0.8) ?? [k * 3 - 9, -3]);
     // верхушки построек — куда боты лезут прятаться и спасаться от лавы
-    spots = layoutSolids.filter((sd) => sd.kind !== 'leaf').map((sd) => { const b = sd.box; return { x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, h: b.max.y, sx: (b.max.x - b.min.x) / 2 - 0.3, sz: (b.max.z - b.min.z) / 2 - 0.3 }; });
+    spots = layoutSolids.filter((sd) => sd.kind !== 'leaf' && sd.box.max.x - sd.box.min.x > 1.6 && sd.box.max.z - sd.box.min.z > 1.6).map((sd) => { const b = sd.box; return { x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, h: b.max.y, sx: (b.max.x - b.min.x) / 2 - 0.3, sz: (b.max.z - b.min.z) / 2 - 0.3 }; });
   };
   let dummySpots: [number, number][] = [];
   let spots: Spot[] = [];
@@ -456,7 +583,10 @@ export function createScene(parent: HTMLElement): Game {
   /** Боты в радиусе: гибнут (взрыв отбрасывает сильнее), укушенные зомби исчезают — там встают зомби. */
   const dummiesNear = (x: number, y: number, z: number, r: number, infect = false, power = 1) => bots.hit(x, y, z, r, infect, power);
 
+  /** Игрок отсиживается на возвышении (башня, верх холма/пирамиды), пока финальная лава не пошла. */
+  const perched = () => state === 'play' && lavaStep === 0 && ctl.grounded && ctl.pos.y >= GROUND_Y + 2.4;
   const creatures = new Creatures(scene, HALF, surface, fx, flames, bolts, {
+    perched,
     heightAt,
     impactAt,
     lavaLevel: () => lava.level,
@@ -493,6 +623,7 @@ export function createScene(parent: HTMLElement): Game {
   // гроза над тем, кто долго стоит на месте (заказчик: «залез на гору — и сижу всю игру»), см. storm.ts
   const storm = new Storm(scene, {
     impactAt,
+    perched,
     gather: (x, z) => { moment('storm', x, z); sfx.play('boom', 0.1, 0.35, 0.55); },   // далёкий гром — тот же взрыв, ниже и тише
     strike(x, y, z, r) {
       fx.emit('poof', tmp.set(x, y + 0.4, z), 1.2, [0xfff6a8, 0xffe14d, 0xffffff]);
@@ -532,7 +663,7 @@ export function createScene(parent: HTMLElement): Game {
     bots.reset(dummySpots);
     if (models.size) dressBots();   // каждый раунд — новые облики соперников
     hearts = D().hearts; hurtT = 0; ui.setHearts(hearts, hearts);
-    creatures.level.runners = D().runners; creatures.level.speed = D().speed;
+    creatures.level.runners = D().runners; creatures.level.speed = D().speed; creatures.level.chase = D().chase; creatures.level.roam = D().roam;
     player.root.visible = true;
     ctl.respawn();
     ctl.grip = 1; ctl.speedMul = 1;
@@ -861,9 +992,9 @@ export function createScene(parent: HTMLElement): Game {
   if (import.meta.env.DEV) {
     // Q — следующий уровень качества по кругу: сравнить low/med/high на одном кадре
     addEventListener('keydown', (e) => { if (e.code === 'KeyQ') quality.set((quality.tier + 1) % 4); });
-    Object.assign(window, { __renderer: renderer, __THREE: THREE, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels,
+    Object.assign(window, { __renderer: renderer, __THREE: THREE, __scene: scene, __ctl: ctl, __cam: cam, __tick: tick, __quality: quality, __restart: (d: Difficulty = 'normal') => { diff = d; startRound(); }, __creatures: creatures, __reels: reels, __stormInfo: () => storm.info(),
       // автопрогон (tools/playtest.cjs): состояние раунда для бота-тестера
-      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __revive: () => revive(), __die: () => die('test'), __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => { state = w ? 'win' : 'dead'; reels.hide(); finish(w); }, chars: () => menu.onCharacters?.(), enc: () => menu.onEncyclopedia?.(), board: () => menu.onLeaderboard?.() }, __dust: dust, __surface: surface, __hill: () => hill,
+      __heightAt: heightAt, __impactAt: impactAt, __bots: bots, __mode: () => mode, __revive: () => revive(), __die: () => die('test'), __tut: () => tutorial.current, __paused: () => paused, __ui: { main: () => showMain(), round: () => startRound(), pause: () => menu.onPause?.(), result: (w: boolean) => { state = w ? 'win' : 'dead'; reels.hide(); finish(w); }, chars: () => menu.onCharacters?.(), enc: () => menu.onEncyclopedia?.(), board: () => menu.onLeaderboard?.() }, __dust: dust, __surface: surface, __hill: () => hill, __map: (m: MapId) => menu.onMap?.(m),
       __state: () => ({ t, state, started, deathCause, hearts, hits, reacted: Object.fromEntries(reacted), cells: surface.counts(), lava: lava.level, dummies: bots.alive, reels: reelLog.slice() }) });
   }
 
@@ -895,7 +1026,9 @@ export function createScene(parent: HTMLElement): Game {
       // текстуры карты: трава, земля, камень, ящики, кора, листва, заборчик (нет картинки — блок гладкий, как раньше)
       if (new URLSearchParams(location.search).get('tex') !== '0') await applyMapTextures({
         [C.grass]: 'grass', [C.dirt]: 'dirt', [C.stone]: 'stone', [C.stoneDark]: 'stone', [C.crate]: 'planks',
-        [C.trunk]: 'bark', [C.leaves]: 'leaves', [C.fence]: 'wood', [C.post]: 'wood', [C.sand]: 'stone', [C.sandDark]: 'stone',
+        [C.trunk]: 'bark', [C.leaves]: 'leaves', [C.fence]: 'wood', [C.post]: 'wood',
+        [C.sand]: 'sand', [C.sandRock]: 'sandstone', [C.pyr]: 'sandstone', [C.pyrDark]: 'sandstone', [C.ruin]: 'sandstone', [C.adobe]: 'sand',
+        [C.palmTrunk]: 'palmbark', [C.palm]: 'palmleaf', [C.cactus]: 'cactus',
       }, quality.tier === 0 ? 1 : 4);
       onProgress(0.5);
       // персонажи (этап 8): все модели сразу (18) — соперники каждый раунд в новых обликах, ~1,5 МБ
